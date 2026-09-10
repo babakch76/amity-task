@@ -31,6 +31,6 @@
         <!-- PLACEHOLDER: replace with your dev machine's LAN IP before a
              physical-device demo. Must match taskflow.baseUrl in
              local.properties. -->
-        <domain includeSubdomains="false">192.168.1.42</domain>
+        <domain includeSubdomains="false">192.168.1.120</domain>
     </domain-config>
 </network-security-config>

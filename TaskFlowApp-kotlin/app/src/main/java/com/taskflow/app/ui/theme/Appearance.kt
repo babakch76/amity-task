@@ -45,7 +45,8 @@ object Appearance {
     /** Reads the stored choice. Call once, before the first frame. */
     fun load(context: Context) {
         val stored = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY, null)
-        _mode.value = AppearanceMode.entries.firstOrNull { it.name == stored } ?: AppearanceMode.SYSTEM
+        _mode.value =
+            AppearanceMode.entries.firstOrNull { it.name == stored } ?: AppearanceMode.SYSTEM
     }
 
     fun set(context: Context, mode: AppearanceMode) {

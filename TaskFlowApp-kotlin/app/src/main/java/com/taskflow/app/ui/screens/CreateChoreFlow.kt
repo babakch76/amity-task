@@ -618,16 +618,24 @@ private fun IntervalBlock(draft: ChoreDraft, onDraft: (ChoreDraft) -> Unit) {
         )
     }
     if (other) {
+        // The text is kept apart from the draft so the field can be cleared
+        // while typing a new number. Empty or 0 means no gap: every day, which
+        // is what the draft carries (the backend rejects 0).
+        var text by remember { mutableStateOf(draft.intervalDays.toString()) }
         OutlinedTextField(
-            value = draft.intervalDays.toString(),
+            value = text,
             onValueChange = { typed ->
-                val n = typed.filter { it.isDigit() }.take(3).toIntOrNull()
-                if (n != null && n in 1..365) onDraft(draft.copy(intervalDays = n))
+                val digits = typed.filter { it.isDigit() }.take(3)
+                val n = digits.toIntOrNull()
+                if (n != null && n > 365) return@OutlinedTextField
+                text = digits
+                onDraft(draft.copy(intervalDays = if (n == null || n == 0) 1 else n))
             },
             label = { Text("Days") },
+            supportingText = { Text("Empty or 0 means every day") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.width(120.dp),
+            modifier = Modifier.width(160.dp),
         )
     }
     Text(

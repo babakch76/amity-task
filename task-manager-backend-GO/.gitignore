@@ -1,6 +1,6 @@
 # Compiled binaries
-server
-taskflow-server
+/server
+/taskflow-server
 *.exe
 *.exe~
 *.dll
