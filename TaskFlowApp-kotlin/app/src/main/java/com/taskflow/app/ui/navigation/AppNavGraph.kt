@@ -8,8 +8,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.taskflow.app.data.local.TokenManager
-import com.taskflow.app.ui.screens.DashboardScreen
 import com.taskflow.app.ui.screens.GroupDetailScreen
+import com.taskflow.app.ui.screens.MainShell
 import com.taskflow.app.ui.screens.LoginScreen
 import com.taskflow.app.ui.screens.RegisterScreen
 
@@ -19,7 +19,15 @@ import com.taskflow.app.ui.screens.RegisterScreen
 object Routes {
     const val LOGIN = "login"
     const val REGISTER = "register"
-    const val DASHBOARD = "dashboard"
+
+    /**
+     * The three-tab shell: My groups, My chores, Settings.
+     *
+     * One outer route for all three. The tabs have their own nested graph
+     * inside [MainShell], so switching between them never touches this one and
+     * each keeps its own state.
+     */
+    const val SHELL = "shell"
     const val GROUP_DETAIL = "group/{groupId}"
 
     fun groupDetail(groupId: String) = "group/$groupId"
@@ -29,11 +37,15 @@ object Routes {
  * Root navigation graph for the app.
  *
  * Checks [TokenManager.isLoggedIn] to determine the start destination:
- *  - If a token exists → jump straight to Dashboard
+ *  - If a token exists → jump straight to the shell
  *  - If not → show Login
  *
  * Login and Register toggle between each other with a text button; both land on
- * Dashboard on success.
+ * the shell on success.
+ *
+ * The board sits outside the shell on its own route, so it fills the screen
+ * with no bottom bar under it — DESIGN.md §4.1 keeps the bar off the board's
+ * sub-flows, and the create-chore flow it leads to needs the whole screen.
  *
  * @param tokenManager The process-wide instance owned by TaskFlowApp, passed
  *   down from MainActivity. This graph must not construct its own — see
@@ -47,15 +59,15 @@ fun AppNavGraph(
     // Read once, when the graph is first composed: the start destination can't
     // change under a live NavHost anyway.
     val startDestination = if (tokenManager.isLoggedIn()) {
-        Routes.DASHBOARD
+        Routes.SHELL
     } else {
         Routes.LOGIN
     }
 
     /** Shared by Login and Register — both fully replace the auth back stack. */
-    fun goToDashboard() {
-        navController.navigate(Routes.DASHBOARD) {
-            // popUpTo(0) clears login AND register, so back from the dashboard
+    fun goToShell() {
+        navController.navigate(Routes.SHELL) {
+            // popUpTo(0) clears login AND register, so back from the shell
             // never returns to an auth screen.
             popUpTo(0) { inclusive = true }
         }
@@ -69,7 +81,7 @@ fun AppNavGraph(
         composable(Routes.LOGIN) {
             LoginScreen(
                 tokenManager = tokenManager,
-                onLoginSuccess = { goToDashboard() },
+                onLoginSuccess = { goToShell() },
                 onNavigateToRegister = {
                     navController.navigate(Routes.REGISTER) {
                         // Only ever one auth screen on the stack.
@@ -83,7 +95,7 @@ fun AppNavGraph(
         composable(Routes.REGISTER) {
             RegisterScreen(
                 tokenManager = tokenManager,
-                onRegisterSuccess = { goToDashboard() },
+                onRegisterSuccess = { goToShell() },
                 onNavigateToLogin = {
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(Routes.REGISTER) { inclusive = true }
@@ -92,9 +104,9 @@ fun AppNavGraph(
             )
         }
 
-        // ─── Dashboard (Group List) ───
-        composable(Routes.DASHBOARD) {
-            DashboardScreen(
+        // ─── Shell (My groups · My chores · Settings) ───
+        composable(Routes.SHELL) {
+            MainShell(
                 onGroupClick = { groupId ->
                     navController.navigate(Routes.groupDetail(groupId))
                 },

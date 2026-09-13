@@ -852,7 +852,7 @@ private fun GroupErrorBlock(message: String, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun EmptyBlock(title: String, subtitle: String, action: (@Composable () -> Unit)? = null) {
+internal fun EmptyBlock(title: String, subtitle: String, action: (@Composable () -> Unit)? = null) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -893,7 +893,7 @@ private fun EmptyBlock(title: String, subtitle: String, action: (@Composable () 
  * doing and whose is it" — is the same for both, so the sections and the row
  * are shared and only the source differs.
  */
-private sealed interface BoardRow {
+internal sealed interface BoardRow {
     val key: String
     val title: String
     val assignedTo: String?
@@ -1093,7 +1093,7 @@ private val UNDO_WINDOW: Duration = Duration.ofMinutes(10)
  * only while an occurrence's chore has yet to arrive, which is a moment rather
  * than a state.
  */
-private fun scheduleLineFor(row: BoardRow, chores: List<Chore>): String? = when (row) {
+internal fun scheduleLineFor(row: BoardRow, chores: List<Chore>): String? = when (row) {
     is BoardRow.OccurrenceRow ->
         chores.firstOrNull { it.id == row.occurrence.choreId }?.let { chore ->
             buildString {
@@ -1167,7 +1167,7 @@ private fun cycleLineFor(
  * (hard constraint 3). The date is information enough.
  */
 @Composable
-private fun TaskCard(
+internal fun TaskCard(
     row: BoardRow,
     scheduleText: String?,
     highlighted: Boolean,

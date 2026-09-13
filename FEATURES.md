@@ -1,8 +1,9 @@
 # TaskFlow: what the app does
 
 A reference for the app **as built and deployed**, not as planned. Written
-2026-09-04 against commit `496005a`, with every claim checked against the code
-or driven on a device rather than taken from an earlier document.
+2026-09-04 against commit `496005a`, revised 2026-09-13 for the bottom bar and
+the Settings tab, with every claim checked against the code or driven on a
+device rather than taken from an earlier document.
 
 Two companion documents, deliberately separate:
 
@@ -179,8 +180,8 @@ Scheduled **on the device**, not on the server, and covering every household you
 belong to rather than only the one you have open.
 
 **Quiet hours** are a property of the person, not the group: one window on your
-account, applying to reminders from all of your households, and set from the
-group-list menu. Anything due inside the window waits until it is over rather
+account, applying to reminders from all of your households, and set from
+**Settings**. Anything due inside the window waits until it is over rather
 than being dropped.
 
 ---
@@ -246,13 +247,38 @@ and the last member leaving deletes the household.
 
 ## 10. Appearance
 
-**System, Light or Dark**, chosen from the group-list menu and stored **on the
+**System, Light or Dark**, chosen from **Settings** and stored **on the
 device**: it is a property of this phone in this person's hand, not of the
 account or the household, so it is not synced and not visible to anybody else.
 
 ---
 
-## 11. Shape of the system
+## 11. Getting around
+
+Three places, on a bottom bar that is always there once you are signed in.
+
+**My groups** — the households you are in. Tap one to open its board; the board
+fills the screen, with no bar under it. Also where a household is created, and
+where somebody with none is offered a code to join with.
+
+**My chores** — your own turns, from **every** household at once, grouped by
+household and oldest first. Tick one and it is done; the ones you have already
+done this cycle stay at the bottom so a mis-tap can still be undone. Everything
+else about a chore — passing it, its done-line, its history — is on the board,
+which the row opens.
+
+It shows only your own turns. Never another member's name, date or workload,
+and there is no shared or comparison mode.
+
+**Settings** — you. The name your housemates see and the address you sign in
+with, both changeable; invitations waiting for you, and joining with a code;
+quiet hours, appearance, and signing out. A violet dot on the tab means an
+invitation is waiting; it is the only badge in the bar, and there are no counts
+in it at all.
+
+---
+
+## 12. Shape of the system
 
 | Piece | What it is |
 |---|---|

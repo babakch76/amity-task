@@ -6,6 +6,51 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-09-13 — The bottom bar, and a settings screen that exists
+
+The group list had quietly become the app's settings screen: quiet hours,
+appearance, joining with a code and signing out all lived behind three dots on
+a screen about households. Replaced with the shell DESIGN.md §4.1 asks for — a
+persistent bottom bar over three destinations — and deleted the overflow menu.
+
+**My groups** kept only what is about households: the list, New Group, the
+first-run starters, and Join with a code on the empty state (a person with no
+households is the one person who must not be sent to another tab to find half
+the answer).
+
+**My chores** is new, and the only screen that crosses household lines: your
+own open turns from every household you're in, grouped by household, oldest
+date first, with the done-this-cycle rows kept last so the ten-minute undo is
+reachable. It reuses the board's own `TaskCard` rather than a second row
+implementation — the `AuthScaffold` lesson. The checkbox works; passing does
+not, because passing needs the rotation and the away states, which belong to
+one household's board. Tapping a row opens it.
+
+**Settings** is three groups — You / Households / This app — over rows rather
+than menu items, with a monogram header. Invitations moved here and the bar's
+only badge is a violet dot on this tab while any are waiting.
+
+Two departures from DESIGN.md §4, both deliberate, both recorded in
+`BACKLOG.md`: the first tab is **My groups**, not a single household's Board —
+the group list is not deleted as §4.2 plans, because the household switcher
+sheet that was meant to replace it does not exist yet. And **My chores** is the
+list form of §5's My week without the calendar and day-strip modes.
+
+Backend: `PATCH /me` grew `username` and `email`, so the two identity rows in
+Settings have something to call. Stricter than register on email — it is the
+login identifier and a typo locks you out of your own account — and a taken
+name or address comes back 409 with register's own wording. Eight new handler
+tests; `go vet` and `go test ./...` clean.
+
+Device-verified on the physical phone against the local backend: all three
+tabs, the tab state surviving a switch, a rename round-trip (`PATCH /me -> 200`,
+snackbar, header updated, renamed back), and the board still opening
+full-screen with no bar under it.
+
+Open: the no-household empty state and the multi-household case have not been
+driven on a device, only reasoned about; the `screens/` captures are now stale
+for three screens (V2-HANDOFF phase 4b).
+
 ## 2026-09-13 — Sign in and Create account built from the Stitch mocks
 
 **Done**

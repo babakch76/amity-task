@@ -521,6 +521,16 @@ data class UpdateOccurrenceRequest(
  * restating the other; the server refuses a patch that leaves both equal.
  */
 data class UpdateMeRequest(
+    /**
+     * The name housemates see. Trimmed and length-checked by the server;
+     * taking a name somebody else already has comes back as 409.
+     */
+    val username: String? = null,
+    /**
+     * The login identifier. The server validates its shape more strictly than
+     * register does, because a typo here locks you out of your own account.
+     */
+    val email: String? = null,
     @SerializedName("quiet_from")
     val quietFrom: String? = null,
     @SerializedName("quiet_to")

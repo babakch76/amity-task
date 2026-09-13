@@ -12,6 +12,50 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
 
 ## v2 progress
 
+- **The overflow menu — REMOVED (2026-09-13).** Quiet hours, appearance, join
+  with a code and sign out lived behind three dots on the group list. A menu is
+  where you put things you have nowhere else for; all four are things a person
+  goes looking for. They are now rows in a **Settings** tab. The dots are gone
+  from that screen entirely.
+- **Bottom navigation — PARTIALLY BUILT (2026-09-13).** DESIGN.md §4.1's shell,
+  with two deliberate departures from §4.2 recorded here rather than silently:
+  - **The group list survives as the first tab**, rather than being replaced by
+    a household switcher chip in the Board's app bar. The switcher sheet does
+    not exist, and deleting the list before its replacement is built would
+    leave a person in two households with no way to change which one they are
+    looking at. **My groups** is therefore the first tab and the Board stays a
+    route below it, opened by tapping a household.
+  - **"My chores" rather than "My week".** §5's My week has List and Calendar
+    modes over a day strip and a month grid. This is the List half only. The
+    calendar half is not deferred work so much as a question — the month grid
+    of your own projected turns is the nearest thing in the design to a
+    schedule view, and `calendar_decision_record.md` is about exactly that
+    argument. Build the rest of it after re-reading that record, not before.
+
+  What the tab does have: your open turns across **every** household, grouped by
+  household, oldest date first, with done-this-cycle rows kept last so the
+  ten-minute undo is still reachable. It reuses the board's `TaskCard` rather
+  than a second row implementation — the same reasoning that produced
+  `AuthScaffold`. Passing is deliberately not offered there: it needs the
+  rotation and the household's away states, so it stays on the board, one tap
+  through the row.
+- **`PATCH /me` now takes `username` and `email` (2026-09-13).** Settings can
+  change either. Notes for anyone extending it:
+  - **Stricter than register on email, on purpose.** Register accepts any
+    non-empty string; this parses the address and rejects a display-name form
+    (`Ann <ann@x>`), because email is the login identifier and a typo here locks
+    the person out of their own account. Several dev accounts predate the check
+    and hold addresses it would now refuse — they can still sign in, they simply
+    cannot change to another bad one.
+  - Username is trimmed and capped at `models.MaxUsernameLength` (32). Nothing
+    in the data model needs the cap; the member rows and rotation pickers that
+    render it do.
+  - Both columns are `UNIQUE`, so a taken name or address is a **409** with
+    register's own wording. Anything else from the UPDATE stays a 500 rather
+    than being reported to the person as their fault.
+  - **No password field, and no password-change route.** Changing a password
+    needs the old one and a different failure mode. Same reason the sign-in
+    screen has no *Forgot?* link.
 - **Manager role + deadline permissions — REMOVED.** The spec makes chore
   editing open to every member, so the gate contradicted it.
 - **F1 (Board) — DONE and device-verified** (2026-08-31). Driven on the emulator

@@ -166,3 +166,147 @@ func TestQuietHoursArePerUser(t *testing.T) {
 		t.Errorf("ann's change reached bo: %s-%s", me.QuietFrom, me.QuietTo)
 	}
 }
+
+// ─── Identity: username and email (Settings → Profile) ───────────────
+
+func TestUpdateUsername(t *testing.T) {
+	db := newTestDB(t)
+	h := &MeHandler{DB: db}
+	userID := newUser(t, db, "ann")
+
+	t.Run("a plain rename", func(t *testing.T) {
+		rec := patchMe(t, h, userID, `{"username":"annie"}`)
+		if rec.Code != 200 {
+			t.Fatalf("got %d (%s)", rec.Code, rec.Body.String())
+		}
+		if me := getMe(t, h, userID); me.Username != "annie" {
+			t.Errorf("username: got %q, want %q", me.Username, "annie")
+		}
+	})
+
+	t.Run("surrounding space is trimmed, not stored", func(t *testing.T) {
+		if rec := patchMe(t, h, userID, `{"username":"  ann  "}`); rec.Code != 200 {
+			t.Fatalf("got %d (%s)", rec.Code, rec.Body.String())
+		}
+		if me := getMe(t, h, userID); me.Username != "ann" {
+			t.Errorf("username: got %q, want %q", me.Username, "ann")
+		}
+	})
+
+	t.Run("a rename leaves the quiet-hours window alone", func(t *testing.T) {
+		if rec := patchMe(t, h, userID, `{"username":"ann2"}`); rec.Code != 200 {
+			t.Fatalf("got %d (%s)", rec.Code, rec.Body.String())
+		}
+		me := getMe(t, h, userID)
+		if me.QuietFrom != models.DefaultQuietFrom || me.QuietTo != models.DefaultQuietTo {
+			t.Errorf("window moved to %s-%s", me.QuietFrom, me.QuietTo)
+		}
+	})
+}
+
+func TestUpdateEmail(t *testing.T) {
+	db := newTestDB(t)
+	h := &MeHandler{DB: db}
+	userID := newUser(t, db, "ann")
+
+	if rec := patchMe(t, h, userID, `{"email":"ann@flat3b.test"}`); rec.Code != 200 {
+		t.Fatalf("got %d (%s)", rec.Code, rec.Body.String())
+	}
+	if me := getMe(t, h, userID); me.Email != "ann@flat3b.test" {
+		t.Errorf("email: got %q", me.Email)
+	}
+}
+
+// Email is the login identifier, so a typo locks the person out of their own
+// account. This endpoint is stricter than register on purpose.
+func TestUpdateIdentityRejectsBadInput(t *testing.T) {
+	db := newTestDB(t)
+	h := &MeHandler{DB: db}
+	userID := newUser(t, db, "ann")
+
+	cases := []struct {
+		name string
+		body string
+		want string
+	}{
+		{"empty username", `{"username":""}`, "username cannot be empty"},
+		{"whitespace username", `{"username":"   "}`, "username cannot be empty"},
+		{
+			name: "username too long",
+			body: `{"username":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}`, // 33
+			want: "username must be 32 characters or fewer",
+		},
+		{"no at sign", `{"email":"ann.example.test"}`, "that does not look like an email address"},
+		{"empty email", `{"email":""}`, "that does not look like an email address"},
+		{
+			// mail.ParseAddress accepts a display name; the users table stores
+			// a bare address, so this must not slip through.
+			name: "a display name wrapped round an address",
+			body: `{"email":"Ann <ann@example.test>"}`,
+			want: "that does not look like an email address",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := patchMe(t, h, userID, tc.body)
+			if rec.Code != 400 {
+				t.Fatalf("got %d, want 400 (%s)", rec.Code, rec.Body.String())
+			}
+			if got := decodeError(t, rec); got != tc.want {
+				t.Errorf("error: got %q, want %q", got, tc.want)
+			}
+		})
+	}
+
+	me := getMe(t, h, userID)
+	if me.Username != "ann" || me.Email != "ann@example.test" {
+		t.Errorf("a rejected patch changed identity to %q / %q", me.Username, me.Email)
+	}
+}
+
+// Both columns are UNIQUE. Taking someone else's name is a 409, not a 500.
+func TestUpdateIdentityRejectsSomebodyElsesNameOrEmail(t *testing.T) {
+	db := newTestDB(t)
+	h := &MeHandler{DB: db}
+	ann := newUser(t, db, "ann")
+	newUser(t, db, "bo")
+
+	for _, tc := range []struct {
+		name string
+		body string
+	}{
+		{"a taken username", `{"username":"bo"}`},
+		{"a taken email", `{"email":"bo@example.test"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := patchMe(t, h, ann, tc.body)
+			if rec.Code != 409 {
+				t.Fatalf("got %d, want 409 (%s)", rec.Code, rec.Body.String())
+			}
+			if got := decodeError(t, rec); got != "username or email already taken" {
+				t.Errorf("error: got %q", got)
+			}
+		})
+	}
+
+	if me := getMe(t, h, ann); me.Username != "ann" || me.Email != "ann@example.test" {
+		t.Errorf("a refused patch still changed identity to %q / %q", me.Username, me.Email)
+	}
+}
+
+// Identity and the window move together when one patch names both.
+func TestUpdateIdentityAndQuietHoursTogether(t *testing.T) {
+	db := newTestDB(t)
+	h := &MeHandler{DB: db}
+	userID := newUser(t, db, "ann")
+
+	rec := patchMe(t, h, userID, `{"username":"annie","quiet_from":"22:00"}`)
+	if rec.Code != 200 {
+		t.Fatalf("got %d (%s)", rec.Code, rec.Body.String())
+	}
+	me := getMe(t, h, userID)
+	if me.Username != "annie" || me.QuietFrom != "22:00" {
+		t.Errorf("got %q / %s", me.Username, me.QuietFrom)
+	}
+}

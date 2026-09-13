@@ -11,12 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.MailOutline
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.outlined.FolderOff
@@ -38,56 +33,58 @@ import com.taskflow.app.data.model.Group
 import com.taskflow.app.data.model.InviteInfo
 import com.taskflow.app.data.remote.ApiErrors
 import com.taskflow.app.data.remote.RetrofitClient
-import com.taskflow.app.reminders.ReminderScheduler
-import com.taskflow.app.ui.theme.Appearance
-import com.taskflow.app.ui.theme.AppearanceMode
 import kotlinx.coroutines.launch
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 
 /**
- * How often to look for new invites while the Dashboard is on screen.
- * Deliberately slower than the group activity feed: invites are occasional,
- * and each poll is a request for every user sitting on this screen.
+ * How often to look for new invites while the app is on screen. Deliberately
+ * slower than the group activity feed: invites are occasional, and each poll
+ * is a request for every user sitting in the app.
+ *
+ * Read by [MainShell], which does the polling now that invites are answered in
+ * the Settings tab rather than from this screen's app bar.
  */
-private const val INVITE_POLL_MILLIS = 20_000L
+internal const val INVITE_POLL_MILLIS = 20_000L
 
 /**
- * Dashboard screen displaying the user's groups in a scrollable list.
+ * **My groups** — the first of the three shell tabs.
  *
- * Features:
- *  - Material 3 Scaffold with TopAppBar and FAB
- *  - Three UI states: Loading, Success (group list or empty), Error (with retry)
- *  - "Create Group" dialog triggered by the FAB
- *  - Pull-to-refresh via retry button
+ * One question only: which households am I in, and which one am I opening? It
+ * used to carry the whole of the app's personal settings in an overflow menu,
+ * because there was nowhere else for them to go. There is now: everything
+ * about *you* moved to the Settings tab, and this screen kept only what is
+ * about the households themselves — the list, creating one, and the first-run
+ * starters a new one is offered.
  *
- * @param onGroupClick Navigates to GroupDetail with the group's ID.
- * @param onLogout Clears the token and navigates to login.
+ * The bottom bar and the snackbar belong to [MainShell]; so does the
+ * [DashboardViewModel], which is shared with the other two tabs.
+ *
+ * @param onGroupClick Opens that household's board, outside the shell.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     onGroupClick: (String) -> Unit,
-    onLogout: () -> Unit,
     viewModel: DashboardViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val invites by viewModel.invites.collectAsState()
-    val actionMessage by viewModel.actionMessage.collectAsState()
     val isWorking by viewModel.isWorking.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
 
     var showCreateDialog by remember { mutableStateOf(false) }
-    var showInvites by remember { mutableStateOf(false) }
+    // Joining lives in Settings → Households, but the empty state has to offer
+    // it too: somebody with no households is the one person for whom bouncing
+    // off to another tab to find the other half of the answer is worst.
     var showJoinByCode by remember { mutableStateOf(false) }
-    var showQuietHours by remember { mutableStateOf(false) }
-    var showAppearance by remember { mutableStateOf(false) }
     // The group a first-run starter list is being offered for, if any.
     var starterFor by remember { mutableStateOf<Group?>(null) }
     var starterError by remember { mutableStateOf<String?>(null) }
-    var showMenu by remember { mutableStateOf(false) }
 
-    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val myUserId = remember {
+        (context.applicationContext as? TaskFlowApp)?.tokenManager?.getUserId()
+    }
 
     // In exactly one household, the group list is a menu with one item — skip
     // it and land on the board. Fires once; Back then leaves you here.
@@ -99,113 +96,18 @@ fun DashboardScreen(
         }
     }
 
-    // Arm reminders for every group the user is in (F3, B-8).
-    //
-    // The board can only ever schedule for the group it is showing, so a second
-    // household's turns went unmentioned until you opened it. This is the one
-    // screen that sees them all. Scheduling is scoped per group, so this and
-    // the board can both call in without cancelling each other's alarms.
-    val reminderData by viewModel.reminderData.collectAsState()
-    val quietHours by viewModel.quietHours.collectAsState()
-    val context = LocalContext.current
-    val myUserId = remember {
-        (context.applicationContext as? TaskFlowApp)?.tokenManager?.getUserId()
-    }
-
-    LaunchedEffect(reminderData, quietHours, myUserId) {
-        reminderData.forEach { group ->
-            ReminderScheduler.reschedule(
-                context = context.applicationContext,
-                groupId = group.groupId,
-                occurrences = group.occurrences,
-                chores = group.chores,
-                myUserId = myUserId,
-                quiet = quietHours,
-            )
-        }
-    }
-
-    // An invite that arrives while you're sitting here should appear on its
-    // own. A slower cadence than the activity feed on purpose — invites are
-    // rare, and this also refreshes immediately whenever the app is resumed.
-    PollWhileResumed(intervalMillis = INVITE_POLL_MILLIS) {
-        viewModel.fetchInvites()
-    }
-
-    LaunchedEffect(actionMessage) {
-        actionMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearActionMessage()
-        }
-    }
-
-    // Close the invites sheet once the last one is dealt with.
-    LaunchedEffect(invites) {
-        if (invites.isEmpty()) showInvites = false
-    }
-
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = "My Groups",
+                        text = "My groups",
                         fontWeight = FontWeight.Bold,
                     )
                 },
                 actions = {
-                    // Only shown when something is waiting — an empty inbox
-                    // icon is noise on a screen this small.
-                    if (invites.isNotEmpty()) {
-                        IconButton(onClick = { showInvites = true }) {
-                            BadgedBox(
-                                badge = { Badge { Text("${invites.size}") } },
-                            ) {
-                                Icon(
-                                    Icons.Default.MailOutline,
-                                    contentDescription = "${invites.size} pending invites",
-                                )
-                            }
-                        }
-                    }
                     IconButton(onClick = { viewModel.refresh() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                    }
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "More")
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false },
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Join with a code") },
-                            leadingIcon = { Icon(Icons.Default.VpnKey, null) },
-                            onClick = { showMenu = false; showJoinByCode = true },
-                        )
-                        // A per-person setting, so it belongs on the per-person
-                        // screen. It used to live in one group's overflow menu,
-                        // which implied a window per household.
-                        DropdownMenuItem(
-                            text = { Text("Quiet hours") },
-                            leadingIcon = { Icon(Icons.Default.Notifications, null) },
-                            onClick = { showMenu = false; showQuietHours = true },
-                        )
-                        // Beside quiet hours because they are the same kind of
-                        // thing: settings about this person rather than about
-                        // the household.
-                        DropdownMenuItem(
-                            text = { Text("Appearance") },
-                            leadingIcon = { Icon(Icons.Default.DarkMode, null) },
-                            onClick = { showMenu = false; showAppearance = true },
-                        )
-                        HorizontalDivider()
-                        DropdownMenuItem(
-                            text = { Text("Sign out") },
-                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.Logout, null) },
-                            onClick = { showMenu = false; onLogout() },
-                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -262,6 +164,17 @@ fun DashboardScreen(
         }
     }
 
+    // ─── Join with a shared code ───
+    if (showJoinByCode) {
+        JoinWithCodeDialog(
+            onDismiss = { showJoinByCode = false },
+            onJoin = { code ->
+                showJoinByCode = false
+                viewModel.redeemCode(code)
+            },
+        )
+    }
+
     // ─── Create Group Dialog ───
     if (showCreateDialog) {
         CreateGroupDialog(
@@ -300,81 +213,10 @@ fun DashboardScreen(
             },
         )
     }
-
-    // ─── Pending invites ───
-    if (showInvites && invites.isNotEmpty()) {
-        PendingInvitesDialog(
-            invites = invites,
-            onDismiss = { showInvites = false },
-            onRespond = { invite, action ->
-                viewModel.respondToInvite(invite.id, action, invite.groupName)
-            },
-        )
-    }
-
-    // ─── Join with a shared code ───
-    if (showJoinByCode) {
-        JoinWithCodeDialog(
-            onDismiss = { showJoinByCode = false },
-            onJoin = { code ->
-                showJoinByCode = false
-                viewModel.redeemCode(code)
-            },
-        )
-    }
-
-    if (showAppearance) {
-        val current by Appearance.mode.collectAsState()
-        AlertDialog(
-            onDismissRequest = { showAppearance = false },
-            title = { Text("Appearance") },
-            text = {
-                Column {
-                    AppearanceMode.entries.forEach { mode ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    Appearance.set(context, mode)
-                                    showAppearance = false
-                                }
-                                .padding(vertical = 4.dp),
-                        ) {
-                            RadioButton(
-                                selected = current == mode,
-                                onClick = {
-                                    Appearance.set(context, mode)
-                                    showAppearance = false
-                                },
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(mode.label)
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showAppearance = false }) { Text("Done") }
-            },
-        )
-    }
-
-    if (showQuietHours) {
-        QuietHoursDialog(
-            from = quietHours.from.format(QUIET_HOURS_FORMAT),
-            to = quietHours.to.format(QUIET_HOURS_FORMAT),
-            onDismiss = { showQuietHours = false },
-            onSave = { from, to ->
-                showQuietHours = false
-                viewModel.setQuietHours(from, to)
-            },
-        )
-    }
 }
 
 /** The wire format for a quiet-hours bound, and what the dialog shows. */
-private val QUIET_HOURS_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+internal val QUIET_HOURS_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
 // ═══════════════════════════════════════════════════════════════
 // Sub-components
@@ -628,7 +470,7 @@ private fun formatCreatedAt(date: OffsetDateTime?): String {
  * them; the caller closes it once the list empties.
  */
 @Composable
-private fun PendingInvitesDialog(
+internal fun PendingInvitesDialog(
     invites: List<InviteInfo>,
     onDismiss: () -> Unit,
     onRespond: (InviteInfo, String) -> Unit,
@@ -687,7 +529,7 @@ private fun PendingInvitesDialog(
  * to capitalise the first letter.
  */
 @Composable
-private fun JoinWithCodeDialog(
+internal fun JoinWithCodeDialog(
     onDismiss: () -> Unit,
     onJoin: (String) -> Unit,
 ) {
@@ -831,7 +673,7 @@ private fun CreateGroupDialog(
  * copy avoids implying they are.
  */
 @Composable
-private fun QuietHoursDialog(
+internal fun QuietHoursDialog(
     from: String,
     to: String,
     onDismiss: () -> Unit,

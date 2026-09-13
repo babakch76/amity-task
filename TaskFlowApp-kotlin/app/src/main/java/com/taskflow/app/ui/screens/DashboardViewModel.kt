@@ -10,6 +10,8 @@ import com.taskflow.app.data.model.Occurrence
 import com.taskflow.app.data.model.CreateChoreRequest
 import com.taskflow.app.data.model.RedeemInviteRequest
 import com.taskflow.app.data.model.UpdateMeRequest
+import com.taskflow.app.data.model.UpdateOccurrenceRequest
+import com.taskflow.app.data.model.User
 import com.taskflow.app.data.remote.ApiErrors
 import com.taskflow.app.data.remote.RetrofitClient
 import com.taskflow.app.reminders.QuietHours
@@ -148,6 +150,92 @@ class DashboardViewModel : ViewModel() {
     val quietHours: StateFlow<QuietHours> = _quietHours.asStateFlow()
 
     /**
+     * The signed-in person's own account, for the Settings tab's header and
+     * its two identity dialogs.
+     *
+     * Fetched alongside the reminder data rather than on its own, because the
+     * quiet-hours window comes from the same row and one request answers both.
+     * Null until the first fetch lands; Settings shows what it has.
+     */
+    private val _me = MutableStateFlow<User?>(null)
+    val me: StateFlow<User?> = _me.asStateFlow()
+
+    /**
+     * Change the name housemates see, or the address used to sign in.
+     *
+     * One call rather than two, because the dialogs send one field each and
+     * the endpoint takes either. The server does the real validation — empty
+     * or over-long names, malformed addresses, and names already taken — and
+     * [ApiErrors] passes its wording through, so the two sides cannot drift
+     * into disagreeing about what is allowed.
+     *
+     * @param onResult null on success, otherwise the message to show in the
+     *   dialog that is still open. A failure must not close it: the typed
+     *   value is the only copy of what the person meant.
+     */
+    fun updateProfile(
+        username: String? = null,
+        email: String? = null,
+        onResult: (String?) -> Unit,
+    ) {
+        viewModelScope.launch {
+            _isWorking.value = true
+            try {
+                val response = api.updateMe(UpdateMeRequest(username = username, email = email))
+                val updated = response.body()
+                if (response.isSuccessful && updated != null) {
+                    _me.value = updated
+                    _actionMessage.value =
+                        if (username != null) "Name updated" else "Email updated"
+                    onResult(null)
+                } else {
+                    onResult(ApiErrors.messageFor(response))
+                }
+            } catch (e: Exception) {
+                onResult(networkMessage(e))
+            } finally {
+                _isWorking.value = false
+            }
+        }
+    }
+
+    /**
+     * Tick or untick one of your own turns from the My chores tab.
+     *
+     * The board's own version of this lives in [GroupDetailViewModel] and
+     * cannot be reached from here: this tab spans every household, so it has
+     * no single group's ViewModel to ask. Both end up at the same endpoint,
+     * and the server is what decides whether an undo is still allowed.
+     *
+     * Reloads the whole cross-household set afterwards rather than patching
+     * one row in place. Marking a chore done creates its next occurrence, so
+     * the list genuinely changes shape — and this is the same fetch that arms
+     * the reminders, which the new occurrence needs too.
+     */
+    fun setOccurrenceDone(groupId: String, occurrenceId: String, done: Boolean) {
+        viewModelScope.launch {
+            _isWorking.value = true
+            try {
+                val response = api.updateOccurrence(
+                    groupId,
+                    occurrenceId,
+                    UpdateOccurrenceRequest(status = if (done) "done" else "open"),
+                )
+                if (response.isSuccessful) {
+                    _actionMessage.value = if (done) "Marked done" else "Completion undone"
+                    (uiState.value as? DashboardUiState.Success)?.let { loadReminderData(it.groups) }
+                } else {
+                    _actionMessage.value = ApiErrors.messageFor(response)
+                }
+            } catch (e: Exception) {
+                _actionMessage.value = networkMessage(e)
+            } finally {
+                _isWorking.value = false
+            }
+        }
+    }
+
+    /**
      * Move the quiet-hours window (F3).
      *
      * It lives here, on the screen that lists every household, because it is a
@@ -192,6 +280,7 @@ class DashboardViewModel : ViewModel() {
      */
     private suspend fun loadReminderData(groups: List<Group>) = coroutineScope {
         val me = runCatching { api.getMe() }.getOrNull()?.takeIf { it.isSuccessful }?.body()
+        if (me != null) _me.value = me
         _quietHours.value = QuietHours.parse(me?.quietFrom, me?.quietTo)
 
         _reminderData.value = groups

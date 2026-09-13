@@ -25,12 +25,27 @@ const (
 	DefaultQuietTo   = "09:00"
 )
 
-// UpdateMeRequest changes the caller's own settings. Only quiet hours for now;
-// both are optional so one can be set without the other.
+// UpdateMeRequest changes the caller's own settings: the quiet-hours window,
+// and the two pieces of identity a person can correct themselves.
+//
+// Every field is optional, so one can be set without restating the others, and
+// a patch naming none of them is refused rather than silently doing nothing.
+//
+// Username and email are here rather than on a separate profile endpoint
+// because they are the same kind of thing as quiet hours — settings that
+// belong to a person rather than to a household. There is deliberately no
+// password field: changing a password needs the old one, which is a different
+// conversation with a different failure mode.
 type UpdateMeRequest struct {
+	Username  *string `json:"username,omitempty"`
+	Email     *string `json:"email,omitempty"`
 	QuietFrom *string `json:"quiet_from,omitempty"`
 	QuietTo   *string `json:"quiet_to,omitempty"`
 }
+
+// MaxUsernameLength bounds the name housemates see. Nothing in the data model
+// needs a limit; the member rows and rotation pickers that render it do.
+const MaxUsernameLength = 32
 
 // SetAwayRequest declares the caller away from one household, or back (F5).
 //

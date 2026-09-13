@@ -44,7 +44,7 @@ taskflow/
 | `BACKLOG.md` | Why things are the way they are (67 KB of decision records). |
 | `PROPOSALS.md` | Six changes raised at handover; two are defects, not improvements. |
 | `calendar_decision_record.md` | Why there is no calendar, and why not to add one. |
-| `DESIGN.md` | **Target** design: design system + screen-by-screen UI/UX spec. Ahead of the code — bottom nav, My week, Settings are not built. §5.1–5.2 (Sign in, Create account) *are* built, as of 2026-09-13. |
+| `DESIGN.md` | **Target** design: design system + screen-by-screen UI/UX spec. Ahead of the code, but less so as of 2026-09-13: §5.1–5.2 (Sign in, Create account) are built, and so are the bottom bar and a real Settings tab — with two departures from §4.2/§5 that `BACKLOG.md` records. My week's calendar and day-strip modes are still unbuilt. |
 | `INTERVIEWS.md` | User-interview scripts and timing. |
 | `journal.md` | Running session log. Append, don't rewrite. |
 
@@ -128,13 +128,29 @@ answers `401`.
 | Screen | Role |
 |---|---|
 | `LoginScreen` / `RegisterScreen` | Auth, text-button toggle between them. Register signs you straight in. Both are a stateful screen plus a stateless `LoginContent` / `RegisterContent` — edit the layout there, and the `@Preview`s at the foot of each file are the design surface. |
-| `DashboardScreen` | Group list, create/join, pending-invite badge, quiet hours, appearance, sign out. |
+| `MainShell` | The bottom bar and the three tabs below it. Owns the shared `DashboardViewModel`, the reminder alarms and the invite poll. |
+| `DashboardScreen` — **My groups** | Group list, create, first-run starters, join-with-a-code on the empty state. Nothing personal lives here any more. |
+| `MyChoresScreen` — **My chores** | Your own turns across every household, grouped by household. Reuses the board's `TaskCard`. |
+| `SettingsScreen` — **Settings** | Name, email, invitations, join with a code, quiet hours, appearance, sign out. |
 | `GroupDetailScreen` (2.6k lines) | Board / Activity / Members tabs, plus every sheet and dialog. |
 | `CreateChoreFlow` | Add or edit a chore as two full-screen steps; delete lives at the end of edit. |
 | `FirstRunStarters` | Five starter chores offered to a brand-new household. |
 
-Navigation is four routes only: `login`, `register`, `dashboard`,
-`group/{groupId}`. Everything else is a sheet or dialog.
+Navigation is four outer routes only: `login`, `register`, `shell`,
+`group/{groupId}`, plus a nested graph of three inside the shell (`groups`,
+`mychores`, `settings`). Everything else is a sheet or dialog.
+
+**The board is outside the shell**, deliberately: it fills the screen with no
+bar under it, and the create-chore flow it leads to needs the whole screen.
+One consequence worth knowing — `DashboardViewModel` is created by `MainShell`
+and passed down to all three tabs by hand. A tab that calls `viewModel()` for
+its own copy gets a second instance and a second set of requests.
+
+The three tabs are **My groups**, not a single household's Board, and
+**My chores**, not DESIGN.md's My week. Both are deliberate departures from
+DESIGN.md §4.2 and §5; `BACKLOG.md` records why, and the calendar half of
+My week is a question rather than a to-do — read `calendar_decision_record.md`
+before building it.
 
 The two auth screens share their top half — emblem, wordmark, subtitle, field
 shape, pill button, amber error line — through `ui/components/AuthScaffold.kt`.
@@ -180,6 +196,11 @@ never synced — it is a property of this phone, not of the account or household
   a reflective adapter turned absent fields into explicit nulls and silently
   cleared assignees and deadlines. An all-absent request serialises to `{}` and
   the backend answers `400 no fields to update`; skip the call instead.
+- **`PATCH /me` is stricter than register.** It parses the email address and
+  rejects a display-name form; register accepts any non-empty string. Dev
+  accounts created before 2026-09-13 can hold addresses the endpoint would now
+  refuse. Username is trimmed and capped at 32. A taken name or address is a
+  **409**, not a 400.
 - **Debug `BODY` logging** includes the plaintext password on login/register.
   Drop to `BASIC` before sharing a Logcat.
 - **Release signing** needs a keystore configured in `local.properties`;
