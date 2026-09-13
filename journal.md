@@ -6,6 +6,59 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-09-13 (later still) — My week, and one sheet for both screens
+
+Three things, one of which turned into a crash worth writing down.
+
+**A week strip, and two readings of the same turns.** The toggle beside the
+refresh icon switches My chores between grouping by household — how the tab
+started — and DESIGN.md §5.11a's **My week**: a seven-day strip on top, then
+TODAY / TOMORROW / LATER THIS WEEK / NEXT WEEK AND BEYOND / NO DATE, with the
+done-this-cycle rows kept last. The title follows the toggle, so it really is
+*My chores* or *My week*, and `TurnsViewPreference` remembers which on the
+device.
+
+Both exist **for the interviews**, not forever. The design has one destination;
+which reading people reach for is a question about people rather than one to
+settle by argument, so it is being put in front of people. The loser gets
+deleted, and `BACKLOG.md` says so in advance, so the pair is not mistaken later
+for indecision.
+
+The strip is not the calendar constraint 5 forbids and not the tab
+`calendar_decision_record.md` deleted: no external calendar, no free/busy,
+nothing of anybody else's on it. A dot means *you* have a turn that day — never
+how many, and no day is coloured by how full it is.
+
+**Tapping a turn opens the board's own sheet.** It used to switch the board's
+household and leave you there. Rather than copying two hundred lines of wiring
+into a second screen, the detail sheet and everything behind it — history, the
+edit flow, the delete confirm, the busy pass — came out of `GroupDetailScreen`
+into `OccurrenceDetailHost`, driven by a hoisted `ChoreDetailController`. Both
+screens now mount the same thing. My chores spans households, so it builds a
+`GroupDetailViewModel` for whichever household the tapped turn belongs to; that
+is also why **Busy? Pass it on** works there, while swipe-to-pass on the row
+does not — the swipe needs the rotation and the away states, which the tab does
+not fetch.
+
+**The crash.** A turn due tomorrow landed in TOMORROW *and* in NEXT WEEK AND
+BEYOND, because "later this week" ends on Sunday and today *was* Sunday, so
+tomorrow was already after it. Two rows, one key, and a `LazyColumn` throws on
+that rather than drawing it twice — the app died on opening the tab. Fixed by
+coercing the boundary to at least tomorrow, plus a `seen` set so a future
+boundary mistake degrades instead of crashing. `WeekAgendaTest` now walks every
+weekday and asserts no turn is bucketed twice and none is lost; six tests,
+green.
+
+Also: `TaskCard` gained an optional household chip, shown on My week where the
+rows are ordered by date and come from more than one place, and absent on the
+board where it would be noise.
+
+Device-verified: both readings, the toggle and its title, the strip's today
+ring and violet dot, swiping to next week and the **This week** button, the
+detail sheet opening from a row with history, edit and pass, and the crash gone.
+A throwaway chore was created for the test and deleted through the sheet's own
+edit flow, which verified that path too.
+
 ## 2026-09-13 (later) — The group list is gone; the name at the top is the switcher
 
 The first tab no longer lists households. It opens the board of the one you

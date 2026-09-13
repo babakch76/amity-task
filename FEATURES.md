@@ -269,14 +269,27 @@ Which household you were last in is remembered on the phone, not on the
 account: it says nothing about how the same account should open on anybody
 else's device.
 
-**My chores** — your own turns, from **every** household at once, grouped by
-household and oldest first. Tick one and it is done; the ones you have already
-done this cycle stay at the bottom so a mis-tap can still be undone. Everything
-else about a chore — passing it, its done-line, its history — is on the board,
-which the row opens.
+**My chores / My week** — your own turns, from **every** household at once.
+A button in the bar switches between two ways of reading them, and the title
+says which you are in:
+
+- **My chores** groups them under the household they belong to.
+- **My week** puts the week on top — seven days, today ringed, a dot under any
+  day something of yours falls on — and sorts the turns into *today*,
+  *tomorrow*, *later this week*, *next week and beyond*, and the ones with no
+  date at all. Swipe the week to move it; a **This week** button brings you
+  back. Anything whose day has passed sits at the top of *today* with its date
+  in amber, never under a heading that names you as late.
+
+Tick a turn and it is done; the ones you have already done this cycle stay at
+the bottom so a mis-tap can still be undone. Tapping one opens the same detail
+it opens on the board — what counts as done, how often it comes round, its
+history, and *Busy? Pass it on*.
 
 It shows only your own turns. Never another member's name, date or workload,
-and there is no shared or comparison mode.
+and there is no shared or comparison mode. The week never says how many turns a
+day holds and never colours a day by how full it is: a day with four looks
+exactly like a day with one.
 
 **Settings** — you. The name your housemates see and the address you sign in
 with, both changeable; invitations waiting for you, and joining with a code;

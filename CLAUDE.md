@@ -131,7 +131,9 @@ answers `401`.
 | `MainShell` | The bottom bar and the three tabs below it. Owns the shared `ShellViewModel`, which household is open, the reminder alarms and the invite poll. |
 | `HouseholdTab` — **My groups** | Decides *which* household is open, handles having none, carries create + first-run starters. The board itself is still `GroupDetailScreen`. |
 | `GroupDetailScreen` (2.6k lines) | One household's board: Board / Activity / Members tabs, plus every sheet and dialog. A root destination — no back arrow, bar underneath. |
-| `MyChoresScreen` — **My chores** | Your own turns across every household, grouped by household. Reuses the board's `TaskCard`. |
+| `MyChoresScreen` — **My chores / My week** | Your own turns across every household. Two readings behind an app-bar toggle: grouped by household, or a week strip over dated buckets. Reuses the board's `TaskCard` and its detail sheet. |
+| `OccurrenceDetailHost` | The detail sheet and everything behind it — history, edit flow, delete confirm, busy pass. Mounted by **both** the board and My chores; driven by a hoisted `ChoreDetailController`. |
+| `ui/components/WeekStrip` | Seven days, today ringed, a dot for a day carrying a turn of yours. Never a count, never a colour by fullness. |
 | `SettingsScreen` — **Settings** | Name, email, invitations, join with a code, quiet hours, appearance, sign out. |
 | `ui/components/HouseholdSwitcher` | The board's title: household name + chevron, dropping a menu of households plus *Create a household* / *Join with a code*. |
 | `AccountDialogs.kt` | The four dialogs that outlived the group list — invites, join by code, create household, quiet hours. Was `DashboardScreen.kt`. |
@@ -156,9 +158,12 @@ device), and the switcher in its app bar changes it. Three things follow:
   Without the key, switching household keeps the previous household's ViewModel
   and leaves its chores on screen under the new name.
 
-**My chores** is not DESIGN.md's My week: it is the List half, without the
-calendar and day-strip modes. `BACKLOG.md` records why, and the calendar half is
-a question rather than a to-do — read `calendar_decision_record.md` first.
+The second tab ships **two readings of the same turns** — by household, and
+DESIGN.md §5.11a's My week — behind a toggle, with the title following it.
+That is deliberate and temporary: it is an A/B for the interviews, and **one of
+them is to be deleted afterwards**. `BACKLOG.md` records the terms. The month
+grid of §5.11b is not built, and is a question rather than a to-do — read
+`calendar_decision_record.md` before starting it.
 
 The two auth screens share their top half — emblem, wordmark, subtitle, field
 shape, pill button, amber error line — through `ui/components/AuthScaffold.kt`.
@@ -213,6 +218,11 @@ never synced — it is a property of this phone, not of the account or household
   a reflective adapter turned absent fields into explicit nulls and silently
   cleared assignees and deadlines. An all-absent request serialises to `{}` and
   the backend answers `400 no fields to update`; skip the call instead.
+- **Bucketing one list into sections is a duplicate-key risk, and in Compose
+  that is a crash.** My week put a turn due tomorrow into TOMORROW *and* NEXT
+  WEEK AND BEYOND on a Sunday, and the `LazyColumn` threw rather than drawing it
+  twice (B-9). `WeekAgendaTest` guards the boundaries; keep the `seen` set in
+  `weekAgenda` if you add a bucket.
 - **`PATCH /me` is stricter than register.** It parses the email address and
   rejects a display-name form; register accepts any non-empty string. Dev
   accounts created before 2026-09-13 can hold addresses the endpoint would now

@@ -140,50 +140,28 @@ fun GroupDetailScreen(
     // board for a moment. Cleared on a timer: a highlight that stays is just a
     // second kind of status.
     var justAdded by remember { mutableStateOf<String?>(null) }
-    // The occurrence a busy pass is being confirmed for. Both the swipe and the
-    // detail sheet route through here, so the rule is stated once and the two
-    // paths cannot drift apart.
-    var passCandidate by remember { mutableStateOf<Occurrence?>(null) }
+    // What the detail sheet and everything behind it currently has open. Shared
+    // with My chores through [OccurrenceDetailHost], so a chore opened from
+    // either place behaves identically — including the busy pass, which both a
+    // swipe and the sheet route through, so the rule is stated once.
+    val detail = rememberChoreDetailController()
     var showAway by remember { mutableStateOf(false) }
-    // Which history is open. The chore name is held alongside so the sheet has
-    // a title before its data arrives.
-    var historyChoreName by remember { mutableStateOf<String?>(null) }
     var showGroupHistory by remember { mutableStateOf(false) }
 
     // Per-form submit state, so a create dialog can stay open until the write
     // lands and show a rejection where the user is already looking (B-7).
     var createSubmitting by remember { mutableStateOf(false) }
     var createError by remember { mutableStateOf<String?>(null) }
-    // Separate from the create pair: the edit dialog is a different form and can
-    // be open over a different failure.
-    var choreSubmitting by remember { mutableStateOf(false) }
-    var choreError by remember { mutableStateOf<String?>(null) }
     var showInvite by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     var confirmLeave by remember { mutableStateOf(false) }
     // Task pending deletion — deleting is irreversible, so it goes via a confirm.
     var taskToDelete by remember { mutableStateOf<Task?>(null) }
-    // Same for a chore, which takes more with it: every occurrence, and so the
-    // whole history of who did it.
-    var choreToDelete by remember { mutableStateOf<Chore?>(null) }
     // Detail sheet holds an *id*, not a Task. The Task is looked up from state
     // on each recomposition, so an edit (ours or a teammate's) is reflected
     // instead of the sheet showing the snapshot it opened with.
     var detailTaskId by remember { mutableStateOf<String?>(null) }
     val detailTask = detailTaskId?.let { id -> state.tasks.firstOrNull { it.id == id } }
-
-    // Same trick for occurrences: hold the id, re-derive the row, so the sheet
-    // follows a teammate completing it rather than showing a stale snapshot.
-    var detailOccurrenceId by remember { mutableStateOf<String?>(null) }
-    val detailOccurrence = detailOccurrenceId?.let { id ->
-        state.occurrences.firstOrNull { it.id == id }
-    }
-
-    // Same pattern for the chore being edited: hold the id, re-derive the chore,
-    // so a concurrent edit by someone else is reflected rather than overwritten
-    // from a stale snapshot.
-    var editChoreId by remember { mutableStateOf<String?>(null) }
-    val editChore = editChoreId?.let { id -> state.chores.firstOrNull { it.id == id } }
 
     // Which member row is "me" — needed so the owner isn't offered a demote
     // button on their own row.
@@ -444,7 +422,7 @@ fun GroupDetailScreen(
                                 when (row) {
                                     is BoardRow.TaskRow -> detailTaskId = row.task.id
                                     is BoardRow.OccurrenceRow ->
-                                        detailOccurrenceId = row.occurrence.id
+                                        detail.open(row.occurrence.id)
                                 }
                             },
                             onToggleDone = { row ->
@@ -459,7 +437,7 @@ fun GroupDetailScreen(
                             },
                             onPass = { row ->
                                 (row as? BoardRow.OccurrenceRow)?.let {
-                                    passCandidate = it.occurrence
+                                    detail.confirmPass(it.occurrence)
                                 }
                             },
                             onSwiped = {
@@ -507,162 +485,13 @@ fun GroupDetailScreen(
         }
     }
 
-    detailOccurrence?.let { occurrence ->
-        OccurrenceDetailSheet(
-            occurrence = occurrence,
-            chore = state.chores.firstOrNull { it.id == occurrence.choreId },
-            members = state.members,
-            myUserId = myUserId,
-            onDismiss = { detailOccurrenceId = null },
-            onPass = {
-                detailOccurrenceId = null
-                passCandidate = occurrence
-            },
-            onPickDay = { picked ->
-                detailOccurrenceId = null
-                viewModel.setOccurrenceDueDate(occurrence.id, picked)
-            },
-            onEditChore = {
-                // Close the sheet first: an AlertDialog over a bottom sheet
-                // stacks two surfaces and the sheet's scrim fights the dialog's.
-                detailOccurrenceId = null
-                editChoreId = occurrence.choreId
-            },
-            onShowHistory = {
-                detailOccurrenceId = null
-                historyChoreName = occurrence.choreName
-                viewModel.loadChoreHistory(occurrence.choreId)
-            },
-        )
-    }
-
-    editChore?.let { chore ->
-        CreateChoreFlow(
-            members = state.members,
-            myUserId = myUserId,
-            submitting = choreSubmitting,
-            serverError = choreError,
-            onDismiss = { editChoreId = null; choreError = null },
-            initial = chore.toDraft(),
-            onDelete = { choreToDelete = chore },
-            // Only what actually changed goes up. Restating an untouched field
-            // would overwrite a concurrent edit to it and would put a change
-            // nobody made into the diff the whole group reads.
-            onSubmit = { draft ->
-                choreSubmitting = true
-                choreError = null
-                val before = chore.toDraft()
-                val typeChanged = draft.kind != before.kind
-                viewModel.updateChore(
-                    choreId = chore.id,
-                    name = draft.name.trim().takeIf { it != chore.name },
-                    doneLine = draft.doneLine.trim().takeIf { it != chore.doneLine },
-                    // On a type change the new type's parameters always go with
-                    // it: the server clears the old type's columns, so leaving
-                    // these out would produce a chore of the new kind with
-                    // nothing to schedule from.
-                    intervalDays = draft.intervalDays.takeIf {
-                        draft.kind == ChoreKind.INTERVAL &&
-                            (typeChanged || it != before.intervalDays)
-                    },
-                    fixedWeekdays = listOf(draft.weekday).takeIf {
-                        draft.kind == ChoreKind.FIXED_DATE && draft.byWeekday &&
-                            (typeChanged || !before.byWeekday || draft.weekday != before.weekday)
-                    },
-                    rotation = draft.rotation.takeIf { it != before.rotation },
-                    scheduleType = draft.kind?.scheduleType.takeIf { typeChanged },
-                    fixedMonthDays = listOf(draft.monthDay).takeIf {
-                        draft.kind == ChoreKind.FIXED_DATE && !draft.byWeekday &&
-                            (typeChanged || before.byWeekday || draft.monthDay != before.monthDay)
-                    },
-                    neededByTime = draft.neededBy?.takeIf { it != before.neededBy },
-                ) { failure ->
-                    choreSubmitting = false
-                    if (failure == null) editChoreId = null else choreError = failure
-                }
-            },
-        )
-    }
-
-    // Deleting a chore takes every occurrence with it, and with them the record
-    // of who did it — so it confirms, and the confirm says that rather than
-    // asking "are you sure?". There is no undelete endpoint and a snackbar that
-    // pretended otherwise would be a lie.
-    choreToDelete?.let { chore ->
-        AlertDialog(
-            onDismissRequest = { choreToDelete = null },
-            title = { Text("Delete ${chore.name}?") },
-            text = {
-                Text(
-                    "This removes the chore, whoever's turn it currently is, and " +
-                        "the history of every time it has been done. It cannot be undone.",
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        choreToDelete = null
-                        editChoreId = null
-                        viewModel.deleteChore(chore.id)
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                    ),
-                ) { Text("Delete") }
-            },
-            dismissButton = {
-                TextButton(onClick = { choreToDelete = null }) { Text("Cancel") }
-            },
-        )
-    }
-    // An occurrence can vanish under the sheet: undoing a completion deletes
-    // the one it spawned. Close rather than leave a sheet describing a row that
-    // no longer exists.
-    LaunchedEffect(detailOccurrenceId, state.occurrences) {
-        if (detailOccurrenceId != null && state.occurrences.none { it.id == detailOccurrenceId }) {
-            detailOccurrenceId = null
-        }
-    }
-
-    // The busy pass, confirmed.
-    //
-    // The debt rule is stated twice by design: here, in plain language, at the
-    // moment of passing; and afterwards as a standing marker on the row that
-    // comes back. Once is not enough for a rule this counter-intuitive — the
-    // chore leaves your row and returns a cycle later, which looks like a bug
-    // unless somebody said so.
-    passCandidate?.let { occurrence ->
-        val chore = state.chores.firstOrNull { it.id == occurrence.choreId }
-        val receiver = nextInRotationAfter(chore, occurrence, state.members)
-        if (receiver == null) {
-            // Nobody to pass to. Nothing to confirm, so say why rather than
-            // showing a dialog with an empty name in it.
-            passCandidate = null
-        } else {
-            AlertDialog(
-                onDismissRequest = { passCandidate = null },
-                title = { Text("Pass ${occurrence.choreName} to ${receiver.username}?") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(
-                            "Next time it's yours again. ${receiver.username}'s cover " +
-                                "counts as ${receiver.username}'s turn.",
-                        )
-                        Text(passNoticeLine(occurrence, chore, receiver.username))
-                    }
-                },
-                confirmButton = {
-                    Button(onClick = {
-                        passCandidate = null
-                        viewModel.passOccurrence(occurrence, receiver.username)
-                    }) { Text("Pass it to ${receiver.username}") }
-                },
-                dismissButton = {
-                    TextButton(onClick = { passCandidate = null }) { Text("Keep it") }
-                },
-            )
-        }
-    }
+    // The detail sheet and everything behind it — history, the edit flow, the
+    // delete confirm, the pass confirm. Shared with My chores.
+    OccurrenceDetailHost(
+        controller = detail,
+        viewModel = viewModel,
+        myUserId = myUserId,
+    )
 
     if (showCreate) {
         CreateChoreFlow(
@@ -714,15 +543,6 @@ fun GroupDetailScreen(
                     )
                 }
             },
-        )
-    }
-
-    historyChoreName?.let { name ->
-        ChoreHistorySheet(
-            choreName = name,
-            history = state.choreHistory,
-            loading = state.historyLoading,
-            onDismiss = { historyChoreName = null; viewModel.clearHistory() },
         )
     }
 
@@ -1198,6 +1018,13 @@ internal fun TaskCard(
     passedByMe: Boolean,
     canPass: Boolean,
     myUserId: String?,
+    /**
+     * Which household this row belongs to, shown as a small muted chip beside
+     * the name. Null on the board, where every row is this household's and the
+     * chip would be noise; set on My week, where the rows are ordered by date
+     * and come from more than one place (DESIGN.md §3, agenda row).
+     */
+    householdName: String? = null,
     onOpenDetail: () -> Unit,
     onToggleDone: () -> Unit,
     onPass: () -> Unit,
@@ -1294,16 +1121,38 @@ internal fun TaskCard(
             )
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = row.title,
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    // Dimmed rather than struck through: done work stays
-                    // readable, it just stops asking for attention.
-                    color = if (row.isOpen) MaterialTheme.colorScheme.onSurface
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = row.title,
+                        style = MaterialTheme.typography.titleSmall
+                            .copy(fontWeight = FontWeight.Bold),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        // Dimmed rather than struck through: done work stays
+                        // readable, it just stops asking for attention.
+                        color = if (row.isOpen) MaterialTheme.colorScheme.onSurface
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    // Which household, when the rows are not already grouped by
+                    // one. Muted and unclickable: it is a label, not a filter.
+                    householdName?.let { household ->
+                        Spacer(Modifier.width(8.dp))
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = MaterialTheme.shapes.small,
+                        ) {
+                            Text(
+                                text = household,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            )
+                        }
+                    }
+                }
                 // Line 2 - the agreement: how often this comes round. It is on
                 // the row rather than only in the sheet because the frequency is
                 // half of what the household agreed, and an agreement nobody can
@@ -1505,7 +1354,7 @@ internal fun TaskCard(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun OccurrenceDetailSheet(
+internal fun OccurrenceDetailSheet(
     occurrence: Occurrence,
     chore: Chore?,
     members: List<MemberInfo>,
@@ -2193,7 +2042,7 @@ private fun RoleChip(role: String) {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ChoreHistorySheet(
+internal fun ChoreHistorySheet(
     choreName: String,
     history: ChoreHistory?,
     loading: Boolean,

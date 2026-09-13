@@ -60,11 +60,10 @@ import com.taskflow.app.reminders.ReminderScheduler
  *
  * ### Which household is open
  *
- * [currentGroupId] is held here rather than inside the tab, because two tabs
- * write it: the switcher in the board's app bar, and **My chores**, where
- * tapping one of your turns switches the board to that household instead of
- * pushing a second copy of it onto a stack. It is persisted to the device by
- * [LastHousehold] so the next cold start opens in the same place.
+ * [currentGroupId] is held here rather than inside the tab, because the tab it
+ * belongs to is rebuilt whenever the bottom bar restores it, and because it is
+ * persisted to the device by [LastHousehold] so the next cold start opens in
+ * the same place.
  *
  * ### One ViewModel for all three tabs
  *
@@ -208,22 +207,12 @@ fun MainShell(
                     )
                 }
                 composable(ShellDestination.MY_CHORES.route) {
+                    // Tapping a turn here opens the board's own detail sheet in
+                    // place rather than switching the board's household: the
+                    // sheet carries everything that used to need the trip.
                     MyChoresScreen(
                         viewModel = viewModel,
                         myUserId = myUserId,
-                        // Switch the board to that household and show it, rather
-                        // than opening a second board on top of this one. One
-                        // board exists; this says which household it is of.
-                        onOpenGroup = { groupId ->
-                            selectGroup(groupId)
-                            navController.navigate(ShellDestination.HOUSEHOLD.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
                     )
                 }
                 composable(ShellDestination.SETTINGS.route) {

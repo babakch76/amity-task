@@ -45,9 +45,50 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
     the group list and falls back to the first household. Cleared on sign-out.
   - **`DashboardViewModel` → `ShellViewModel`; `DashboardScreen.kt` →
     `AccountDialogs.kt`.** There is no dashboard to name.
+- **My chores and My week ship together, on purpose, until the interviews
+  (2026-09-13).** Two readings of the same set of turns, behind a toggle in the
+  app bar: grouped **by household**, or DESIGN.md §5.11a's **by week** — a
+  seven-day strip over dated buckets. The title follows the toggle and the
+  choice is kept on the device.
+
+  This is not indecision and it is not a permanent second destination. The two
+  answer the same question differently — *whose flat is this on me for* versus
+  *when is it on me* — and which one a household actually reaches for is a
+  question about people. It is being put in front of people rather than argued
+  about, and **one of the two is to be deleted after the interviews**. If that
+  has not happened by the time the report is written, it is a defect, not a
+  feature.
+
+  The strip is neither the calendar constraint 5 forbids nor the tab
+  `calendar_decision_record.md` deleted: no external calendar, no free/busy, and
+  nothing of anybody else's drawn on it. A dot means *you* have a turn that day,
+  never how many, and no day is coloured by how full it is.
+- **The detail sheet is shared, not copied (2026-09-13).** Tapping a turn in My
+  chores opens the board's own sheet, with its history, edit flow, delete
+  confirm and busy pass behind it. Rather than copy that wiring, it came out of
+  `GroupDetailScreen` into `OccurrenceDetailHost` with a hoisted
+  `ChoreDetailController`; both screens mount the same composable. Same
+  reasoning as `AuthScaffold` and the shared `TaskCard`.
+
+  My chores spans households, so it builds a `GroupDetailViewModel` for
+  whichever household the tapped turn belongs to. That is why **Busy? Pass it
+  on** works from the sheet there while swipe-to-pass on the row does not: the
+  swipe needs the rotation and the away states, which the tab does not fetch.
+- **B-9: a turn due tomorrow crashed My week on a Sunday (2026-09-13, fixed).**
+  "LATER THIS WEEK" ended on `today.with(SUNDAY)`, which on a Sunday is today —
+  so tomorrow was already *after* the end of the week and fell into TOMORROW and
+  NEXT WEEK AND BEYOND at once. A `LazyColumn` throws `IllegalArgumentException:
+  Key … was already used` rather than drawing the row twice, so the app died on
+  opening the tab. The boundary is now coerced to at least tomorrow, and a
+  `seen` set makes any future boundary mistake cosmetic rather than fatal.
+  `WeekAgendaTest` walks every weekday and asserts no turn is bucketed twice and
+  none is lost.
+
+  Worth generalising: **every bucketing of the same list into sections is a
+  duplicate-key risk**, and in Compose that is a crash rather than a glitch.
 - **Bottom navigation — PARTIALLY BUILT (2026-09-13).** DESIGN.md §4.1's shell,
   with one deliberate departure from §5 recorded here rather than silently:
-  - **"My chores" rather than "My week".** §5's My week has List and Calendar
+  - **The List half of "My week", not the Calendar half.** §5's My week has List and Calendar
     modes over a day strip and a month grid. This is the List half only. The
     calendar half is not deferred work so much as a question — the month grid
     of your own projected turns is the nearest thing in the design to a
