@@ -55,11 +55,13 @@ import androidx.core.content.ContextCompat
 import com.taskflow.app.TaskFlowApp
 import com.taskflow.app.reminders.QuietHours
 import com.taskflow.app.reminders.ReminderScheduler
+import com.taskflow.app.ui.components.HouseholdSwitcher
 import com.taskflow.app.data.model.ActivityEvent
 import com.taskflow.app.data.model.Absence
 import com.taskflow.app.data.model.Chore
 import com.taskflow.app.data.model.ChoreHistory
 import com.taskflow.app.data.model.ChoreHistoryEntry
+import com.taskflow.app.data.model.Group
 import com.taskflow.app.data.model.GroupHistory
 import com.taskflow.app.data.model.MemberInfo
 import com.taskflow.app.data.model.Occurrence
@@ -90,7 +92,7 @@ private const val ACTIVITY_POLL_MILLIS = 5_000L
 private val TASK_STATUSES = listOf("todo", "done")
 
 /**
- * Group detail: tasks, activity feed, members and invites for one group.
+ * One household's board: chores, activity feed, members and invites.
  *
  * Three tabs rather than one long scroll: the activity feed is append-only and
  * would otherwise push the board off screen.
@@ -100,16 +102,33 @@ private val TASK_STATUSES = listOf("todo", "done")
  * chore — and teaching it about occurrences would have meant building the
  * scheduling view constraint 5 rules out. The board is the screen.
  *
- * @param groupId From the navigation arguments.
- * @param onBack Returns to the dashboard. Also called after leaving the group,
- *   since the group may no longer exist.
+ * **This is a root destination now**, the first tab of [MainShell] rather than
+ * a screen pushed on top of a group list. So it has no back arrow: its title is
+ * the household switcher, and changing household happens in place. The bottom
+ * bar sits underneath; the create-chore flow is a full-screen `Dialog` and
+ * covers it, which is what DESIGN.md §4.1 asks for.
+ *
+ * @param groupId Which household. [HouseholdTab] resolves it, and the
+ *   ViewModel is keyed on it — switching household builds a new one rather than
+ *   leaving the last household's chores on screen under a new name.
+ * @param groups Every household the person is in, for the switcher menu.
+ * @param onSelectGroup Open a different household, in place.
+ * @param onLeft Called once leaving has gone through, since this household may
+ *   no longer exist. The caller re-resolves which household is open.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GroupDetailScreen(
     groupId: String,
-    onBack: () -> Unit,
-    viewModel: GroupDetailViewModel = viewModel(factory = GroupDetailViewModel.Factory(groupId)),
+    groups: List<Group>,
+    onSelectGroup: (String) -> Unit,
+    onCreateHousehold: () -> Unit,
+    onJoinHousehold: () -> Unit,
+    onLeft: () -> Unit,
+    viewModel: GroupDetailViewModel = viewModel(
+        key = groupId,
+        factory = GroupDetailViewModel.Factory(groupId),
+    ),
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -189,9 +208,9 @@ fun GroupDetailScreen(
         viewModel.pollActivity()
     }
 
-    // Leaving may have deleted the group, so get off this screen.
+    // Leaving may have deleted the household, so stop showing it.
     LaunchedEffect(state.hasLeft) {
-        if (state.hasLeft) onBack()
+        if (state.hasLeft) onLeft()
     }
 
     // F3 — ask once for permission to notify. Refusing costs only reminders:
@@ -258,21 +277,22 @@ fun GroupDetailScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
+                // The title *is* the switcher. There is no back arrow: this is
+                // a root destination, and the household you are looking at is
+                // changed in place rather than by going back to a list.
                 title = {
-                    Text(
-                        text = state.group?.name ?: "Group",
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    HouseholdSwitcher(
+                        // The list's copy while the board's own fetch is in
+                        // flight, so the name is right from the first frame
+                        // instead of appearing a beat later.
+                        current = state.group?.let { loaded ->
+                            groups.firstOrNull { it.id == loaded.id }
+                        } ?: groups.firstOrNull { it.id == groupId },
+                        groups = groups,
+                        onSelect = { onSelectGroup(it.id) },
+                        onCreate = onCreateHousehold,
+                        onJoin = onJoinHousehold,
                     )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                        )
-                    }
                 },
                 actions = {
                     run {
@@ -318,7 +338,7 @@ fun GroupDetailScreen(
                             )
                             HorizontalDivider()
                             DropdownMenuItem(
-                                text = { Text("Leave group") },
+                                text = { Text("Leave household") },
                                 onClick = { showMenu = false; confirmLeave = true },
                             )
                         }
@@ -766,11 +786,11 @@ fun GroupDetailScreen(
     if (confirmLeave) {
         AlertDialog(
             onDismissRequest = { confirmLeave = false },
-            title = { Text("Leave group?", fontWeight = FontWeight.Bold) },
+            title = { Text("Leave household?", fontWeight = FontWeight.Bold) },
             text = {
                 Text(
-                    "You'll lose access to its tasks. If you're the last member, " +
-                        "the group and everything in it is deleted."
+                    "You'll lose access to its board. If you're the last member, " +
+                        "the household and everything in it is deleted."
                 )
             },
             confirmButton = {
@@ -806,7 +826,7 @@ fun GroupDetailScreen(
 // is shared and the fields cost nothing.
 
 @Composable
-private fun LoadingBlock(label: String) {
+internal fun LoadingBlock(label: String) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator(
@@ -824,7 +844,7 @@ private fun LoadingBlock(label: String) {
 }
 
 @Composable
-private fun GroupErrorBlock(message: String, onRetry: () -> Unit) {
+internal fun GroupErrorBlock(message: String, onRetry: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -990,7 +1010,7 @@ private fun TaskList(
     if (rows.isEmpty()) {
         EmptyBlock(
             title = "Nothing on the board",
-            subtitle = "Add the first chore and it'll show up for everyone in the group.",
+            subtitle = "Add the first chore and it'll show up for everyone in the household.",
         ) {
             FilledTonalButton(onClick = onCreate) {
                 Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))

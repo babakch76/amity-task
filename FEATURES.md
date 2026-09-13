@@ -257,9 +257,17 @@ account or the household, so it is not synced and not visible to anybody else.
 
 Three places, on a bottom bar that is always there once you are signed in.
 
-**My groups** — the households you are in. Tap one to open its board; the board
-fills the screen, with no bar under it. Also where a household is created, and
-where somebody with none is offered a code to join with.
+**My groups** — a household's board. Not a list of them: the app opens on the
+household you last had open, and its name at the top of the board is a chip
+with a chevron. Tap it and your households drop down, with a tick beside the
+one you are in, and underneath them the two ways to end up with another —
+*Create a household* and *Join with a code*. Somebody with no household at all
+is offered both on the screen itself rather than being sent elsewhere to find
+them.
+
+Which household you were last in is remembered on the phone, not on the
+account: it says nothing about how the same account should open on anybody
+else's device.
 
 **My chores** — your own turns, from **every** household at once, grouped by
 household and oldest first. Tick one and it is done; the ones you have already

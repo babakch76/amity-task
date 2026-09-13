@@ -565,7 +565,7 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
 
     // Quiet hours are *read* here — they gate this group's reminders — but no
     // longer written here. They are one window per person, not per household,
-    // so the setting moved to the Dashboard (DashboardViewModel.setQuietHours)
+    // so the setting moved to the Dashboard (ShellViewModel.setQuietHours)
     // where every group is in view.
 
     /**

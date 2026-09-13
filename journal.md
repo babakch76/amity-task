@@ -6,6 +6,60 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-09-13 (later) — The group list is gone; the name at the top is the switcher
+
+The first tab no longer lists households. It opens the board of the one you
+last had open, and the household name in its app bar is a chip with a chevron:
+tapping it drops a menu of your households, with a check on the one you are in,
+and *Create a household* / *Join with a code* beneath a divider. That is
+DESIGN.md §4.2, finally — the list was a transit screen most people passed
+through with one card on it.
+
+`LastHousehold` keeps the choice on the device, next to `Appearance` and
+`LocalHints` and for the same reason: which flat you last had open is a
+property of this phone, not of the account. Nothing trusts it — the stored id
+may name a household you have left, or one belonging to whoever was signed in
+before — so `HouseholdTab` resolves it against the group list it actually has
+and falls back to the first household. Sign-out clears it.
+
+Consequences worth recording:
+
+- **The board moved inside the shell.** It is the first tab rather than a route
+  pushed on top of a list, so it has no back arrow, and the bottom bar sits
+  under it. The create-chore flow is a full-screen `Dialog`, so it still covers
+  the bar — which is what §4.1 asks for and what it already did.
+- **`group/{groupId}` is deleted.** Three routes left: `login`, `register`,
+  `shell`. Tapping one of your turns in **My chores** now switches the board's
+  household and shows it, rather than pushing a second board on top; the
+  current household is therefore hoisted into `MainShell`, where both writers
+  can reach it.
+- **`GroupDetailViewModel` is keyed on the group.** `viewModel()` keys by type
+  within a store owner, so switching household would otherwise have kept the
+  old household's ViewModel and left its chores on screen under a new name.
+- **`DashboardViewModel` → `ShellViewModel`, `DashboardScreen.kt` →
+  `AccountDialogs.kt`.** With no dashboard left, the names were describing a
+  screen that no longer exists. The file keeps the four dialogs that outlived
+  the list; the group list, its cards and its three states are deleted.
+
+One thing the screenshots caught: the switcher's household monogram was tinted
+from `tertiaryContainer`, and it came out **dark red**. `Theme.kt` defines
+`primary`, `secondary` and `tertiary` and stops, so every `…Container` role
+falls back to Material's baseline — and the baseline's tertiary container is
+red. A red disc beside a chore row is exactly the shame signal constraint 3
+rules out, and it arrived without anybody choosing it. The monogram now tints
+from the theme's own three colours at 18% alpha. Noted in `CLAUDE.md` §7,
+because the next person reaching for a container role will hit the same trap.
+
+Copy pulled into line while the dialogs were open: *Create a household*,
+*Household name*, *Join a household*, *Leave household?*, housemate rather than
+teammate.
+
+Device-verified end to end on the physical phone: opening straight onto the
+board, the menu, creating a second household and the starters offer over the
+bar, switching between the two, leaving one and landing on the other, the
+choice surviving a cold start, and a My chores row switching the board rather
+than stacking one.
+
 ## 2026-09-13 — The bottom bar, and a settings screen that exists
 
 The group list had quietly become the app's settings screen: quiet hours,

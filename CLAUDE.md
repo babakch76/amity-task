@@ -128,29 +128,37 @@ answers `401`.
 | Screen | Role |
 |---|---|
 | `LoginScreen` / `RegisterScreen` | Auth, text-button toggle between them. Register signs you straight in. Both are a stateful screen plus a stateless `LoginContent` / `RegisterContent` — edit the layout there, and the `@Preview`s at the foot of each file are the design surface. |
-| `MainShell` | The bottom bar and the three tabs below it. Owns the shared `DashboardViewModel`, the reminder alarms and the invite poll. |
-| `DashboardScreen` — **My groups** | Group list, create, first-run starters, join-with-a-code on the empty state. Nothing personal lives here any more. |
+| `MainShell` | The bottom bar and the three tabs below it. Owns the shared `ShellViewModel`, which household is open, the reminder alarms and the invite poll. |
+| `HouseholdTab` — **My groups** | Decides *which* household is open, handles having none, carries create + first-run starters. The board itself is still `GroupDetailScreen`. |
+| `GroupDetailScreen` (2.6k lines) | One household's board: Board / Activity / Members tabs, plus every sheet and dialog. A root destination — no back arrow, bar underneath. |
 | `MyChoresScreen` — **My chores** | Your own turns across every household, grouped by household. Reuses the board's `TaskCard`. |
 | `SettingsScreen` — **Settings** | Name, email, invitations, join with a code, quiet hours, appearance, sign out. |
-| `GroupDetailScreen` (2.6k lines) | Board / Activity / Members tabs, plus every sheet and dialog. |
+| `ui/components/HouseholdSwitcher` | The board's title: household name + chevron, dropping a menu of households plus *Create a household* / *Join with a code*. |
+| `AccountDialogs.kt` | The four dialogs that outlived the group list — invites, join by code, create household, quiet hours. Was `DashboardScreen.kt`. |
 | `CreateChoreFlow` | Add or edit a chore as two full-screen steps; delete lives at the end of edit. |
 | `FirstRunStarters` | Five starter chores offered to a brand-new household. |
 
-Navigation is four outer routes only: `login`, `register`, `shell`,
-`group/{groupId}`, plus a nested graph of three inside the shell (`groups`,
-`mychores`, `settings`). Everything else is a sheet or dialog.
+Navigation is **three outer routes**: `login`, `register`, `shell`, plus a
+nested graph of three inside the shell (`household`, `mychores`, `settings`).
+Everything else is a sheet or dialog.
 
-**The board is outside the shell**, deliberately: it fills the screen with no
-bar under it, and the create-chore flow it leads to needs the whole screen.
-One consequence worth knowing — `DashboardViewModel` is created by `MainShell`
-and passed down to all three tabs by hand. A tab that calls `viewModel()` for
-its own copy gets a second instance and a second set of requests.
+**There is no group list and no `group/{groupId}` route.** The app opens on the
+board of the household you last had open (`data/local/LastHousehold`, on the
+device), and the switcher in its app bar changes it. Three things follow:
 
-The three tabs are **My groups**, not a single household's Board, and
-**My chores**, not DESIGN.md's My week. Both are deliberate departures from
-DESIGN.md §4.2 and §5; `BACKLOG.md` records why, and the calendar half of
-My week is a question rather than a to-do — read `calendar_decision_record.md`
-before building it.
+- `ShellViewModel` is created by `MainShell` and passed down to all three tabs
+  by hand. A tab that calls `viewModel()` for its own copy gets a second
+  instance and a second set of requests.
+- Which household is open is held by `MainShell` too, because **My chores**
+  writes it as well as the switcher — tapping a turn there switches the board
+  rather than opening a second one.
+- `GroupDetailViewModel` is obtained with `viewModel(key = groupId, …)`.
+  Without the key, switching household keeps the previous household's ViewModel
+  and leaves its chores on screen under the new name.
+
+**My chores** is not DESIGN.md's My week: it is the List half, without the
+calendar and day-strip modes. `BACKLOG.md` records why, and the calendar half is
+a question rather than a to-do — read `calendar_decision_record.md` first.
 
 The two auth screens share their top half — emblem, wordmark, subtitle, field
 shape, pill button, amber error line — through `ui/components/AuthScaffold.kt`.
@@ -184,6 +192,15 @@ Defined in `ui/theme/Theme.kt` as a Material 3 `ColorScheme`, **not** in
 **Material You dynamic colour is deliberately off.** A wallpaper-derived scheme
 can put a red primary next to the amber overdue colour, which reads as exactly
 the shame signal constraint 3 rules out. Do not turn it back on.
+
+**The `…Container` roles are not ours.** The table above is the whole of what
+`Theme.kt` sets, so `primaryContainer`, `tertiaryContainer`, `errorContainer`
+and the rest fall through to Material's baseline scheme — in which
+`tertiaryContainer` is a **dark red**. Reaching for one to tint something is how
+a red disc ended up beside the chore rows in the household switcher
+(2026-09-13), with nobody having chosen it. Tint from `primary` / `secondary` /
+`tertiary` at low alpha, or define the container roles properly before using
+them.
 
 Appearance (System/Light/Dark) is stored in SharedPreferences **on the device**,
 never synced — it is a property of this phone, not of the account or household.

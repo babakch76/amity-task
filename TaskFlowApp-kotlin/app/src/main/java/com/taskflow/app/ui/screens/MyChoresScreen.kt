@@ -73,14 +73,14 @@ import com.taskflow.app.data.model.isOpen
 fun MyChoresScreen(
     myUserId: String?,
     onOpenGroup: (String) -> Unit,
-    viewModel: DashboardViewModel = viewModel(),
+    viewModel: ShellViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val reminderData by viewModel.reminderData.collectAsState()
     val me by viewModel.me.collectAsState()
     val isWorking by viewModel.isWorking.collectAsState()
 
-    val groups = (uiState as? DashboardUiState.Success)?.groups.orEmpty()
+    val groups = (uiState as? ShellUiState.Success)?.groups.orEmpty()
 
     val households = remember(groups, reminderData, myUserId) {
         myChoresByHousehold(groups, reminderData, myUserId)
@@ -206,7 +206,7 @@ private data class MyChoresHousehold(
  */
 private fun myChoresByHousehold(
     groups: List<Group>,
-    reminderData: List<DashboardViewModel.GroupReminderData>,
+    reminderData: List<ShellViewModel.GroupReminderData>,
     myUserId: String?,
 ): List<MyChoresHousehold> {
     if (myUserId == null) return emptyList()

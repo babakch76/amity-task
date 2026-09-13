@@ -89,7 +89,7 @@ import com.taskflow.app.ui.theme.AppearanceMode
 @Composable
 fun SettingsScreen(
     onLogout: () -> Unit,
-    viewModel: DashboardViewModel = viewModel(),
+    viewModel: ShellViewModel = viewModel(),
 ) {
     val me by viewModel.me.collectAsState()
     val invites by viewModel.invites.collectAsState()

@@ -17,14 +17,36 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
   where you put things you have nowhere else for; all four are things a person
   goes looking for. They are now rows in a **Settings** tab. The dots are gone
   from that screen entirely.
+- **The group list — REMOVED (2026-09-13).** DESIGN.md §4.2, done properly a few
+  hours after the bottom bar shipped with the list still in it. The first tab
+  opens the board of the household you last had open; the household name in its
+  app bar is the switcher, and the menu behind it also carries *Create a
+  household* and *Join with a code*, which is now the only place they live.
+
+  The switcher **stays visible with one household**, where §3 says to hide it.
+  §3's reasoning is that a chevron promising a choice with one option is a lie;
+  it is not one here, because the menu is also the only route to a second
+  household, and somebody in one flat is exactly the person most likely to want
+  it.
+
+  What this pulled with it, all recorded because it is the kind of thing that
+  looks arbitrary a month later:
+  - **The board is a root destination.** No back arrow, bottom bar underneath,
+    and `group/{groupId}` deleted — three routes left in the whole graph.
+    Tapping a turn in My chores switches the board's household rather than
+    pushing a second copy of the board, so the current household is held by
+    `MainShell` where both writers reach it.
+  - **`GroupDetailViewModel` is keyed on the group id.** `viewModel()` keys by
+    type within a store owner, so without the key, switching household kept the
+    previous household's ViewModel and showed its chores under the new name.
+  - **`LastHousehold` is on the device, not the account** — the same argument as
+    `Appearance`. It is never trusted: the id may name a household you have left
+    or one belonging to whoever was signed in before, so it is resolved against
+    the group list and falls back to the first household. Cleared on sign-out.
+  - **`DashboardViewModel` → `ShellViewModel`; `DashboardScreen.kt` →
+    `AccountDialogs.kt`.** There is no dashboard to name.
 - **Bottom navigation — PARTIALLY BUILT (2026-09-13).** DESIGN.md §4.1's shell,
-  with two deliberate departures from §4.2 recorded here rather than silently:
-  - **The group list survives as the first tab**, rather than being replaced by
-    a household switcher chip in the Board's app bar. The switcher sheet does
-    not exist, and deleting the list before its replacement is built would
-    leave a person in two households with no way to change which one they are
-    looking at. **My groups** is therefore the first tab and the Board stays a
-    route below it, opened by tapping a household.
+  with one deliberate departure from §5 recorded here rather than silently:
   - **"My chores" rather than "My week".** §5's My week has List and Calendar
     modes over a day strip and a month grid. This is the List half only. The
     calendar half is not deferred work so much as a question — the month grid
@@ -39,6 +61,14 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
   `AuthScaffold`. Passing is deliberately not offered there: it needs the
   rotation and the household's away states, so it stays on the board, one tap
   through the row.
+- **Material's baseline container colours are a constraint-3 trap (2026-09-13).**
+  `Theme.kt` sets `primary`, `secondary` and `tertiary` and nothing else, so
+  every `…Container` role falls through to Material's baseline scheme — where
+  `tertiaryContainer` is a **dark red**. The household switcher's monogram was
+  tinted from it and shipped a red disc beside the chore rows until a screenshot
+  caught it. Nobody chose that colour; the theme simply had no opinion and the
+  library did. Tint from the theme's own three colours at low alpha instead, or
+  define the container roles in `Theme.kt`.
 - **`PATCH /me` now takes `username` and `email` (2026-09-13).** Settings can
   change either. Notes for anyone extending it:
   - **Stricter than register on email, on purpose.** Register accepts any

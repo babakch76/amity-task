@@ -2,13 +2,12 @@ package com.taskflow.app.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
+import androidx.compose.ui.platform.LocalContext
+import com.taskflow.app.data.local.LastHousehold
 import com.taskflow.app.data.local.TokenManager
-import com.taskflow.app.ui.screens.GroupDetailScreen
 import com.taskflow.app.ui.screens.MainShell
 import com.taskflow.app.ui.screens.LoginScreen
 import com.taskflow.app.ui.screens.RegisterScreen
@@ -23,14 +22,13 @@ object Routes {
     /**
      * The three-tab shell: My groups, My chores, Settings.
      *
-     * One outer route for all three. The tabs have their own nested graph
+     * One outer route for all three, and — since the board became the first
+     * tab rather than a screen pushed on top of a group list — the only route
+     * a signed-in person is ever on. The tabs have their own nested graph
      * inside [MainShell], so switching between them never touches this one and
      * each keeps its own state.
      */
     const val SHELL = "shell"
-    const val GROUP_DETAIL = "group/{groupId}"
-
-    fun groupDetail(groupId: String) = "group/$groupId"
 }
 
 /**
@@ -43,9 +41,9 @@ object Routes {
  * Login and Register toggle between each other with a text button; both land on
  * the shell on success.
  *
- * The board sits outside the shell on its own route, so it fills the screen
- * with no bottom bar under it — DESIGN.md §4.1 keeps the bar off the board's
- * sub-flows, and the create-chore flow it leads to needs the whole screen.
+ * Three routes, and that is the whole graph: the board is the shell's first
+ * tab, and the create-chore flow that used to need a route of its own is a
+ * full-screen `Dialog` drawn over everything, bottom bar included.
  *
  * @param tokenManager The process-wide instance owned by TaskFlowApp, passed
  *   down from MainActivity. This graph must not construct its own — see
@@ -106,30 +104,19 @@ fun AppNavGraph(
 
         // ─── Shell (My groups · My chores · Settings) ───
         composable(Routes.SHELL) {
+            val context = LocalContext.current
             MainShell(
-                onGroupClick = { groupId ->
-                    navController.navigate(Routes.groupDetail(groupId))
-                },
                 onLogout = {
                     tokenManager.clearToken()
+                    // Which household this phone opens on belonged to the
+                    // account that just left. Forgetting it here means the next
+                    // person does not open on it, even for the moment it would
+                    // take to be resolved away.
+                    LastHousehold.clear(context)
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(0) { inclusive = true }
                     }
                 },
-            )
-        }
-
-        // ─── Group Detail ───
-        composable(
-            route = Routes.GROUP_DETAIL,
-            arguments = listOf(
-                navArgument("groupId") { type = NavType.StringType }
-            ),
-        ) { backStackEntry ->
-            val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
-            GroupDetailScreen(
-                groupId = groupId,
-                onBack = { navController.popBackStack() },
             )
         }
     }

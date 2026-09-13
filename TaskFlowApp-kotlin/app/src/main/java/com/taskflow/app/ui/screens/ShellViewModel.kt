@@ -26,15 +26,15 @@ import kotlinx.coroutines.launch
 /**
  * Represents the three possible states of the Dashboard UI.
  */
-sealed class DashboardUiState {
+sealed class ShellUiState {
     /** Initial state while the group list is being fetched. */
-    object Loading : DashboardUiState()
+    object Loading : ShellUiState()
 
     /** Groups loaded successfully. [groups] may be empty. */
-    data class Success(val groups: List<Group>) : DashboardUiState()
+    data class Success(val groups: List<Group>) : ShellUiState()
 
     /** Network or server error. [message] is user-friendly text. */
-    data class Error(val message: String) : DashboardUiState()
+    data class Error(val message: String) : ShellUiState()
 }
 
 /**
@@ -44,10 +44,10 @@ sealed class DashboardUiState {
  * joining a group land on this list: accepting a direct invite, and redeeming a
  * shared code. Keeping them together means one refresh after either path.
  */
-class DashboardViewModel : ViewModel() {
+class ShellViewModel : ViewModel() {
 
-    private val _uiState = MutableStateFlow<DashboardUiState>(DashboardUiState.Loading)
-    val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow<ShellUiState>(ShellUiState.Loading)
+    val uiState: StateFlow<ShellUiState> = _uiState.asStateFlow()
 
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
@@ -98,8 +98,8 @@ class DashboardViewModel : ViewModel() {
     fun fetchGroups() {
         viewModelScope.launch {
             // Only show full-screen loading on initial load, not on refresh
-            if (_uiState.value !is DashboardUiState.Success) {
-                _uiState.value = DashboardUiState.Loading
+            if (_uiState.value !is ShellUiState.Success) {
+                _uiState.value = ShellUiState.Loading
             }
             _isRefreshing.value = true
 
@@ -108,16 +108,16 @@ class DashboardViewModel : ViewModel() {
 
                 if (response.isSuccessful) {
                     val groups = response.body() ?: emptyList()
-                    _uiState.value = DashboardUiState.Success(groups)
+                    _uiState.value = ShellUiState.Success(groups)
                     if (!autoOpenLatched && groups.size == 1) {
                         _autoOpenGroupId.value = groups.first().id
                     }
                     loadReminderData(groups)
                 } else {
-                    _uiState.value = DashboardUiState.Error(ApiErrors.messageFor(response))
+                    _uiState.value = ShellUiState.Error(ApiErrors.messageFor(response))
                 }
             } catch (e: Exception) {
-                _uiState.value = DashboardUiState.Error(
+                _uiState.value = ShellUiState.Error(
                     "Network error: ${e.localizedMessage ?: "Could not reach server"}"
                 )
             } finally {
@@ -223,7 +223,7 @@ class DashboardViewModel : ViewModel() {
                 )
                 if (response.isSuccessful) {
                     _actionMessage.value = if (done) "Marked done" else "Completion undone"
-                    (uiState.value as? DashboardUiState.Success)?.let { loadReminderData(it.groups) }
+                    (uiState.value as? ShellUiState.Success)?.let { loadReminderData(it.groups) }
                 } else {
                     _actionMessage.value = ApiErrors.messageFor(response)
                 }

@@ -25,7 +25,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -37,26 +40,35 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.taskflow.app.TaskFlowApp
+import com.taskflow.app.data.local.LastHousehold
 import com.taskflow.app.reminders.ReminderScheduler
 
 /**
  * The three places the app keeps for a signed-in person, and the bar that
  * switches between them.
  *
- * The split is the point, and it is the one from DESIGN.md §4.1: **My groups**
- * is the household's, **My chores** is yours across every household, and
- * **Settings** is yours alone. Two of the three are private, and the bar says
- * so by keeping them apart rather than folding personal settings into an
- * overflow menu on a shared screen — which is where they used to live, and
- * which said the opposite.
+ * The split is the point, and it is the one from DESIGN.md §4.1: **My
+ * household** is the household's, **My chores** is yours across every
+ * household, and **Settings** is yours alone. Two of the three are private,
+ * and the bar says so by keeping them apart rather than folding personal
+ * settings into an overflow menu on a shared screen — which is where they used
+ * to live, and which said the opposite.
  *
- * The board itself stays *outside* the shell, on its own route, so opening a
- * household is a step forward rather than a fourth tab. The bar is deliberately
- * absent there, along with the create-chore flow and the auth screens.
+ * The first tab is the **board itself**, not a list of households: the app
+ * opens on the one you last had open, and the switcher in its app bar is how
+ * you change it. §4.2 deletes the list as a destination, and this is that.
+ *
+ * ### Which household is open
+ *
+ * [currentGroupId] is held here rather than inside the tab, because two tabs
+ * write it: the switcher in the board's app bar, and **My chores**, where
+ * tapping one of your turns switches the board to that household instead of
+ * pushing a second copy of it onto a stack. It is persisted to the device by
+ * [LastHousehold] so the next cold start opens in the same place.
  *
  * ### One ViewModel for all three tabs
  *
- * [DashboardViewModel] is created here, at the shell, and handed down. It
+ * [ShellViewModel] is created here, at the shell, and handed down. It
  * already fetches the group list, the invites, the account row, and every
  * household's occurrences — which is exactly the union of what the three tabs
  * need. Giving each tab its own instance would run that set of requests three
@@ -67,9 +79,8 @@ import com.taskflow.app.reminders.ReminderScheduler
  */
 @Composable
 fun MainShell(
-    onGroupClick: (String) -> Unit,
     onLogout: () -> Unit,
-    viewModel: DashboardViewModel = viewModel(),
+    viewModel: ShellViewModel = viewModel(),
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -91,6 +102,17 @@ fun MainShell(
     val context = LocalContext.current
     val myUserId = remember {
         (context.applicationContext as? TaskFlowApp)?.tokenManager?.getUserId()
+    }
+
+    // Seeded from the device, then corrected by HouseholdTab against the group
+    // list it actually has — the stored id may name a household you have left,
+    // or one belonging to whoever was signed in before.
+    var currentGroupId by rememberSaveable { mutableStateOf(LastHousehold.get(context)) }
+
+    /** Open a household, and remember it for the next cold start. */
+    fun selectGroup(groupId: String) {
+        currentGroupId = groupId
+        LastHousehold.set(context, groupId)
     }
 
     LaunchedEffect(reminderData, quietHours, myUserId) {
@@ -176,19 +198,32 @@ fun MainShell(
         ) {
             NavHost(
                 navController = navController,
-                startDestination = ShellDestination.GROUPS.route,
+                startDestination = ShellDestination.HOUSEHOLD.route,
             ) {
-                composable(ShellDestination.GROUPS.route) {
-                    DashboardScreen(
+                composable(ShellDestination.HOUSEHOLD.route) {
+                    HouseholdTab(
+                        currentGroupId = currentGroupId,
+                        onSelectGroup = ::selectGroup,
                         viewModel = viewModel,
-                        onGroupClick = onGroupClick,
                     )
                 }
                 composable(ShellDestination.MY_CHORES.route) {
                     MyChoresScreen(
                         viewModel = viewModel,
                         myUserId = myUserId,
-                        onOpenGroup = onGroupClick,
+                        // Switch the board to that household and show it, rather
+                        // than opening a second board on top of this one. One
+                        // board exists; this says which household it is of.
+                        onOpenGroup = { groupId ->
+                            selectGroup(groupId)
+                            navController.navigate(ShellDestination.HOUSEHOLD.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
                     )
                 }
                 composable(ShellDestination.SETTINGS.route) {
@@ -214,8 +249,8 @@ private enum class ShellDestination(
     val icon: ImageVector,
     val selectedIcon: ImageVector,
 ) {
-    GROUPS(
-        route = "groups",
+    HOUSEHOLD(
+        route = "household",
         label = "My groups",
         icon = Icons.Outlined.Groups,
         selectedIcon = Icons.Filled.Groups,
