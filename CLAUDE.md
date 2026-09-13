@@ -133,7 +133,7 @@ answers `401`.
 | `GroupDetailScreen` (2.6k lines) | One household's board: Board / Activity / Members tabs, plus every sheet and dialog. A root destination — no back arrow, bar underneath. |
 | `MyChoresScreen` — **My chores / My week** | Your own turns across every household. Two readings behind an app-bar toggle: grouped by household, or a week strip over dated buckets. Reuses the board's `TaskCard` and its detail sheet. |
 | `OccurrenceDetailHost` | The detail sheet and everything behind it — history, edit flow, delete confirm, busy pass. Mounted by **both** the board and My chores; driven by a hoisted `ChoreDetailController`. |
-| `ui/components/WeekStrip` | Seven days, today ringed, a dot for a day carrying a turn of yours. Never a count, never a colour by fullness. |
+| `ui/components/WeekStrip` | Seven days, today ringed, a dot for a day carrying a turn of yours. Chevrons and swipe both page a week; the week slides the way you sent it. Never a count, never a colour by fullness. |
 | `SettingsScreen` — **Settings** | Name, email, invitations, join with a code, quiet hours, appearance, sign out. |
 | `ui/components/HouseholdSwitcher` | The board's title: household name + chevron, dropping a menu of households plus *Create a household* / *Join with a code*. |
 | `AccountDialogs.kt` | The four dialogs that outlived the group list — invites, join by code, create household, quiet hours. Was `DashboardScreen.kt`. |
@@ -219,10 +219,13 @@ never synced — it is a property of this phone, not of the account or household
   cleared assignees and deadlines. An all-absent request serialises to `{}` and
   the backend answers `400 no fields to update`; skip the call instead.
 - **Bucketing one list into sections is a duplicate-key risk, and in Compose
-  that is a crash.** My week put a turn due tomorrow into TOMORROW *and* NEXT
-  WEEK AND BEYOND on a Sunday, and the `LazyColumn` threw rather than drawing it
-  twice (B-9). `WeekAgendaTest` guards the boundaries; keep the `seen` set in
-  `weekAgenda` if you add a bucket.
+  that is a crash.** My week put a turn due tomorrow into two buckets at once,
+  and the `LazyColumn` threw rather than drawing it twice (B-9). `WeekAgendaTest`
+  guards it; keep the `emitted` set in `weekAgenda` if you add a section.
+- **My week's list is scoped to what the strip is pointing at** — the displayed
+  week, or one day of it. Its headings are days, not DESIGN.md §5.11a's
+  TODAY / TOMORROW / LATER THIS WEEK / NEXT WEEK AND BEYOND, which describe an
+  unbounded list. `BACKLOG.md` records why.
 - **`PATCH /me` is stricter than register.** It parses the email address and
   rejects a display-name form; register accepts any non-empty string. Dev
   accounts created before 2026-09-13 can hold addresses the endpoint would now

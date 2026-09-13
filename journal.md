@@ -6,6 +6,50 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-09-13 (late) — The strip drives the list
+
+My week's strip was decorative: it showed which days carried something, and the
+list underneath ignored it and showed everything. Now the list answers the
+strip.
+
+- **The window is the displayed week**, or **one day** of it once a day is
+  tapped. Tapping the selected day again lets go of it and gives the week back —
+  without that, narrowing to a day is a one-way door. Changing week drops the
+  selection: you asked to look at a week.
+- **Headings are days** — TODAY, TOMORROW, YESTERDAY, or "FRIDAY 11 SEPT" —
+  rather than DESIGN.md §5.11a's TODAY / TOMORROW / LATER THIS WEEK / NEXT WEEK
+  AND BEYOND. Those buckets describe an unbounded list, and this one is bounded
+  by the week on screen; "next week and beyond" cannot appear in a view that
+  stops at Sunday. Still no LATE heading anywhere: an overdue turn sits under
+  its own day with the date in amber.
+- **NO DATE** (as-needed) shows on the current week only, and not once a day is
+  picked: they belong to no date, so pinning them under a day would be a lie and
+  repeating them on every week you page to would be noise.
+- **DONE THIS CYCLE** is keyed on the day it was *done*, not the day it was due.
+  Those two are routinely different, and the question the section answers is
+  "what have I already got through".
+
+Strip changes: **chevrons either side** — the swipe stays, the chevrons are for
+finding it — and the week now **slides the way you sent it** (`AnimatedContent`,
+220ms), so paging reads as movement along a line rather than the numbers being
+replaced where they stand.
+
+The **This week** button had been appearing into the header row and pushing the
+whole strip down, which made the screen twitch every time you paged. It now
+lives in a slot that is always there and always 104dp wide; only its contents
+come and go.
+
+An empty week or day gets a line instead of a blank. Deadpan rather than
+congratulatory — nothing to do is the ordinary state of a flat that is working,
+not an achievement, and a "well done!" here would be the gamification the
+never-list rules out wearing a joke as a disguise. None of the lines mentions
+anybody else or what they might still have on. The line is picked from the date
+being shown rather than at random, so it stays put while you read it.
+
+`WeekAgendaTest` rewritten for the window: ten tests covering the week bounds,
+day selection, the named headings, as-needed and done placement, and the
+no-duplicate-rows invariant that B-9 was about.
+
 ## 2026-09-13 (later still) — My week, and one sheet for both screens
 
 Three things, one of which turned into a crash worth writing down.

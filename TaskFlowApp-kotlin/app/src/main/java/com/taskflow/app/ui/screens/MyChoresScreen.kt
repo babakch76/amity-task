@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -22,7 +21,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -48,6 +46,8 @@ import com.taskflow.app.ui.components.WeekStrip
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /**
  * **My chores / My week** — the second shell tab, and the only screen in the
@@ -307,33 +307,20 @@ private fun ByWeek(
     val today = remember { LocalDate.now() }
     var weekStart by remember { mutableStateOf(today.with(DayOfWeek.MONDAY)) }
     var selected by remember { mutableStateOf<LocalDate?>(null) }
-    var showAllLater by remember { mutableStateOf(false) }
 
     val turns = remember(households) { households.flatMap { it.turns() } }
-    val items = remember(turns, today, showAllLater) { weekAgenda(turns, today, showAllLater) }
+    val items = remember(turns, weekStart, selected, today) {
+        weekAgenda(turns, weekStart, today, selected)
+    }
 
+    // The dots are about the whole of your turns, not about what the list is
+    // currently narrowed to: a day you have selected away from should still
+    // show that it has something on it.
     val datesWithTurns = remember(turns) {
         turns.filter { it.occurrence.isOpen }.mapNotNull { it.date }.toSet()
     }
     val overdueDates = remember(datesWithTurns, today) {
         datesWithTurns.filter { it.isBefore(today) }.toSet()
-    }
-
-    val listState = rememberLazyListState()
-
-    // Tapping a day scrolls the list to it rather than filtering to it: the
-    // question the screen answers is "what is on me", and a day with nothing on
-    // it should show you the days around it, not an empty screen.
-    LaunchedEffect(selected, items) {
-        val day = selected ?: return@LaunchedEffect
-        val index = items.indexOfFirst { it is AgendaItem.Row && it.turn.date == day }
-            .takeIf { it >= 0 }
-            ?: items.indexOfFirst { it is AgendaItem.Row && it.turn.date?.isAfter(day) == true }
-                .takeIf { it >= 0 }
-            ?: return@LaunchedEffect
-        // Land on the heading above the row where there is one, so the row
-        // arrives with its bucket rather than alone at the top.
-        listState.animateScrollToItem((index - 1).coerceAtLeast(0))
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -343,15 +330,22 @@ private fun ByWeek(
             selected = selected,
             datesWithTurns = datesWithTurns,
             overdueDates = overdueDates,
-            onSelect = { day ->
-                selected = day
-                weekStart = day.with(DayOfWeek.MONDAY)
-            },
-            onWeekChange = { weekStart = it },
+            // Tapping the selected day again lets go of it and gives the week
+            // back. Without that, narrowing to a day is a one-way door you can
+            // only leave by paging away and back.
+            onSelect = { day -> selected = if (selected == day) null else day },
+            // Changing week drops the day. You asked to look at a week; showing
+            // one day of it because of a tap two weeks ago would be answering a
+            // question nobody asked.
+            onWeekChange = { weekStart = it; selected = null },
         )
 
+        if (items.isEmpty()) {
+            NothingOn(weekStart = weekStart, today = today, selected = selected)
+            return@Column
+        }
+
         LazyColumn(
-            state = listState,
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -374,15 +368,71 @@ private fun ByWeek(
                             )
                         },
                     )
-
-                    is AgendaItem.ShowAll -> TextButton(onClick = { showAllLater = true }) {
-                        Text("Show all ${item.hidden} more")
-                    }
                 }
             }
         }
     }
 }
+
+/**
+ * A week, or a day, with nothing of yours in it.
+ *
+ * Light rather than congratulatory. Nothing to do is the ordinary state of a
+ * flat that is working, not an achievement to be marked — a "well done!" here
+ * would be the same gamification the never-list rules out, wearing a joke as a
+ * disguise. So these are deadpan, and none of them mentions anybody else or
+ * what they might still have on.
+ *
+ * The line is picked from the week being shown rather than at random, so it
+ * stays put while you look at it and changes when you page somewhere else.
+ */
+@Composable
+private fun NothingOn(weekStart: LocalDate, today: LocalDate, selected: LocalDate?) {
+    val past = (selected ?: weekStart.plusDays(6)).isBefore(today)
+
+    val lines = when {
+        selected != null && past -> DAY_GONE_LINES
+        selected != null -> DAY_CLEAR_LINES
+        past -> WEEK_GONE_LINES
+        else -> WEEK_CLEAR_LINES
+    }
+    val seed = (selected ?: weekStart).toEpochDay().toInt()
+    val line = lines[((seed % lines.size) + lines.size) % lines.size]
+
+    val heading = when {
+        selected == null -> "Nothing on you this week"
+        selected == today -> "Nothing on you today"
+        // "Nothing on you Tuesday" reads like a sentence missing a word, and
+        // "on you on Tuesday" reads like one with an extra.
+        else -> "Nothing on ${selected.format(DAY_NAME)}"
+    }
+
+    EmptyBlock(title = heading, subtitle = line)
+}
+
+private val DAY_NAME: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE")
+
+private val WEEK_CLEAR_LINES = listOf(
+    "The flat appears to be running itself. Don't look directly at it.",
+    "A whole week and not one bin. Enjoy it while it lasts.",
+    "Suspiciously empty. Somewhere, a kettle is descaling itself.",
+)
+
+private val WEEK_GONE_LINES = listOf(
+    "That week came and went without needing you.",
+    "Nothing here. Whatever happened that week, it happened without a rota.",
+)
+
+private val DAY_CLEAR_LINES = listOf(
+    "A free day. Sit down before something notices.",
+    "Nothing due. The kitchen will cope.",
+    "Not your day. In the good sense.",
+)
+
+private val DAY_GONE_LINES = listOf(
+    "That day asked nothing of you.",
+    "Nothing was on you then either.",
+)
 
 /** One of your turns, with everything a row needs to draw itself. */
 internal data class MyTurn(
@@ -393,12 +443,16 @@ internal data class MyTurn(
     /** The day it is wanted, in the phone's zone, or null for an as-needed turn. */
     val date: LocalDate? =
         occurrence.dueDate?.atZoneSameInstant(ZoneId.systemDefault())?.toLocalDate()
+
+    /** The day it was actually done, which is routinely not [date]. */
+    val doneDate: LocalDate? =
+        occurrence.doneAt?.atZoneSameInstant(ZoneId.systemDefault())?.toLocalDate()
 }
 
 private fun MyChoresHousehold.turns(): List<MyTurn> =
     occurrences.map { MyTurn(it, group, chores) }
 
-/** A row in the agenda: a bucket heading, one turn, or the *Show all* button. */
+/** A row in the agenda: a day heading, or one turn. */
 internal sealed interface AgendaItem {
     val key: String
 
@@ -410,81 +464,88 @@ internal sealed interface AgendaItem {
         override val key get() = "occ-${turn.occurrence.id}"
     }
 
-    data class ShowAll(val hidden: Int) : AgendaItem {
-        override val key get() = "show-all"
-    }
 }
 
 /**
- * Your turns as dated buckets — DESIGN.md §5.11a, in its order.
+ * Your turns inside the window the strip is showing — DESIGN.md §5.11a, scoped.
  *
- * Anything whose date has passed goes at the **top of TODAY** rather than into
- * a bucket of its own. A "LATE" heading is a heading that names you as having
- * failed at something, which is the whole of what constraint 3 is about; the
- * amber on the row's own date line is the signal, and it is enough.
+ * The window is **the displayed week**, or **one day** of it once a day is
+ * selected. That is the whole of what the strip is for: it says which days
+ * carry something, and the list underneath answers the day or the week you
+ * pointed at. A list that ignored the strip and always showed everything would
+ * make the strip decorative.
  *
- * Done-this-cycle rows are kept, last, under their own heading. They are what
- * makes the ten-minute undo reachable from this tab at all — a list that drops
- * a chore the instant you tick it gives a mis-tap nowhere to go.
+ * Grouped by day, in date order, under a heading that says which day it is.
+ * Anything whose day has passed sits under that day with its date line in
+ * amber, and there is no "LATE" heading anywhere: a heading that names you as
+ * having failed is what constraint 3 is about, and the amber on the row is
+ * signal enough.
+ *
+ * **NO DATE** — as-needed chores that are currently your turn — appears only on
+ * the current week and only when no single day is selected. They belong to no
+ * date, so pinning them under a day would be a lie, and repeating them on every
+ * week you page to would be noise.
+ *
+ * **DONE THIS CYCLE** is keyed on the day it was *done*, not the day it was
+ * due, because the question this section answers is "what have I already got
+ * through", and those two dates are routinely different.
  */
 internal fun weekAgenda(
     turns: List<MyTurn>,
+    weekStart: LocalDate,
     today: LocalDate,
-    showAllLater: Boolean,
+    selected: LocalDate?,
 ): List<AgendaItem> {
+    val window: ClosedRange<LocalDate> =
+        if (selected != null) selected..selected else weekStart..weekStart.plusDays(6)
+
     val open = turns.filter { it.occurrence.isOpen }
-
-    // Where LATER THIS WEEK stops. `with(SUNDAY)` on a Sunday returns the same
-    // day, so on a Sunday the week has already ended — and tomorrow is then
-    // *after* it. Without the coerce, a turn due tomorrow fell into TOMORROW
-    // and into NEXT WEEK AND BEYOND at once, and the LazyColumn crashed on the
-    // duplicate key rather than merely looking wrong.
-    val lastDayOfWeek = maxOf(today.with(DayOfWeek.SUNDAY), today.plusDays(1))
-
-    val overdue = open.filter { it.date != null && it.date.isBefore(today) }.sortedBy { it.date }
-    val todayTurns = open.filter { it.date == today }
-    val tomorrow = open.filter { it.date == today.plusDays(1) }
-    val later = open.filter {
-        it.date != null && it.date.isAfter(today.plusDays(1)) && !it.date.isAfter(lastDayOfWeek)
-    }.sortedBy { it.date }
-    val beyond = open.filter { it.date != null && it.date.isAfter(lastDayOfWeek) }
-        .sortedBy { it.date }
-    val undated = open.filter { it.date == null }
-    val done = turns.filterNot { it.occurrence.isOpen }
-        .sortedByDescending { it.occurrence.doneAt }
-
     val items = mutableListOf<AgendaItem>()
-    // Belt as well as braces. The buckets above are meant to be disjoint, and
-    // a mistake in one boundary is a crash rather than a cosmetic fault — a
-    // row drawn twice is a duplicate key, and a LazyColumn throws on those.
+    // Belt as well as braces. Drawing one row twice is a duplicate key, and a
+    // LazyColumn throws on those rather than merely looking wrong (B-9).
     val emitted = mutableSetOf<String>()
 
-    fun bucket(label: String, rows: List<MyTurn>) {
-        val fresh = rows.filter { emitted.add(it.occurrence.id) }
-        if (fresh.isEmpty()) return
-        items += AgendaItem.Header(label)
-        fresh.forEach { items += AgendaItem.Row(it) }
-    }
+    open.filter { it.date != null && it.date in window }
+        .sortedBy { it.date }
+        .groupBy { it.date!! }
+        .toSortedMap()
+        .forEach { (day, rows) ->
+            val fresh = rows.filter { emitted.add(it.occurrence.id) }
+            if (fresh.isEmpty()) return@forEach
+            items += AgendaItem.Header(dayLabel(day, today))
+            fresh.forEach { items += AgendaItem.Row(it) }
+        }
 
-    // Overdue rides at the top of TODAY: it is still a thing to do today.
-    bucket("TODAY", overdue + todayTurns)
-    bucket("TOMORROW", tomorrow)
-    bucket("LATER THIS WEEK", later)
-
-    val beyondFresh = beyond.filter { emitted.add(it.occurrence.id) }
-    if (beyondFresh.isNotEmpty()) {
-        items += AgendaItem.Header("NEXT WEEK AND BEYOND")
-        val shown = if (showAllLater) beyondFresh else beyondFresh.take(5)
-        shown.forEach { items += AgendaItem.Row(it) }
-        if (beyondFresh.size > shown.size) {
-            items += AgendaItem.ShowAll(beyondFresh.size - shown.size)
+    if (selected == null && today in window) {
+        val undated = open.filter { it.date == null && emitted.add(it.occurrence.id) }
+        if (undated.isNotEmpty()) {
+            items += AgendaItem.Header("NO DATE")
+            undated.forEach { items += AgendaItem.Row(it) }
         }
     }
 
-    bucket("NO DATE", undated)
-    bucket("DONE THIS CYCLE", done)
+    val done = turns
+        .filterNot { it.occurrence.isOpen }
+        .filter { it.doneDate != null && it.doneDate in window }
+        .sortedByDescending { it.occurrence.doneAt }
+        .filter { emitted.add(it.occurrence.id) }
+    if (done.isNotEmpty()) {
+        items += AgendaItem.Header("DONE THIS CYCLE")
+        done.forEach { items += AgendaItem.Row(it) }
+    }
+
     return items
 }
+
+/** "TODAY", "TOMORROW", "YESTERDAY", or "MONDAY 14 SEPT". */
+private fun dayLabel(day: LocalDate, today: LocalDate): String = when (day) {
+    today -> "TODAY"
+    today.plusDays(1) -> "TOMORROW"
+    today.minusDays(1) -> "YESTERDAY"
+    else -> day.format(DAY_HEADING).uppercase(Locale.getDefault())
+}
+
+private val DAY_HEADING: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE d MMM")
 
 // ═══════════════════════════════════════════════════════════════
 // Shared pieces

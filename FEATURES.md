@@ -275,11 +275,15 @@ says which you are in:
 
 - **My chores** groups them under the household they belong to.
 - **My week** puts the week on top — seven days, today ringed, a dot under any
-  day something of yours falls on — and sorts the turns into *today*,
-  *tomorrow*, *later this week*, *next week and beyond*, and the ones with no
-  date at all. Swipe the week to move it; a **This week** button brings you
-  back. Anything whose day has passed sits at the top of *today* with its date
-  in amber, never under a heading that names you as late.
+  day something of yours falls on — and the list underneath answers that week,
+  day by day. Move the week with the arrows either side or by swiping it; a
+  **This week** button brings you back. Tap a day and the list narrows to that
+  day; tap it again and you get the week back. Anything whose day has passed
+  sits under its own day with the date in amber, never under a heading that
+  names you as late. As-needed chores, which have no date to sit on, get their
+  own section on the current week.
+
+  A week or a day with nothing on it says so, with a straight face.
 
 Tick a turn and it is done; the ones you have already done this cycle stay at
 the bottom so a mis-tap can still be undone. Tapping one opens the same detail

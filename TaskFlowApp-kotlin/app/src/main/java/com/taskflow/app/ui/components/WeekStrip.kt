@@ -1,5 +1,12 @@
 package com.taskflow.app.ui.components
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,13 +16,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -25,10 +39,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
@@ -70,8 +86,7 @@ fun WeekStrip(
     onWeekChange: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val days = (0L..6L).map { weekStart.plusDays(it) }
-    val thisWeek = today.with(java.time.DayOfWeek.MONDAY)
+    val thisWeek = today.with(DayOfWeek.MONDAY)
 
     Surface(color = MaterialTheme.colorScheme.surface, modifier = modifier.fillMaxWidth()) {
         Column {
@@ -79,32 +94,49 @@ fun WeekStrip(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 16.dp, end = 8.dp, top = 6.dp),
+                    .height(44.dp)
+                    .padding(start = 16.dp, end = 8.dp),
             ) {
                 Text(
-                    text = monthLabel(days.first(), days.last()),
+                    text = monthLabel(weekStart, weekStart.plusDays(6)),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
-                // Only offered once it would do something. A "This week" button
-                // on this week is a control that cannot be pressed wrong, which
-                // is a control that should not be there.
-                if (weekStart != thisWeek) {
-                    TextButton(onClick = { onWeekChange(thisWeek); onSelect(today) }) {
-                        Text("This week")
+                // The slot is always here and always this size; only its
+                // contents come and go. Letting the button appear and
+                // disappear moved the whole strip down and back up again,
+                // which reads as the screen twitching every time you page a
+                // week.
+                Box(
+                    contentAlignment = Alignment.CenterEnd,
+                    modifier = Modifier
+                        .width(THIS_WEEK_SLOT)
+                        .fillMaxHeight(),
+                ) {
+                    // Offered only once it would do something. A "This week"
+                    // button on this week is a control that cannot be pressed
+                    // wrong, which is a control that should not be there.
+                    if (weekStart != thisWeek) {
+                        TextButton(
+                            onClick = { onWeekChange(thisWeek) },
+                            contentPadding = PaddingValues(horizontal = 10.dp),
+                        ) {
+                            Text("This week", style = MaterialTheme.typography.labelLarge)
+                        }
                     }
                 }
             }
 
             Row(
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                    // A week at a time, in whichever direction. Threshold is
-                    // generous: this sits above a vertically scrolling list and
-                    // a hesitant diagonal drag should do nothing rather than
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                    // The swipe stays: the chevrons are for finding the
+                    // gesture, not for replacing it. Threshold is generous —
+                    // this sits above a vertically scrolling list, and a
+                    // hesitant diagonal drag should do nothing rather than
                     // jump a week.
                     .pointerInput(weekStart) {
                         var dragged = 0f
@@ -117,19 +149,81 @@ fun WeekStrip(
                         ) { _, amount -> dragged += amount }
                     },
             ) {
-                days.forEach { day ->
-                    DayColumn(
-                        day = day,
-                        isToday = day == today,
-                        isSelected = day == selected,
-                        hasTurn = day in datesWithTurns,
-                        isOverdue = day in overdueDates,
-                        onClick = { onSelect(day) },
-                    )
+                WeekArrow(
+                    icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                    description = "Previous week",
+                    onClick = { onWeekChange(weekStart.minusWeeks(1)) },
+                )
+
+                // The week slides the way you sent it, so paging reads as
+                // movement along a line rather than as the numbers being
+                // replaced where they stand.
+                AnimatedContent(
+                    targetState = weekStart,
+                    transitionSpec = {
+                        val forward = targetState > initialState
+                        val width = { w: Int -> if (forward) w else -w }
+                        (slideInHorizontally(animationSpec = tween(WEEK_MS)) { width(it) } +
+                            fadeIn(tween(WEEK_MS))) togetherWith
+                            (slideOutHorizontally(animationSpec = tween(WEEK_MS)) { -width(it) } +
+                                fadeOut(tween(WEEK_MS)))
+                    },
+                    label = "week",
+                    modifier = Modifier.weight(1f),
+                ) { start ->
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        (0L..6L).map { start.plusDays(it) }.forEach { day ->
+                            DayColumn(
+                                day = day,
+                                isToday = day == today,
+                                isSelected = day == selected,
+                                hasTurn = day in datesWithTurns,
+                                isOverdue = day in overdueDates,
+                                onClick = { onSelect(day) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
                 }
+
+                WeekArrow(
+                    icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    description = "Next week",
+                    onClick = { onWeekChange(weekStart.plusWeeks(1)) },
+                )
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
+    }
+}
+
+/** How long a week takes to slide out of the way of the next one. */
+private const val WEEK_MS = 220
+
+/**
+ * The width kept for **This week**, whether or not the button is in it.
+ *
+ * Wide enough for the label at a large font scale. Reserving it means the month
+ * label never reflows and the strip never changes height.
+ */
+private val THIS_WEEK_SLOT = 104.dp
+
+@Composable
+private fun WeekArrow(
+    icon: ImageVector,
+    description: String,
+    onClick: () -> Unit,
+) {
+    IconButton(onClick = onClick, modifier = Modifier.size(36.dp)) {
+        Icon(
+            icon,
+            contentDescription = description,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(24.dp),
+        )
     }
 }
 
@@ -141,13 +235,13 @@ private fun DayColumn(
     hasTurn: Boolean,
     isOverdue: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val primary = MaterialTheme.colorScheme.primary
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .width(44.dp)
+        modifier = modifier
             .clip(MaterialTheme.shapes.medium)
             .clickable(onClick = onClick)
             .padding(vertical = 6.dp),

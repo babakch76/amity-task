@@ -5,33 +5,37 @@ import com.taskflow.app.data.model.Occurrence
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.DayOfWeek
 import java.time.LocalDate
-import java.time.OffsetDateTime
 import java.time.ZoneId
-import java.time.ZoneOffset
 
 /**
- * The date buckets behind **My week**.
+ * What **My week** puts under the strip.
  *
- * These exist because of a real crash: a turn due tomorrow fell into TOMORROW
- * *and* into NEXT WEEK AND BEYOND when today was a Sunday, and a LazyColumn
- * throws on a duplicate key rather than merely drawing the row twice. The
- * boundary is a one-line expression whose failure mode is fatal, which is the
- * combination worth a test.
+ * The list answers the window the strip is pointing at — the displayed week, or
+ * one day of it — so these assert the window, the day headings, and that no
+ * turn is ever drawn twice. That last one is not fussiness: a duplicate key
+ * crashes a `LazyColumn` rather than merely looking wrong, and it has already
+ * happened once (B-9), when a turn due tomorrow fell into two buckets on a
+ * Sunday.
  */
 class WeekAgendaTest {
 
     private val group = Group(id = "g1", name = "Flat 3B", description = "", createdBy = "u1")
+    private val zone: ZoneId = ZoneId.systemDefault()
 
-    private fun turn(id: String, due: LocalDate?, open: Boolean = true) = MyTurn(
+    /** Monday of the week these tests mostly live in. */
+    private val monday = LocalDate.of(2026, 9, 7)
+
+    private fun turn(id: String, due: LocalDate?, doneOn: LocalDate? = null) = MyTurn(
         occurrence = Occurrence(
             id = id,
             choreId = "c-$id",
             groupId = group.id,
             assignedTo = "u1",
-            status = if (open) "open" else "done",
-            dueDate = due?.atStartOfDay(ZoneId.systemDefault())?.toOffsetDateTime(),
-            doneAt = if (open) null else OffsetDateTime.now(ZoneOffset.UTC),
+            status = if (doneOn == null) "open" else "done",
+            dueDate = due?.atStartOfDay(zone)?.toOffsetDateTime(),
+            doneAt = doneOn?.atStartOfDay(zone)?.toOffsetDateTime(),
         ),
         group = group,
         chores = emptyList(),
@@ -52,75 +56,144 @@ class WeekAgendaTest {
             .map { it.turn.occurrence.id }
     }
 
-    /** The crash, from the day it happened on. */
-    @Test
-    fun `a turn due tomorrow appears once when today is a Sunday`() {
-        val sunday = LocalDate.of(2026, 9, 13)
-        val items = weekAgenda(listOf(turn("t", sunday.plusDays(1))), sunday, showAllLater = false)
+    // ─── The window ───────────────────────────────────────────
 
-        assertEquals(listOf("t"), items.rowIds())
-        assertEquals(listOf("TOMORROW"), items.headers())
+    @Test
+    fun `the week shows its own seven days and nothing either side`() {
+        val turns = listOf(
+            turn("before", monday.minusDays(1)),
+            turn("mon", monday),
+            turn("sun", monday.plusDays(6)),
+            turn("after", monday.plusDays(7)),
+        )
+
+        val ids = weekAgenda(turns, monday, today = monday, selected = null).rowIds()
+
+        assertEquals(listOf("mon", "sun"), ids)
     }
 
-    /** And on every other weekday, for the same reason. */
     @Test
-    fun `no turn is ever bucketed twice, whatever day it is`() {
-        val monday = LocalDate.of(2026, 9, 7)
+    fun `selecting a day narrows the list to that day`() {
+        val wednesday = monday.plusDays(2)
+        val turns = listOf(turn("mon", monday), turn("wed", wednesday), turn("thu", monday.plusDays(3)))
+
+        val ids = weekAgenda(turns, monday, today = monday, selected = wednesday).rowIds()
+
+        assertEquals(listOf("wed"), ids)
+        // The month's short name is the platform's — "SEP" on a bare JVM,
+        // "SEPT" on the phone — so the assertion stops before it.
+        val heading = weekAgenda(turns, monday, today = monday, selected = wednesday)
+            .headers()
+            .single()
+        assertTrue(heading, heading.startsWith("WEDNESDAY 9 "))
+    }
+
+    @Test
+    fun `paging to another week shows that week, not this one`() {
+        val nextWeek = monday.plusWeeks(1)
+        val turns = listOf(turn("thisweek", monday), turn("nextweek", nextWeek.plusDays(2)))
+
+        val ids = weekAgenda(turns, nextWeek, today = monday, selected = null).rowIds()
+
+        assertEquals(listOf("nextweek"), ids)
+    }
+
+    // ─── Headings ─────────────────────────────────────────────
+
+    @Test
+    fun `today, tomorrow and yesterday are named rather than dated`() {
+        val today = monday.plusDays(2)
+        val turns = listOf(
+            turn("yest", today.minusDays(1)),
+            turn("today", today),
+            turn("tom", today.plusDays(1)),
+            turn("later", today.plusDays(2)),
+        )
+
+        val headers = weekAgenda(turns, monday, today = today, selected = null).headers()
+
+        assertEquals(listOf("YESTERDAY", "TODAY", "TOMORROW"), headers.take(3))
+        assertTrue(headers.last(), headers.last().startsWith("FRIDAY 11 "))
+    }
+
+    /** Overdue is a row with an amber date, never a heading that names you late. */
+    @Test
+    fun `nothing is ever headed LATE or OVERDUE`() {
+        val today = monday.plusDays(3)
+        val items = weekAgenda(listOf(turn("late", monday)), monday, today, selected = null)
+
+        assertTrue(items.headers().none { it.contains("LATE") || it.contains("OVERDUE") })
+        assertEquals(listOf("late"), items.rowIds())
+        assertTrue(items.headers().single().startsWith("MONDAY 7 "))
+    }
+
+    // ─── The sections that are not days ───────────────────────
+
+    @Test
+    fun `as-needed turns show on the current week only, and not once a day is picked`() {
+        val turns = listOf(turn("whenever", null))
+
+        val thisWeek = weekAgenda(turns, monday, today = monday, selected = null)
+        assertEquals(listOf("whenever"), thisWeek.idsUnder("NO DATE"))
+
+        val otherWeek = weekAgenda(turns, monday.plusWeeks(1), today = monday, selected = null)
+        assertTrue(otherWeek.isEmpty())
+
+        val oneDay = weekAgenda(turns, monday, today = monday, selected = monday)
+        assertTrue(oneDay.isEmpty())
+    }
+
+    /** Done is keyed on the day you did it, which is routinely not the day it was due. */
+    @Test
+    fun `a done turn lands on the day it was done, not the day it was due`() {
+        val doneOn = monday.plusDays(1)
+        val turns = listOf(turn("done", due = monday.plusWeeks(2), doneOn = doneOn))
+
+        val thisWeek = weekAgenda(turns, monday, today = monday, selected = null)
+        assertEquals(listOf("done"), thisWeek.idsUnder("DONE THIS CYCLE"))
+
+        val weekItWasDue = weekAgenda(turns, monday.plusWeeks(2), today = monday, selected = null)
+        assertTrue(weekItWasDue.isEmpty())
+    }
+
+    @Test
+    fun `done rows come last`() {
+        val turns = listOf(
+            turn("done", due = monday, doneOn = monday),
+            turn("open", due = monday),
+        )
+
+        val headers = weekAgenda(turns, monday, today = monday, selected = null).headers()
+
+        assertEquals(listOf("TODAY", "DONE THIS CYCLE"), headers)
+    }
+
+    // ─── Invariants ───────────────────────────────────────────
+
+    @Test
+    fun `no turn is ever drawn twice, whatever day of the week it is`() {
         for (offset in 0L..6L) {
             val today = monday.plusDays(offset)
-            val turns = (-3L..14L).map { turn("d$it", today.plusDays(it)) } + turn("none", null)
-            val ids = weekAgenda(turns, today, showAllLater = true).rowIds()
+            val weekStart = today.with(DayOfWeek.MONDAY)
+            val turns = (-3L..10L).map { turn("d$it", today.plusDays(it)) } +
+                turn("none", null) +
+                turn("done", due = today, doneOn = today)
+
+            val ids = weekAgenda(turns, weekStart, today, selected = null).rowIds()
+
             assertEquals("duplicate row on ${today.dayOfWeek}", ids.distinct().size, ids.size)
-            assertEquals("lost a row on ${today.dayOfWeek}", turns.size, ids.size)
         }
     }
 
     @Test
-    fun `overdue rides at the top of today rather than in a bucket of its own`() {
-        val today = LocalDate.of(2026, 9, 9)
+    fun `an empty window produces nothing at all, not an empty heading`() {
         val items = weekAgenda(
-            listOf(turn("today", today), turn("late", today.minusDays(2))),
-            today,
-            showAllLater = false,
+            listOf(turn("elsewhere", monday.plusWeeks(3))),
+            monday,
+            today = monday,
+            selected = null,
         )
 
-        assertTrue("LATE" !in items.headers())
-        assertEquals(listOf("late", "today"), items.idsUnder("TODAY"))
-    }
-
-    @Test
-    fun `an as-needed turn goes under NO DATE, and done rows come last`() {
-        val today = LocalDate.of(2026, 9, 9)
-        val items = weekAgenda(
-            listOf(turn("done", today, open = false), turn("whenever", null), turn("today", today)),
-            today,
-            showAllLater = false,
-        )
-
-        assertEquals(listOf("TODAY", "NO DATE", "DONE THIS CYCLE"), items.headers())
-        assertEquals(listOf("whenever"), items.idsUnder("NO DATE"))
-        assertEquals(listOf("done"), items.idsUnder("DONE THIS CYCLE"))
-    }
-
-    @Test
-    fun `beyond this week collapses to five rows with the rest behind a button`() {
-        val today = LocalDate.of(2026, 9, 7)
-        val far = (1L..8L).map { turn("f$it", today.plusWeeks(1).plusDays(it)) }
-
-        val collapsed = weekAgenda(far, today, showAllLater = false)
-        assertEquals(5, collapsed.idsUnder("NEXT WEEK AND BEYOND").size)
-        assertEquals(3, collapsed.filterIsInstance<AgendaItem.ShowAll>().single().hidden)
-
-        val expanded = weekAgenda(far, today, showAllLater = true)
-        assertEquals(8, expanded.idsUnder("NEXT WEEK AND BEYOND").size)
-        assertTrue(expanded.none { it is AgendaItem.ShowAll })
-    }
-
-    @Test
-    fun `an empty bucket is absent rather than an empty heading`() {
-        val today = LocalDate.of(2026, 9, 9)
-        val items = weekAgenda(listOf(turn("only", today)), today, showAllLater = false)
-
-        assertEquals(listOf("TODAY"), items.headers())
+        assertTrue(items.isEmpty())
     }
 }

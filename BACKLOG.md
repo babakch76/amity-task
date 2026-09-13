@@ -63,6 +63,24 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
   `calendar_decision_record.md` deleted: no external calendar, no free/busy, and
   nothing of anybody else's drawn on it. A dot means *you* have a turn that day,
   never how many, and no day is coloured by how full it is.
+- **My week's list is scoped to the strip (2026-09-13).** The window is the
+  displayed week, or one day of it once a day is tapped. A strip that says which
+  days carry something, over a list that ignores it and shows everything, makes
+  the strip decorative — and the two then disagree about what "this week" means.
+
+  This replaces DESIGN.md §5.11a's TODAY / TOMORROW / LATER THIS WEEK / NEXT
+  WEEK AND BEYOND buckets with day headings inside the window. Those buckets
+  describe an unbounded list; "next week and beyond" cannot appear in a view
+  that stops on Sunday. What survives unchanged: no LATE heading anywhere (an
+  overdue turn sits under its own day, date in amber), NO DATE for as-needed
+  turns — current week only, and not once a day is picked, since they belong to
+  no date — and DONE THIS CYCLE keyed on the day it was *done* rather than the
+  day it was due.
+
+  The empty state is deadpan rather than congratulatory. Nothing to do is the
+  ordinary state of a flat that works, not an achievement, and a cheer here
+  would be the gamification the never-list forbids wearing a joke as a disguise.
+  No line mentions anybody else or what they might still have on.
 - **The detail sheet is shared, not copied (2026-09-13).** Tapping a turn in My
   chores opens the board's own sheet, with its history, edit flow, delete
   confirm and busy pass behind it. Rather than copy that wiring, it came out of
