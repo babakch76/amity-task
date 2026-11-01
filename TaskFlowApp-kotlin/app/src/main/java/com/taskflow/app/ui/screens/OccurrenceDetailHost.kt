@@ -218,9 +218,18 @@ internal fun OccurrenceDetailHost(
     // An occurrence can vanish under the sheet: undoing a completion deletes
     // the one it spawned. Close rather than leave a sheet describing a row that
     // no longer exists.
+    //
+    // Only once it has been *seen*, though. My chores opens this with a
+    // household ViewModel created on the spot, whose list is empty for the
+    // first frame or two; treating "not loaded yet" as "gone" closed every
+    // sheet My chores opened before it could draw, so tapping a turn there did
+    // nothing at all.
+    var seen by remember(controller.occurrenceId) { mutableStateOf(false) }
     LaunchedEffect(controller.occurrenceId, state.occurrences) {
-        val id = controller.occurrenceId
-        if (id != null && state.occurrences.none { it.id == id }) {
+        val id = controller.occurrenceId ?: return@LaunchedEffect
+        if (state.occurrences.any { it.id == id }) {
+            seen = true
+        } else if (seen) {
             controller.occurrenceId = null
         }
     }

@@ -421,6 +421,15 @@ class ShellViewModel : ViewModel() {
     }
 
     /**
+     * Show a message that came from somewhere else — a household's own
+     * ViewModel, behind a sheet opened from My chores — on the shell's
+     * snackbar, which is the one My chores can see.
+     */
+    fun showMessage(text: String) {
+        _actionMessage.value = text
+    }
+
+    /**
      * Alias for [fetchGroups] — semantic name for pull-to-refresh / retry.
      * Also re-checks invites, since a teammate may have sent one meanwhile.
      */

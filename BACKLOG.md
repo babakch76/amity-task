@@ -844,6 +844,55 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
 
 ## Bugs
 
+### B-20 · Tapping a turn in My chores opened nothing — DONE (2026-11-01)
+
+**Seen:** on the phone, a tap on any row in My chores did nothing. The touch
+arrived; no sheet, no request.
+
+**Cause:** My chores opens the board's sheet with a household ViewModel made
+on the spot, whose list is empty for its first frame. `OccurrenceDetailHost`
+closes the sheet when its turn is missing from the list — meant for an undo
+that deletes the turn under it — and read "not loaded yet" as "gone". The
+sheet closed before it drew; when the data arrived a moment later, My chores
+saw nothing open and unmounted it.
+
+**Fixed:** the host only closes for a turn it has already seen. Also, the
+sheet's result (*"bathroom done. You're next."*) was set on that household
+ViewModel, which nothing in My chores listened to; it is now passed to the
+shell's snackbar, and My chores waits for the request to answer before it
+unmounts the sheet. Checked on the phone: open, mark done, message, undo.
+
+### B-19 · "Resume after the coverer" is only fair when the coverer sits just after — OPEN (2026-11-01)
+
+**Seen:** `home`'s bathroom, rotation dd → mm → aa → bb. mm covered aa's
+turn, aa repaid it, and the next turn went straight back to aa (*"bathroom
+done. You're next."*).
+
+**Why:** after a repayment the rotation resumes *after the coverer*. Every
+worked example (nextTurn's ann/bo/cass, the spec's 1.4) has the coverer
+immediately after the person they covered, where that is exactly a one-cycle
+swap. Anywhere else it is not. Counted against an unbroken rotation:
+
+| Case | Today | Unbroken would give |
+|---|---|---|
+| dd/mm/aa/bb, mm covers aa | aa, **aa**, bb, dd, mm — aa +1, dd −1 | aa, bb, dd, *(mm's slot spent)*, aa |
+| A/B/C/D, C covers A | A, **D**, A … — B loses a turn | A, B, *(C's slot spent)*, D |
+| ann/bo/cass, bo covers ann | ann, cass — fair | same |
+| A/B (spec 1.4) | A, A — fair | same |
+
+**A rule that fits all four:** after a cover, the order carries on *after the
+person who owed it*, and the coverer's own slot is skipped **once**, when it
+comes round — the cover was their turn. When the coverer is next anyway (the
+documented cases) this is today's behaviour; otherwise it stops one person
+doubling and another being skipped.
+
+**Not fixed, on purpose.** It changes what `resume_after` means ("skip once"
+rather than "start after"), which the client also reads to predict a busy
+pass's receiver (`nextInRotationAfter`), and the spec's tests are written in
+the current wording. A first attempt — "whoever just did it is never next" —
+was wrong: it breaks 1.4, where two in a row is the fair answer. This wants a
+decision on the rule before code; the table above is the test list.
+
 ### B-17 · Two "done" at once spawned two next turns — DONE (2026-11-01)
 
 **Seen:** the `home` household's *Trash* had three open turns at once (mm, mm,

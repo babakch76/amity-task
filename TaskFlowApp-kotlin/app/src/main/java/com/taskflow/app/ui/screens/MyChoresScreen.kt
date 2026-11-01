@@ -190,6 +190,7 @@ fun MyChoresScreen(
             groupId = groupId,
             occurrenceId = occurrenceId,
             myUserId = myUserId,
+            onMessage = viewModel::showMessage,
             onClosed = {
                 detailFor = null
                 // Whatever the sheet did — passed it, edited the chore, moved
@@ -220,6 +221,8 @@ private fun OpenedFromMyChores(
     groupId: String,
     occurrenceId: String,
     myUserId: String?,
+    /** A result to show on the shell's snackbar — this tab has no other. */
+    onMessage: (String) -> Unit,
     onClosed: () -> Unit,
 ) {
     val boardViewModel: GroupDetailViewModel = viewModel(
@@ -251,8 +254,23 @@ private fun OpenedFromMyChores(
         controller.passCandidate == null &&
         controller.historyChoreName == null
 
-    LaunchedEffect(arrived, nothingOpen) {
-        if (arrived && nothingOpen) onClosed()
+    // The household ViewModel says how a completion, pass or edit went —
+    // "Trash done. bb is next." — but only the board ever listened. Passed to
+    // the shell, whose snackbar this tab shows.
+    LaunchedEffect(state.message) {
+        state.message?.let {
+            onMessage(it)
+            boardViewModel.dismissMessage()
+        }
+    }
+
+    // Closing unmounts this, and with it the listener above. So it waits for
+    // whatever the sheet just started to answer: "I did this" closes the sheet
+    // in the same tap that sends the request, and closing on that alone threw
+    // the reply away. isWorking is already true by then — the ViewModel sets
+    // it before its first suspension, on the main thread.
+    LaunchedEffect(arrived, nothingOpen, state.isWorking, state.message) {
+        if (arrived && nothingOpen && !state.isWorking && state.message == null) onClosed()
     }
 }
 
