@@ -42,6 +42,12 @@ colleague, and a six-screen redesign concept from someone else.
   after repaying a cover) — designed behaviour or not, it wants a decision
   before the interviews; and My chores never shows the board's messages, so a
   completion from there gets no snackbar.
+- **Follow-up, same evening.** Pushed. The turn-rule gap is written up as
+  B-19 (OPEN, with the counting table and a proposed "skip the coverer once"
+  rule) — a first fix, "never twice in a row", broke the spec's own 1.4 and was
+  reverted. Looking at My chores turned up a worse bug than the missing
+  snackbar: tapping a turn there opened nothing at all (B-20). Fixed, with the
+  snackbar.
 - **Not taken from the concept:** Google / emailed-link sign-in (01), the group
   list as home (03, contradicts 2026-09-13), group settings with archive /
   delete / transfer (06), the setup checklist (02).
