@@ -32,6 +32,10 @@ const (
 	// late is ever pushed to anyone (constraints 2 and 7).
 	EventOccurrenceDone     = "occurrence_done"
 	EventOccurrenceReopened = "occurrence_reopened"
+	// "I worked on this too", and taking that back. Group-visible, so in the
+	// feed like a completion — and, like a completion, never pushed.
+	EventOccurrenceAlso          = "occurrence_also"
+	EventOccurrenceAlsoWithdrawn = "occurrence_also_withdrawn"
 
 	EventMemberJoined   = "member_joined"
 	EventMemberLeft     = "member_left"

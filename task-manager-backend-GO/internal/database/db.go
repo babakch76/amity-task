@@ -255,6 +255,22 @@ func migrate(db *sql.DB) error {
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
+	-- "I worked on this too" — anybody besides the doer who put work into a
+	-- completed cycle.
+	--
+	-- A table rather than a column because there can be more than one, and
+	-- because it is deliberately *not* part of the completion: done_by still
+	-- decides whose turn it counted as, and nothing here touches the rotation
+	-- or anyone's debt. It is a record that the work happened, so the person who
+	-- quietly redid half the bathroom stops being invisible — not a verdict on
+	-- the half that was there before.
+	CREATE TABLE IF NOT EXISTS occurrence_also_by (
+		occurrence_id TEXT NOT NULL REFERENCES occurrences(id) ON DELETE CASCADE,
+		user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		added_at      DATETIME NOT NULL,
+		PRIMARY KEY (occurrence_id, user_id)
+	);
+
 	CREATE INDEX IF NOT EXISTS idx_group_members_group ON group_members(group_id);
 	CREATE INDEX IF NOT EXISTS idx_group_members_user  ON group_members(user_id);
 	CREATE INDEX IF NOT EXISTS idx_tasks_group         ON tasks(group_id);

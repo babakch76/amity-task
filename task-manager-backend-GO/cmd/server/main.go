@@ -138,6 +138,8 @@ func newRouter(db *database.DB) http.Handler {
 	member("PATCH /groups/{group_id}/occurrences/{occurrence_id}", choreH.UpdateOccurrence)
 	member("POST /groups/{group_id}/occurrences/{occurrence_id}/pass", choreH.PassOccurrence)
 	member("DELETE /groups/{group_id}/occurrences/{occurrence_id}/pass", choreH.UndoPass)
+	member("POST /groups/{group_id}/occurrences/{occurrence_id}/also", choreH.AddAlso)
+	member("DELETE /groups/{group_id}/occurrences/{occurrence_id}/also", choreH.RemoveAlso)
 	member("PUT /groups/{group_id}/occurrences/{occurrence_id}/due-date", choreH.SetOccurrenceDueDate)
 
 	return root

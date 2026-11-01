@@ -12,6 +12,33 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
 
 ## v2 progress
 
+- **"I worked on this too" — DONE (2026-11-01).** From the interviews: five of
+  fifteen described redoing part of a chore somebody else had marked done —
+  "if it's something small, I usually redo it" — to avoid an argument, and the
+  extra work leaving no trace. A completed turn now takes a second (third…)
+  name: table `occurrence_also_by`, `POST` / `DELETE
+  …/occurrences/{id}/also`, an `occurrence_also` feed entry, *"Done by maya,
+  also sara"* on the row, the sheet and the chore's history.
+
+  What it deliberately does not do, each a decision:
+  - **No credit.** `done_by` still decides whose turn it counted as. Rotation,
+    debts and the per-person count are untouched — otherwise adding yourself
+    to everything would pad a number (constraint 4) and could move a turn.
+  - **No note.** A text box beside somebody else's completion is a comment
+    thread and a quality verdict (constraint 1). The fact of the name is the
+    whole message; the sheet's line under the button says the turn is still
+    theirs.
+  - **Two days, not forever.** Long enough for "I finished it off the next
+    morning", short enough that it cannot become a way to annotate the archive
+    after an argument.
+  - **Not by the doer, not twice.** And taking your own name off is allowed
+    for ten minutes, the same terms as undoing a completion.
+  - **Undo takes it with it.** Reopening a completion deletes its "also"
+    rows; otherwise an open turn would say somebody helped with a chore that
+    is not done.
+  - **In the feed, never pushed** — a group-visible change (constraint 7),
+    and there is no push channel anyway.
+
 - **WHAT DONE MEANS moved onto the button (2026-11-01).** Raised in review: the
   done-line headed the detail sheet, and the four-row list plus History / Edit
   chore stood between it and *I did this* — the agreement was something you had

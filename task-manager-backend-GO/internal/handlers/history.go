@@ -106,6 +106,16 @@ func (h *ChoreHandler) ChoreHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	also, err := alsoByFor(h.DB, `o.chore_id = ?`, choreID)
+	if err != nil {
+		log.Printf("ChoreHistory: also-by lookup failed for chore %s: %v", choreID, err)
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	for i := range entries {
+		entries[i].AlsoBy = also[entries[i].OccurrenceID]
+	}
+
 	// Absences go back with the timeline so a client can show them in place —
 	// the spec's "marked distinctly", so a gap in someone's completions is
 	// visibly a gap in their being there.

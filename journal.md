@@ -16,11 +16,17 @@ colleague, and a six-screen redesign concept from someone else.
   it. `BACKLOG.md` records it as the fourth departure from the Stitch mock.
 - **Completion push — declined.** The Activity feed already carries
   `occurrence_done`; the rules a push would need are recorded in `BACKLOG.md`.
-- **Next, in order:** "I worked on this too" (a second contributor on a done
-  turn, also an Activity entry, no effect on rotation or debts); the board's
-  next-turn line, rotation preview, recent completions and *"… is next · Undo"*
-  snackbar (concept screen 04); names, Owner / Away badges and invites in the
-  Members tab (screen 05, without the share link).
+- **"I worked on this too" — done.** Backend table + two endpoints + five
+  tests (credit and next turn unchanged, refusals, withdraw window, undo
+  clears it, history shows it but the count does not). Android: button and
+  *Also worked on it* row in the sheet, *"Done by maya, also sara"* on the row
+  and in history, two feed phrasings. The three time windows in
+  `OccurrenceDetailHost` now share one `openUntil` helper instead of one
+  hand-written coroutine each. Checked end to end against a throwaway database.
+- **Next, in order:** the board's next-turn line, rotation preview, recent
+  completions and *"… is next · Undo"* snackbar (concept screen 04); names,
+  Owner / Away badges and invites in the Members tab (screen 05, without the
+  share link).
 - **Not taken from the concept:** Google / emailed-link sign-in (01), the group
   list as home (03, contradicts 2026-09-13), group settings with archive /
   delete / transfer (06), the setup checklist (02).

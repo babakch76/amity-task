@@ -210,8 +210,8 @@ type Occurrence struct {
 	// publish exactly what that constraint protects — and a client that could
 	// read it could count it, which Part 0 forbids. The board already shows
 	// the only part anyone else needs: whose name is on the row.
-	PassedChain   []string `json:"-"`
-	PendingDebts  []string `json:"-"`
+	PassedChain  []string `json:"-"`
+	PendingDebts []string `json:"-"`
 
 	// NeedsDate is set when everybody who could take this chore has passed it,
 	// so it has come back to whoever asked first and they are the one to say
@@ -221,7 +221,7 @@ type Occurrence struct {
 	// than stored, because it is a fact about the chain and the chain can
 	// change. Everyone else sees an ordinary standing chore: that a whole
 	// household declined it is between them and the person now holding it.
-	NeedsDate     bool     `json:"needs_date,omitempty"`
+	NeedsDate bool `json:"needs_date,omitempty"`
 
 	CoveredBy     *string `json:"covered_by,omitempty"`
 	CoveredByName *string `json:"covered_by_name,omitempty"`
@@ -230,6 +230,21 @@ type Occurrence struct {
 	// without a second round trip per occurrence.
 	ChoreName string `json:"chore_name"`
 	DoneLine  string `json:"done_line"`
+
+	// AlsoBy is everyone besides the doer who said they worked on this cycle
+	// too, oldest first. Only ever set on a done occurrence.
+	AlsoBy []AlsoBy `json:"also_by,omitempty"`
+}
+
+// AlsoBy is one "I worked on this too" on a completed cycle.
+//
+// A fact, not a rating: it says who put work in, and nothing about whether the
+// doer's part was good enough. There is no note field, on purpose — a free-text
+// box beside somebody else's completion is a comment thread (constraint 1).
+type AlsoBy struct {
+	UserID   string    `json:"user_id"`
+	Username string    `json:"username"`
+	AddedAt  time.Time `json:"added_at"`
 }
 
 // ── History (F6) ────────────────────────────────────────────────────────────
@@ -253,6 +268,10 @@ type ChoreHistoryEntry struct {
 
 	DueDate *time.Time `json:"due_date,omitempty"`
 	DoneAt  time.Time  `json:"done_at"`
+
+	// AlsoBy is everyone else who worked on this cycle — "done by Maya, also
+	// Sara". It does not change who the cycle is credited to.
+	AlsoBy []AlsoBy `json:"also_by,omitempty"`
 }
 
 // Absence is one away period, for showing beside a timeline or explaining a
@@ -410,7 +429,7 @@ type CreateChoreRequest struct {
 // date meaningless, and re-deriving it silently is worse than requiring a new
 // chore.
 type UpdateChoreRequest struct {
-	Name           *string       `json:"name,omitempty"`
+	Name *string `json:"name,omitempty"`
 	// ScheduleType moves a chore between interval, fixed_date and as_needed.
 	//
 	// It was immutable until v2's edit flow, on the reasoning that a chore

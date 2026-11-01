@@ -229,6 +229,26 @@ interface GroupApiService {
     ): Response<Occurrence>
 
     /**
+     * "I worked on this too" — add yourself beside the doer of a completed
+     * cycle. Credit, rotation and debts are untouched.
+     *
+     * Refused with 409 if it is not done, you are the doer, you are already on
+     * it, or it was done more than two days ago.
+     */
+    @POST("groups/{group_id}/occurrences/{occurrence_id}/also")
+    suspend fun addAlso(
+        @Path("group_id") groupId: String,
+        @Path("occurrence_id") occurrenceId: String,
+    ): Response<Occurrence>
+
+    /** Take back your own "I worked on this too", within ten minutes of adding it. */
+    @DELETE("groups/{group_id}/occurrences/{occurrence_id}/also")
+    suspend fun removeAlso(
+        @Path("group_id") groupId: String,
+        @Path("occurrence_id") occurrenceId: String,
+    ): Response<Occurrence>
+
+    /**
      * Bring an occurrence's day forward.
      *
      * The one place a chore's own date moves by hand, and only earlier. It is

@@ -76,6 +76,7 @@ import com.taskflow.app.data.model.scheduleWording
 import com.taskflow.app.data.model.ScheduleType
 import com.taskflow.app.data.model.Task
 import com.taskflow.app.data.model.isOpen
+import com.taskflow.app.data.model.joinedNames
 import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.Instant
@@ -927,6 +928,12 @@ private fun TaskList(
 internal val UNDO_WINDOW: Duration = Duration.ofMinutes(10)
 
 /**
+ * How long after a turn is done somebody else may add "I worked on this too".
+ * Mirrors `alsoWindow` in the backend's also.go, which is what actually decides.
+ */
+internal val ALSO_WINDOW: Duration = Duration.ofHours(48)
+
+/**
  * Line 2 of a row: how often this comes round, in the household's words.
  *
  * "every 4 days", "Tuesdays", "as needed" - the same forms the chore's own
@@ -973,7 +980,8 @@ private fun cycleLineFor(
     dateAlreadyShown: Boolean,
 ): String {
     if (!row.isOpen) {
-        val doer = doneByName ?: "someone"
+        val also = (row as? BoardRow.OccurrenceRow)?.occurrence?.alsoBy.joinedNames()
+        val doer = (doneByName ?: "someone") + (also?.let { ", also $it" } ?: "")
         val doneOn = row.doneAt?.let { formatDueDate(it) }
         return if (doneOn != null) "Done by $doer · $doneOn" else "Done by $doer"
     }
@@ -1408,11 +1416,21 @@ internal fun OccurrenceDetailSheet(
      * freezes the answer at whatever it was when the sheet was drawn (B-6).
      */
     canUndo: Boolean = false,
+    /**
+     * Whether this person may add "I worked on this too": the turn is done,
+     * somebody else did it, they are not already on it, and it is recent.
+     * Computed by the caller for the same reason as [canUndo].
+     */
+    canAddAlso: Boolean = false,
+    /** Whether this person may take their own "also" back — ten minutes, like undo. */
+    canUndoAlso: Boolean = false,
     onDismiss: () -> Unit,
     onEditChore: () -> Unit,
     onShowHistory: () -> Unit,
     onMarkDone: () -> Unit,
     onUndoDone: () -> Unit,
+    onAddAlso: () -> Unit = {},
+    onUndoAlso: () -> Unit = {},
     onPass: () -> Unit,
     onPickDay: (String) -> Unit,
 ) {
@@ -1573,6 +1591,10 @@ internal fun OccurrenceDetailSheet(
                     if (!occurrence.isOpen) {
                         SheetInfoDivider()
                         SheetInfoRow("Done by", doer ?: "Not recorded")
+                        occurrence.alsoBy.joinedNames()?.let { also ->
+                            SheetInfoDivider()
+                            SheetInfoRow("Also worked on it", also)
+                        }
                         SheetInfoDivider()
                         SheetInfoRow("Done", formatStamp(occurrence.doneAt))
                     }
@@ -1707,6 +1729,41 @@ internal fun OccurrenceDetailSheet(
                         .fillMaxWidth()
                         .height(52.dp),
                 ) { Text("Undo — I didn't do this") }
+            }
+
+            // ── "I worked on this too" ──
+            //
+            // For whoever finished it off, or redid half of it, after somebody
+            // else marked it done — work that otherwise leaves no trace. It adds
+            // a name and nothing else: no note, no reason, and the turn is
+            // still the doer's. The line under it says so, because the obvious
+            // worry is that this is a way to correct somebody (constraint 1).
+            if (canAddAlso) {
+                OutlinedButton(
+                    onClick = onAddAlso,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                ) {
+                    Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("I worked on this too")
+                }
+                Text(
+                    doer?.let { "Adds your name beside $it's. It still counts as $it's turn." }
+                        ?: "Adds your name. It still counts as their turn.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else if (canUndoAlso) {
+                OutlinedButton(
+                    onClick = onUndoAlso,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                ) { Text("Undo — take my name off") }
             }
 
             if (occurrence.needsDate && mine) {
@@ -2126,6 +2183,8 @@ private fun describeEvent(e: ActivityEvent): String = when (e.eventType) {
     "chore_deleted" -> "${e.actorUsername} deleted a chore"
     "occurrence_done" -> "${e.actorUsername} did a chore"
     "occurrence_reopened" -> "${e.actorUsername} undid a completion"
+    "occurrence_also" -> "${e.actorUsername} also worked on a chore"
+    "occurrence_also_withdrawn" -> "${e.actorUsername} took their name off a chore"
 
     "member_joined" -> "${e.actorUsername} joined the group"
     "member_left" -> "${e.actorUsername} left the group"
@@ -2201,7 +2260,7 @@ private fun eventColor(type: String) = when (type) {
     "task_created", "chore_created" -> MaterialTheme.colorScheme.primary
     // Completions get the same green a done row does. Not a reward — the feed
     // is a record, and this is the one entry that says something finished.
-    "occurrence_done" -> MaterialTheme.colorScheme.tertiary
+    "occurrence_done", "occurrence_also" -> MaterialTheme.colorScheme.tertiary
     "task_deleted", "chore_deleted", "member_left" -> MaterialTheme.colorScheme.error
     "member_joined", "invite_accepted" -> MaterialTheme.colorScheme.tertiary
     else -> MaterialTheme.colorScheme.secondary
@@ -2400,13 +2459,13 @@ internal fun ChoreHistorySheet(
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                             Text(
-                                text = if (row.doneBy == row.assignedTo) {
+                                text = (if (row.doneBy == row.assignedTo) {
                                     "${row.doneByName}'s turn"
                                 } else {
                                     // Named without comment. Who did it is the
                                     // fact; what it says about anyone is not.
                                     "${row.doneByName} did ${row.assigneeName}'s turn"
-                                },
+                                }) + (row.alsoBy.joinedNames()?.let { ", also $it" } ?: ""),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

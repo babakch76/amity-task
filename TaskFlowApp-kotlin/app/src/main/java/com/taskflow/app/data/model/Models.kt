@@ -224,7 +224,39 @@ data class Occurrence(
     val choreName: String = "",
     @SerializedName("done_line")
     val doneLine: String = "",
+    /**
+     * Everyone besides the doer who said they worked on this cycle too, oldest
+     * first. Only ever on a done occurrence.
+     *
+     * Nullable rather than defaulted: the backend omits an empty list, and Gson
+     * builds this class without running its constructor, so a default would be
+     * skipped and a non-null type would hold null anyway.
+     */
+    @SerializedName("also_by")
+    val alsoBy: List<AlsoBy>? = null,
 )
+
+/**
+ * One "I worked on this too" on a completed cycle — a fact, not a rating. It
+ * does not change whose turn the cycle counted as.
+ */
+data class AlsoBy(
+    @SerializedName("user_id")
+    val userId: String,
+    val username: String,
+    @SerializedName("added_at")
+    val addedAt: OffsetDateTime,
+)
+
+/** "Sara", "Sara and Tom", "Sara, Tom and Ali" — or null when there is nobody. */
+fun List<AlsoBy>?.joinedNames(): String? {
+    val names = this.orEmpty().map { it.username }
+    return when (names.size) {
+        0 -> null
+        1 -> names[0]
+        else -> names.dropLast(1).joinToString(", ") + " and " + names.last()
+    }
+}
 
 /**
  * True while this occurrence is still outstanding.
@@ -261,6 +293,9 @@ data class ChoreHistoryEntry(
     val dueDate: OffsetDateTime? = null,
     @SerializedName("done_at")
     val doneAt: OffsetDateTime,
+    /** Everyone else who worked on this cycle. Credit stays with [doneBy]. */
+    @SerializedName("also_by")
+    val alsoBy: List<AlsoBy>? = null,
 )
 
 /** One away period, for showing beside a timeline or explaining a quiet spell. */

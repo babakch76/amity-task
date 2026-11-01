@@ -595,6 +595,16 @@ func (h *ChoreHandler) ListOccurrences(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	also, err := alsoByFor(h.DB, `o.group_id = ?`, groupID)
+	if err != nil {
+		log.Printf("ListOccurrences: also-by lookup failed for group %s: %v", groupID, err)
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	for i := range occurrences {
+		occurrences[i].AlsoBy = also[occurrences[i].ID]
+	}
+
 	// Tell the holder, and only the holder, when a chore has come back to them
 	// because everybody available had passed it. Two extra reads on a board
 	// load, which is the price of not storing a fact that the chain can change
@@ -705,6 +715,15 @@ func (h *ChoreHandler) UpdateOccurrence(w http.ResponseWriter, r *http.Request) 
 		if _, err := tx.Exec(
 			`DELETE FROM occurrences WHERE spawned_from = ? AND status = 'open'`,
 			occurrenceID,
+		); err != nil {
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		// "I worked on this too" hangs off a completion, and the completion is
+		// being taken back. Left behind, it would sit on an open turn and say
+		// someone helped with a chore that is not done.
+		if _, err := tx.Exec(
+			`DELETE FROM occurrence_also_by WHERE occurrence_id = ?`, occurrenceID,
 		); err != nil {
 			jsonError(w, "internal error", http.StatusInternalServerError)
 			return
@@ -1678,6 +1697,11 @@ func (h *ChoreHandler) loadOccurrence(occurrenceID string) (*models.Occurrence, 
 	if err != nil {
 		return nil, err
 	}
+	also, err := alsoByFor(h.DB, `o.id = ?`, occurrenceID)
+	if err != nil {
+		return nil, err
+	}
+	o.AlsoBy = also[occurrenceID]
 	return &o, nil
 }
 

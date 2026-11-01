@@ -76,31 +76,18 @@ internal fun OccurrenceDetailHost(
 
     // Whether the person looking at the sheet may still take the completion
     // back: they marked it, and the ten-minute window has not closed.
-    //
-    // This moved here from the board row along with the undo itself. The clock
-    // cannot be read during composition — that freezes the answer at whatever
-    // it was when the sheet was drawn, which is how the row's checkbox stayed
-    // enabled long past the window (B-6). So the sheet waits out its own
-    // window: one coroutine, sleeping exactly until the moment it lapses.
     val mineToUndo = occurrence != null && !occurrence.isOpen &&
         occurrence.doneBy != null && occurrence.doneBy == myUserId
-    var undoWindowOpen by remember(occurrence?.id, occurrence?.doneAt) { mutableStateOf(false) }
+    val canUndo = openUntil(occurrence?.doneAt?.plus(UNDO_WINDOW)?.takeIf { mineToUndo })
 
-    LaunchedEffect(occurrence?.id, occurrence?.doneAt, mineToUndo) {
-        val doneAt = occurrence?.doneAt
-        if (!mineToUndo || doneAt == null) {
-            undoWindowOpen = false
-            return@LaunchedEffect
-        }
-        val remaining = Duration.between(OffsetDateTime.now(), doneAt.plus(UNDO_WINDOW))
-        if (remaining.isNegative || remaining.isZero) {
-            undoWindowOpen = false
-            return@LaunchedEffect
-        }
-        undoWindowOpen = true
-        delay(remaining.toMillis())
-        undoWindowOpen = false
-    }
+    // "I worked on this too": somebody else's finished turn that you are not
+    // already on, for two days after it was done; and taking your own name off
+    // again, for ten minutes after adding it.
+    val myAlso = occurrence?.alsoBy.orEmpty().firstOrNull { it.userId == myUserId }
+    val mayAddAlso = occurrence != null && !occurrence.isOpen && myUserId != null &&
+        occurrence.doneBy != myUserId && myAlso == null
+    val canAddAlso = openUntil(occurrence?.doneAt?.plus(ALSO_WINDOW)?.takeIf { mayAddAlso })
+    val canUndoAlso = openUntil(myAlso?.addedAt?.plus(UNDO_WINDOW))
 
     occurrence?.let { occ ->
         OccurrenceDetailSheet(
@@ -111,7 +98,9 @@ internal fun OccurrenceDetailHost(
             // The chip is for My chores, where the rows come from more than one
             // household. On the board the app bar has already said which.
             householdName = householdName,
-            canUndo = mineToUndo && undoWindowOpen,
+            canUndo = canUndo,
+            canAddAlso = canAddAlso,
+            canUndoAlso = canUndoAlso,
             onDismiss = { controller.occurrenceId = null },
             // Marking done closes the sheet: the decision has been taken, and
             // the board behind it is where the result belongs. Undo leaves the
@@ -122,6 +111,8 @@ internal fun OccurrenceDetailHost(
                 viewModel.toggleOccurrenceDone(occ)
             },
             onUndoDone = { viewModel.toggleOccurrenceDone(occ) },
+            onAddAlso = { viewModel.addAlso(occ) },
+            onUndoAlso = { viewModel.removeAlso(occ) },
             onPass = {
                 controller.occurrenceId = null
                 controller.passCandidate = occ
@@ -282,6 +273,30 @@ internal fun OccurrenceDetailHost(
             onDismiss = { controller.historyChoreName = null; viewModel.clearHistory() },
         )
     }
+}
+
+/**
+ * True until [deadline], then false; false throughout when it is null.
+ *
+ * The clock cannot be read during composition — that freezes the answer at
+ * whatever it was when the sheet was drawn, which is how the row's checkbox
+ * once stayed enabled long past its window (B-6). So each window is waited
+ * out instead: one coroutine, sleeping exactly until the moment it lapses.
+ */
+@Composable
+private fun openUntil(deadline: OffsetDateTime?): Boolean {
+    var open by remember(deadline) { mutableStateOf(false) }
+    LaunchedEffect(deadline) {
+        val remaining = deadline?.let { Duration.between(OffsetDateTime.now(), it) }
+        if (remaining == null || remaining.isNegative || remaining.isZero) {
+            open = false
+            return@LaunchedEffect
+        }
+        open = true
+        delay(remaining.toMillis())
+        open = false
+    }
+    return open
 }
 
 /**

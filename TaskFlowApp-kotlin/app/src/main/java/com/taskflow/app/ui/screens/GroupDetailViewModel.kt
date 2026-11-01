@@ -439,6 +439,25 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
         }
     }
 
+    /**
+     * "I worked on this too", or taking that back.
+     *
+     * The snackbar repeats what it does not do, because the obvious worry is
+     * that it is a way to take credit for — or comment on — somebody else's
+     * turn. It is neither.
+     */
+    fun addAlso(occurrence: Occurrence) {
+        runAction(successMessage = "Added. It's still counted as their turn.") {
+            api.addAlso(groupId, occurrence.id)
+        }
+    }
+
+    fun removeAlso(occurrence: Occurrence) {
+        runAction(successMessage = "Taken off.") {
+            api.removeAlso(groupId, occurrence.id)
+        }
+    }
+
     // ─── History (F6) ───────────────────────────────────────────
 
     /** One chore's timeline. Cleared first, so the sheet never shows another chore's. */

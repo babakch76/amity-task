@@ -221,6 +221,15 @@ a pass does not, by design.
 **One chore's history** shows every time it has been done, with the date, the
 date it was due, and who did it for whom. Away periods appear as *away*.
 
+**"I worked on this too."** On a turn somebody else has marked done, the sheet
+offers anyone else a button to add their name beside the doer's, for two days
+after it was done. The row then reads *"Done by maya, also sara"*, and so do
+the sheet and the chore's history; the feed says *"sara also worked on a
+chore"*. It adds a name and nothing else — no note, no reason — and the turn
+still counts as the doer's: rotation, debts and the per-person count below are
+untouched. Your own name can be taken off again within ten minutes, and undoing
+the completion takes every "also" with it.
+
 **What's been done** is the per-person record, over this week, this month, or
 three months. It **counts, and does not rank**: no percentages, no averages, no
 streaks, no ordering by who did most. Zeroes are shown as zeroes, days away are
