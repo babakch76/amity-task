@@ -6,6 +6,86 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-09-15 — The row stops deciding; the sheet decides
+
+Yesterday's confirm was a control bolted to a row. Today the control is gone.
+
+- **No checkbox on `TaskCard`.** The cell is a button and nothing else. A done
+  row shows a green tick in a 26dp disc where the box was, plus the dimmed title
+  it already had. New `doneColor()` — `#0F7B5A` light, theme `tertiary` dark —
+  built like `overdueColor()`, and for the same reason: a 16dp glyph in
+  `#34D399` on white is not legible.
+- **`OccurrenceDetailSheet` rebuilt from the Stitch mock** *Chore detail — Clean
+  the bathroom* (screen `1f57d1564abb495b9006f5cefe8e1b48`, project **Core
+  Design System** `4515006561005969934`). Header + household chip, violet
+  callout for the one thing that needs explaining, WHAT DONE MEANS card, a quiet
+  list card (Whose turn · How often · Due · Needed by, plus Done by / Done once
+  closed), History / Edit chore, then the pill **I did this** and outlined
+  **Busy — pass it on** with its note. The callout is `primary` at 10% and the
+  cards are `surfaceVariant`: no `…Container` role is touched.
+- **Undo is a button now**, in the same footer, and the ten-minute window is
+  waited out once in `OccurrenceDetailHost` instead of once per visible row.
+  `UNDO_WINDOW` went `internal` so both files agree on the number.
+- **`MarkDoneSheet` is swipe-only.** The gesture completes without opening
+  anything, so it stays the one place that asks.
+- **The swipe-right background was Material's baseline dark red** —
+  `tertiaryContainer`, never set by `Theme.kt` — behind the word "Done". Flagged
+  yesterday, fixed today: both backgrounds are our own tokens at 16% alpha.
+
+What this trades: F1's "completion is one tap" is now two, and the board can no
+longer be cleared while walking past it. That is the intended cost — the tap it
+removes is the accidental one, and the screen it adds is the only one that says
+what the household agreed "done" means.
+
+Verified: `assembleDebug` and `testDebugUnitTest` clean. Not yet looked at on a
+device — the sheet's scroll behaviour with a long done-line is worth a look.
+
+---
+
+## 2026-09-14 — The tick opens a sheet and asks what done means
+
+The board's checkbox completed a turn on one tap. It now opens a confirm that
+quotes the chore's done-line and asks.
+
+- **New `ui/components/MarkDoneSheet.kt`** — a `ModalBottomSheet`: tinted check
+  disc beside the chore name and "Mark this turn as done?", the done-line on a
+  `surfaceVariant` card under "What done means", one sentence saying a tick
+  records the cycle for the whole household, then a full-width *Mark it done*
+  with *Not yet* beneath it. Two `@Preview`s (with and without a done-line) are
+  the design surface. The disc is tinted from `primary` at 12%, not
+  `primaryContainer` — the container roles here are Material's baseline, and one
+  of them is a dark red (CLAUDE.md §7).
+- **Started as a centred `AlertDialog`; changed to a sheet within the hour.**
+  Every other thing a row asks for arrives from the bottom edge, by the thumb
+  that tapped. The dialog read as the app interrupting; the sheet reads as the
+  row opening up. Same content, same state, one composable swapped.
+- **The tick completes nothing by itself.** It only opens the sheet, and the box
+  stays unticked — no optimistic state — so backing out leaves the board
+  untouched.
+- **The confirm is inside `TaskCard`**, so the board, My chores and the
+  swipe-right shortcut all get it from the same state. Nothing changed in either
+  screen's `onToggleDone` wiring; `requestDone()` intercepts on the way in.
+- **Ticking asks, unticking does not.** Undo belongs to the person who ticked,
+  inside ten minutes, and they have just read the sheet.
+- **One-offs get "What this is"** instead of "What done means": they carry a
+  description, not an agreement.
+
+Why it matters more than it looks: F4's done-line is the mechanism that moves
+the standards argument out of each turn and into one household conversation. It
+was only visible in the detail sheet — present when you argue about a chore,
+absent when you finish one. Now it is on screen at the moment it is the only
+question being asked.
+
+Open: the swipe-right "Done" background still paints `tertiaryContainer`, which
+is Material's baseline **dark red** in this scheme — the same trap CLAUDE.md §7
+records, and a red wash behind the word "Done" is close to the signal
+constraint 3 rules out. Not touched here; worth its own pass.
+
+Verified: `./gradlew assembleDebug` and `testDebugUnitTest` both clean. Not yet
+looked at on a device.
+
+---
+
 ## 2026-09-13 (late) — The strip drives the list
 
 My week's strip was decorative: it showed which days carried something, and the

@@ -19,6 +19,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import com.taskflow.app.data.model.Chore
 import com.taskflow.app.data.model.Occurrence
+import com.taskflow.app.data.model.isOpen
+import kotlinx.coroutines.delay
+import java.time.Duration
+import java.time.OffsetDateTime
 
 /**
  * Everything that opens when you tap one of your turns, wherever you tapped it.
@@ -47,6 +51,8 @@ internal fun OccurrenceDetailHost(
     controller: ChoreDetailController,
     viewModel: GroupDetailViewModel,
     myUserId: String?,
+    /** Shown as a chip on the sheet where the rows are not all one household's. */
+    householdName: String? = null,
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -68,13 +74,54 @@ internal fun OccurrenceDetailHost(
     var choreSubmitting by remember { mutableStateOf(false) }
     var choreError by remember { mutableStateOf<String?>(null) }
 
+    // Whether the person looking at the sheet may still take the completion
+    // back: they marked it, and the ten-minute window has not closed.
+    //
+    // This moved here from the board row along with the undo itself. The clock
+    // cannot be read during composition — that freezes the answer at whatever
+    // it was when the sheet was drawn, which is how the row's checkbox stayed
+    // enabled long past the window (B-6). So the sheet waits out its own
+    // window: one coroutine, sleeping exactly until the moment it lapses.
+    val mineToUndo = occurrence != null && !occurrence.isOpen &&
+        occurrence.doneBy != null && occurrence.doneBy == myUserId
+    var undoWindowOpen by remember(occurrence?.id, occurrence?.doneAt) { mutableStateOf(false) }
+
+    LaunchedEffect(occurrence?.id, occurrence?.doneAt, mineToUndo) {
+        val doneAt = occurrence?.doneAt
+        if (!mineToUndo || doneAt == null) {
+            undoWindowOpen = false
+            return@LaunchedEffect
+        }
+        val remaining = Duration.between(OffsetDateTime.now(), doneAt.plus(UNDO_WINDOW))
+        if (remaining.isNegative || remaining.isZero) {
+            undoWindowOpen = false
+            return@LaunchedEffect
+        }
+        undoWindowOpen = true
+        delay(remaining.toMillis())
+        undoWindowOpen = false
+    }
+
     occurrence?.let { occ ->
         OccurrenceDetailSheet(
             occurrence = occ,
             chore = state.chores.firstOrNull { it.id == occ.choreId },
             members = state.members,
             myUserId = myUserId,
+            // The chip is for My chores, where the rows come from more than one
+            // household. On the board the app bar has already said which.
+            householdName = householdName,
+            canUndo = mineToUndo && undoWindowOpen,
             onDismiss = { controller.occurrenceId = null },
+            // Marking done closes the sheet: the decision has been taken, and
+            // the board behind it is where the result belongs. Undo leaves the
+            // sheet open — it is a correction, and the sheet is where you check
+            // that the correction landed.
+            onMarkDone = {
+                controller.occurrenceId = null
+                viewModel.toggleOccurrenceDone(occ)
+            },
+            onUndoDone = { viewModel.toggleOccurrenceDone(occ) },
             onPass = {
                 controller.occurrenceId = null
                 controller.passCandidate = occ

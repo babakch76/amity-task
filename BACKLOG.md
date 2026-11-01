@@ -12,6 +12,80 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
 
 ## v2 progress
 
+- **Single-tap completion — REPLACED BY A CONFIRM SHEET (2026-09-14).** F1 says
+  completion is one tap, and it was. Two problems. A tap lands by accident in a
+  scrolling list, and the only way back is the ten-minute undo, which the person
+  who mis-tapped has to notice before it lapses. More importantly the
+  **done-line** — F4's whole mechanism, the household's agreed definition of
+  done — was readable only in the occurrence detail sheet, i.e. behind a
+  deliberate second action nobody takes while holding a mop. The agreement was
+  therefore present at the moment of *arguing* about a chore and absent at the
+  moment of *finishing* one, which is backwards.
+
+  The tick now opens `ui/components/MarkDoneSheet.kt` and completes nothing on
+  its own: the chore name, the done-line quoted on its own surface under "What
+  done means", one neutral sentence, a full-width *Mark it done* and *Not yet*
+  under it. It is a restatement, not an "are you sure" — no lateness, no day
+  count, nothing about the person (constraint 3). A blank done-line is a normal
+  state and reads as one.
+
+  **A bottom sheet, not a centred dialog** (revised the same day, after seeing
+  it on screen). Everything else a row asks for — the occurrence detail, the
+  pass, the day picker — arrives from the bottom edge, near the thumb that
+  tapped it. A dialog in the middle of the screen reads as an interruption from
+  the app; a sheet reads as the row opening up, and is the idiom the rest of the
+  board already uses.
+
+  Scope decisions worth recording:
+  - **Unticking is still instant.** Undo is only offered to the person who
+    ticked, within ten minutes; they have just read this sheet, and asking them
+    twice about their own correction is friction with no information in it.
+  - **The confirm lives in `TaskCard`**, not in either screen's wiring, so the
+    board and My chores cannot drift — and the swipe-right shortcut routes
+    through the same state rather than keeping a second, quieter path to done.
+  - **Legacy one-off tasks** have no agreement, only a description, so the
+    dialog labels theirs "What this is". Promoting a description to an
+    agreement would invent one the household never made.
+  - The checkbox does **not** tick optimistically while the sheet is open. The
+    row keeps telling the truth until the request lands, so a dismissed sheet
+    leaves the board exactly as it was.
+
+  FEATURES.md §2 updated; F1's "one tap" is now one tap plus one confirm.
+
+- **The checkbox — REMOVED (2026-09-15).** The confirm above was the right
+  instinct in the wrong place: it kept a *control* on the row, and a control on
+  a row invites the decision to be taken from the list, which is the one screen
+  where the done-line is not visible. So the box is gone. The cell is a button,
+  the chore opens, and done is said there.
+
+  - **The row now only shows.** A completed row carries a green tick where the
+    box was and a dimmed title. Green for done is safe under constraint 3 in a
+    way red for late is not: it marks a thing that happened, not a person who
+    failed. `doneColor()` picks `#0F7B5A` in light and the theme's `tertiary`
+    in dark, the same shape of decision as `overdueColor()`.
+  - **`OccurrenceDetailSheet` was rebuilt** from the Stitch mock *Chore detail —
+    Clean the bathroom* (`1f57d1564abb495b9006f5cefe8e1b48`, project **Core
+    Design System**): header with schedule line and household chip, violet
+    callout, WHAT DONE MEANS card, a quiet four-row list, History / Edit chore,
+    then **I did this** and **Busy — pass it on**. Departures from the mock: the
+    footer is not pinned (the sheet scrolls as one column), the away banner in
+    the mock's background board is not part of this screen, and *I did this*
+    becomes *Mark as done* on somebody else's turn — F1 lets anyone tick
+    anything, but not in the first person.
+  - **Undo moved with it.** It is a button in the sheet, not an untickable box,
+    and the ten-minute window is now waited out by `OccurrenceDetailHost`
+    rather than by every visible row. That deletes one coroutine per undoable
+    row, and the B-6 trap (reading the clock during composition) is guarded in
+    one place instead of many.
+  - **`MarkDoneSheet` survives for the swipe only.** Swipe-right completes a
+    turn without opening it, so it is the one gesture that has shown you
+    nothing — it asks, and quotes the done-line while asking.
+  - **Fixed in passing: the swipe-right background.** It painted
+    `tertiaryContainer`, which this theme never sets, so it fell through to
+    Material's baseline **dark red** — a red wash behind the word "Done", which
+    is exactly the signal constraint 3 rules out, chosen by nobody. Both swipe
+    backgrounds are now our own tokens at 16% (`doneColor()` and `secondary`).
+
 - **The overflow menu — REMOVED (2026-09-13).** Quiet hours, appearance, join
   with a code and sign out lived behind three dots on the group list. A menu is
   where you put things you have nowhere else for; all four are things a person

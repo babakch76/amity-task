@@ -16,14 +16,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -56,6 +61,7 @@ import com.taskflow.app.TaskFlowApp
 import com.taskflow.app.reminders.QuietHours
 import com.taskflow.app.reminders.ReminderScheduler
 import com.taskflow.app.ui.components.HouseholdSwitcher
+import com.taskflow.app.ui.components.MarkDoneSheet
 import com.taskflow.app.data.model.ActivityEvent
 import com.taskflow.app.data.model.Absence
 import com.taskflow.app.data.model.Chore
@@ -918,7 +924,7 @@ private fun TaskList(
  * How long after marking something done you can still take it back. Spec F1:
  * "Undo within 10 minutes by the person who marked it."
  */
-private val UNDO_WINDOW: Duration = Duration.ofMinutes(10)
+internal val UNDO_WINDOW: Duration = Duration.ofMinutes(10)
 
 /**
  * Line 2 of a row: how often this comes round, in the household's words.
@@ -1032,37 +1038,31 @@ internal fun TaskCard(
 ) {
     val overdue = isOverdue(row)
 
-    // Undo is offered only to the person who ticked it, and only briefly.
-    // Anything older is history, and history is not editable from the board.
-    //
-    // The permission half is a plain comparison. The *expiry* half cannot be:
-    // reading the clock during composition freezes the answer at whatever it
-    // was when the row was last drawn, so the checkbox stayed enabled well past
-    // ten minutes until something unrelated happened to recompose it (B-6).
-    //
-    // Instead the row waits out its own window. One coroutine per undoable row,
-    // sleeping exactly until the moment it lapses — no polling, and no clock
-    // read that can go stale.
-    val mineToUndo = !row.isOpen && row.doneBy != null && row.doneBy == myUserId
-    var windowOpen by remember(row.key, row.doneAt) { mutableStateOf(false) }
+    // The row no longer completes anything, so it no longer undoes anything
+    // either: both live in the detail sheet, next to the done-line they are
+    // decisions about. What used to be here — a checkbox, a ten-minute window
+    // and a coroutine per row to expire it (B-6) — went with them.
 
-    LaunchedEffect(row.key, row.doneAt, mineToUndo) {
-        val doneAt = row.doneAt
-        if (!mineToUndo || doneAt == null) {
-            windowOpen = false
-            return@LaunchedEffect
-        }
-        val remaining = Duration.between(OffsetDateTime.now(), doneAt.plus(UNDO_WINDOW))
-        if (remaining.isNegative || remaining.isZero) {
-            windowOpen = false
-            return@LaunchedEffect
-        }
-        windowOpen = true
-        delay(remaining.toMillis())
-        windowOpen = false
+    // Swipe-right is the one way to complete a turn without opening it, so it
+    // is the one place left that asks. The confirm quotes the done-line,
+    // because a gesture that fires from a list has shown you nothing.
+    //
+    // The row itself is now a button and nothing else: tapping it anywhere
+    // opens the detail sheet, and the sheet owns both done and undo.
+    var confirming by remember(row.key, row.isOpen) { mutableStateOf(false) }
+    val requestDone = { if (row.isOpen) confirming = true else onToggleDone() }
+
+    // An occurrence carries the household's agreement. A legacy one-off carries
+    // only its own description, so it is labelled as one rather than promoted
+    // into an agreement nobody made.
+    val doneLine = when (row) {
+        is BoardRow.OccurrenceRow -> row.occurrence.doneLine
+        is BoardRow.TaskRow -> row.task.description
     }
-
-    val canUndo = mineToUndo && windowOpen
+    val doneLineLabel = when (row) {
+        is BoardRow.OccurrenceRow -> "What done means"
+        is BoardRow.TaskRow -> "What this is"
+    }
 
     // A one-off's date *is* its schedule, so it is stated once, on the schedule
     // line, and the cycle line below carries only the name. Everything else puts
@@ -1086,7 +1086,7 @@ internal fun TaskCard(
         confirmValueChange = { value ->
             when (value) {
                 SwipeToDismissBoxValue.EndToStart -> onPass()
-                SwipeToDismissBoxValue.StartToEnd -> onToggleDone()
+                SwipeToDismissBoxValue.StartToEnd -> requestDone()
                 SwipeToDismissBoxValue.Settled -> Unit
             }
             if (value != SwipeToDismissBoxValue.Settled) onSwiped()
@@ -1110,15 +1110,34 @@ internal fun TaskCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 8.dp, top = 8.dp, end = 12.dp, bottom = 8.dp),
+                .padding(start = 16.dp, top = 12.dp, end = 12.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Checkbox(
-                checked = !row.isOpen,
-                // Ticking is always allowed; unticking only inside the window.
-                enabled = row.isOpen || canUndo,
-                onCheckedChange = { onToggleDone() },
-            )
+            // Done is shown, not offered.
+            //
+            // There was a checkbox here, and a checkbox is a control: it says
+            // "decide from the list", which is the one place the household's
+            // definition of done is not on screen. Worse, it decides on a tap
+            // that lands by accident in a scrolling list. The row is now a
+            // button that opens the chore, and the only mark of completion it
+            // carries is a tick — no box to aim at, and nothing to mis-tap.
+            if (!row.isOpen) {
+                Box(
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .background(doneColor().copy(alpha = 0.14f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Done",
+                        tint = doneColor(),
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+            }
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1280,6 +1299,19 @@ internal fun TaskCard(
     }
     }
 
+    if (confirming) {
+        MarkDoneSheet(
+            title = row.title,
+            doneLine = doneLine,
+            doneLineLabel = doneLineLabel,
+            onDismiss = { confirming = false },
+            onConfirm = {
+                confirming = false
+                onToggleDone()
+            },
+        )
+    }
+
     if (!swipeable) {
         card()
         return
@@ -1289,10 +1321,14 @@ internal fun TaskCard(
         state = dismissState,
         backgroundContent = {
             val toEnd = dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd
+            // Tinted from our own tokens, not from `tertiaryContainer` — which
+            // this theme never sets, so it falls through to Material's baseline
+            // *dark red*. A red wash behind the word "Done" is the shame signal
+            // constraint 3 rules out, and nobody had chosen it (CLAUDE.md §7).
             Surface(
                 shape = MaterialTheme.shapes.medium,
-                color = if (toEnd) MaterialTheme.colorScheme.tertiaryContainer
-                else MaterialTheme.colorScheme.secondaryContainer,
+                color = if (toEnd) doneColor().copy(alpha = 0.16f)
+                else MaterialTheme.colorScheme.secondary.copy(alpha = 0.16f),
                 modifier = Modifier.fillMaxSize(),
             ) {
                 Row(
@@ -1306,8 +1342,8 @@ internal fun TaskCard(
                         text = if (toEnd) "Done" else "Pass it",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
-                        color = if (toEnd) MaterialTheme.colorScheme.onTertiaryContainer
-                        else MaterialTheme.colorScheme.onSecondaryContainer,
+                        color = if (toEnd) doneColor()
+                        else MaterialTheme.colorScheme.secondary,
                     )
                 }
             }
@@ -1359,9 +1395,24 @@ internal fun OccurrenceDetailSheet(
     chore: Chore?,
     members: List<MemberInfo>,
     myUserId: String?,
+    /**
+     * Which household this turn belongs to, as a chip beside the schedule line.
+     * Null drops the chip — on the board every row is this household's and the
+     * app bar already says which, so it would be noise.
+     */
+    householdName: String? = null,
+    /**
+     * Whether *this* person may still take the completion back: they are the
+     * one who marked it, and the ten-minute window has not closed. Computed by
+     * the caller, which owns the clock — reading the time during composition
+     * freezes the answer at whatever it was when the sheet was drawn (B-6).
+     */
+    canUndo: Boolean = false,
     onDismiss: () -> Unit,
     onEditChore: () -> Unit,
     onShowHistory: () -> Unit,
+    onMarkDone: () -> Unit,
+    onUndoDone: () -> Unit,
     onPass: () -> Unit,
     onPickDay: (String) -> Unit,
 ) {
@@ -1370,6 +1421,8 @@ internal fun OccurrenceDetailSheet(
     val assignee = members.firstOrNull { it.id == occurrence.assignedTo }?.username
     val doer = members.firstOrNull { it.id == occurrence.doneBy }?.username
     val passer = occurrence.passedFrom?.let { id -> members.firstOrNull { it.id == id }?.username }
+    val mine = myUserId != null && occurrence.assignedTo == myUserId
+    val overdue = occurrence.isOpen && occurrence.dueDate?.isBefore(OffsetDateTime.now()) == true
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -1377,100 +1430,208 @@ internal fun OccurrenceDetailSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            Text(
-                text = occurrence.choreName,
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            )
-
-            // The agreement: what done means, and how often. Together, because
-            // apart they are only half of what was agreed.
-            val doneLine = occurrence.doneLine.trim()
-            if (doneLine.isNotEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("What done means", style = MaterialTheme.typography.labelLarge)
-                    Text(doneLine, style = MaterialTheme.typography.bodyLarge)
-                }
-            } else {
-                Text(
-                    "No agreed definition of done for this chore yet.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            chore?.let {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("How often", style = MaterialTheme.typography.labelLarge)
+            // ── Header: what this is, when it is wanted, and where ──
+            Row(verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        buildString {
-                            append(it.scheduleWording().replaceFirstChar { c -> c.uppercase() })
-                            it.neededByWording()?.let { needed -> append(", $needed") }
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = occurrence.choreName,
+                        style = MaterialTheme.typography.headlineSmall
+                            .copy(fontWeight = FontWeight.Bold),
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = buildString {
+                                chore?.let { append(it.scheduleWording()) }
+                                occurrence.dueDate?.let {
+                                    if (isNotEmpty()) append(" · ")
+                                    append("Due ${formatDueDate(it)}")
+                                }
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            // The amber follows the date here exactly as it does
+                            // on the row: never red, never a day count.
+                            color = if (overdue) overdueColor()
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        householdName?.let { name ->
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shape = MaterialTheme.shapes.small,
+                            ) {
+                                Text(
+                                    text = name,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier
+                                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+                // The sheet already closes by drag or scrim. The X is here
+                // because a sheet this tall can be read to the bottom with the
+                // handle off screen, and then there is nothing to drag.
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-
-                // Any member may change the agreement — that is the point of
-                // it being an agreement. A quiet text button, not a primary
-                // action: reading this sheet is the common case, editing the
-                // household's standards is not.
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    TextButton(
-                        onClick = onEditChore,
-                        contentPadding = PaddingValues(0.dp),
-                    ) { Text("Edit chore") }
-                    TextButton(
-                        onClick = onShowHistory,
-                        contentPadding = PaddingValues(0.dp),
-                    ) { Text("History") }
-                }
             }
 
-            HorizontalDivider()
-
-            // This cycle.
-            DetailRow("Whose turn", assignee ?: "Nobody")
-            DetailRow(
-                "Due",
-                occurrence.dueDate?.let { formatDueDate(it) }
-                    // As-needed chores genuinely have no date. Saying so beats
-                    // an empty field, which reads like missing data.
-                    ?: "No date. It waits until it's needed",
-            )
-
-            // A passed chore says where it came from, so the receiver knows why
-            // it is on their row and the passer can see it landed. Neutral
-            // wording: passing is a normal move, not something to answer for.
-            // Not while it is back in the passer's own hands. Once a whole
-            // household has passed a chore it returns to whoever asked first,
-            // and telling them it "comes back to you next time" describes a
-            // future that has already happened; the Pick a day block below
-            // says what is actually true.
+            // ── Why this turn is here, when that needs saying ──
+            //
+            // The debt rule, the pass and the everybody-busy return are the
+            // three things about this app that look like bugs unless somebody
+            // says them out loud. One callout, tinted from `primary` at low
+            // alpha — not `primaryContainer`, which is Material's baseline here
+            // (CLAUDE.md §7).
             val stillAway = occurrence.assignedTo != occurrence.passedFrom
-            if (occurrence.isOpen && passer != null && stillAway) {
-                Text(
+            val callout = when {
+                occurrence.needsDate && mine ->
+                    "Everyone was busy, so it's back with you. It's set for the latest " +
+                        "the schedule allows, and you can bring it forward."
+
+                occurrence.isOpen && occurrence.coveredByName != null && mine ->
+                    "${occurrence.coveredByName} covered your last turn, so it's yours again."
+
+                occurrence.isOpen && passer != null && stillAway ->
                     if (occurrence.passedFrom == myUserId) {
                         "You passed this on. It comes back to you next time."
                     } else {
                         "$passer passed this on, so it's yours this cycle."
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                    }
+
+                else -> null
+            }
+            callout?.let { line ->
+                Surface(
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Icon(
+                            Icons.Default.SwapHoriz,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Text(
+                            text = line,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
             }
 
+            // ── What done means (F4) ──
+            //
+            // The agreement, above everything about this particular cycle,
+            // because it is the question the person about to do the chore
+            // actually has. This is also now the *only* place a completion can
+            // be started from, so the standard and the button that applies it
+            // are on one screen.
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "WHAT DONE MEANS",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    letterSpacing = 0.8.sp,
+                )
+                val doneLine = occurrence.doneLine.trim()
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Icon(
+                            Icons.Outlined.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Text(
+                            text = doneLine.ifEmpty {
+                                // Not a defect to fix before you can tick it: a
+                                // household that never wrote one down is not
+                                // doing it wrong.
+                                "No agreed definition of done yet — your call on " +
+                                    "whether it's finished."
+                            },
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (doneLine.isEmpty())
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            else MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                }
+            }
+
+            // ── This cycle, as a quiet list ──
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column {
+                    SheetInfoRow(
+                        label = "Whose turn",
+                        value = if (mine) "You" else assignee ?: "Nobody",
+                        emphasised = mine,
+                        dot = mine,
+                    )
+                    chore?.let {
+                        SheetInfoDivider()
+                        SheetInfoRow("How often", it.scheduleWording())
+                    }
+                    SheetInfoDivider()
+                    SheetInfoRow(
+                        label = "Due",
+                        // As-needed chores genuinely have no date. Saying so
+                        // beats an empty field, which reads like missing data.
+                        value = occurrence.dueDate?.let { formatDueDate(it) }
+                            ?: "No date — it waits until it's needed",
+                        valueColor = if (overdue) overdueColor() else null,
+                    )
+                    chore?.neededByTime?.let { time ->
+                        SheetInfoDivider()
+                        SheetInfoRow("Needed by", "Before $time")
+                    }
+                    if (!occurrence.isOpen) {
+                        SheetInfoDivider()
+                        SheetInfoRow("Done by", doer ?: "Not recorded")
+                        SheetInfoDivider()
+                        SheetInfoRow("Done", formatStamp(occurrence.doneAt))
+                    }
+                }
+            }
+
+            // Who the turn actually belonged to, when somebody else did it.
+            // Stated plainly, without praise or blame either way: it is simply
+            // how the next turn was decided.
             if (!occurrence.isOpen) {
-                DetailRow("Done by", doer ?: "Not recorded")
-                DetailRow("Done", formatStamp(occurrence.doneAt))
-                // Who the turn actually belonged to: the passer if it was
-                // passed, otherwise whoever it was assigned to.
                 val owed = passer ?: assignee
                 if (doer != null && owed != null && doer != owed) {
-                    // Stated plainly, without praise or blame either way. It is
-                    // simply how the next turn was decided.
                     Text(
                         "$doer covered this one, so the next turn goes back to $owed.",
                         style = MaterialTheme.typography.bodySmall,
@@ -1479,35 +1640,105 @@ internal fun OccurrenceDetailSheet(
                 }
             }
 
-            // "Busy — pass it": only on an open occurrence that is actually
-            // yours. Passing somebody else's turn would be handing out work,
-            // and the server refuses it anyway.
-            if (occurrence.needsDate && occurrence.assignedTo == myUserId) {
-                HorizontalDivider()
-                Button(onClick = { pickingDay = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Pick a day")
+            // ── The two quiet routes out of the sheet ──
+            //
+            // Any member may change the agreement — that is the point of it
+            // being an agreement — but reading this sheet is the common case
+            // and editing the household's standards is not, so neither of these
+            // competes with the action below.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+            ) {
+                TextButton(onClick = onShowHistory) {
+                    Icon(Icons.Default.Schedule, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("History")
                 }
-                Text(
-                    "Everyone was busy, so it came back to you. It's already set for " +
-                        "the latest the schedule allows, and you can bring it forward.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                chore?.let {
+                    TextButton(
+                        onClick = onEditChore,
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    ) {
+                        Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Edit chore")
+                    }
+                }
+            }
+
+            HorizontalDivider()
+
+            // ── The action ──
+            //
+            // This is where a turn is completed, and since the board's row lost
+            // its checkbox it is the only place. The board can only *open* a
+            // chore now; saying it is done is a decision taken with the
+            // household's definition of done on the same screen.
+            //
+            // Anyone may tick anything (F1) — "I just did it myself" is the
+            // common reality — so the button is offered on somebody else's row
+            // too. It only changes what it calls itself, because "I did this"
+            // on a turn that is not yours is a sentence about the wrong person.
+            if (occurrence.isOpen) {
+                Button(
+                    onClick = onMarkDone,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = CircleShape,
+                ) {
+                    Icon(Icons.Default.Check, null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = if (mine) "I did this" else "Mark as done",
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                }
+            } else if (canUndo) {
+                // The undo that used to live on the row's checkbox. Only for
+                // the person who marked it, and only for ten minutes; anything
+                // older is history, and history is not editable from here.
+                OutlinedButton(
+                    onClick = onUndoDone,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                ) { Text("Undo — I didn't do this") }
+            }
+
+            if (occurrence.needsDate && mine) {
+                OutlinedButton(
+                    onClick = { pickingDay = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                ) { Text("Pick a day") }
             }
 
             // Passing is offered on your own open turn, but not once the round
             // has closed: there is nobody left to hand it to, and the button
             // would only earn a refusal.
-            if (occurrence.isOpen && occurrence.assignedTo == myUserId && !occurrence.needsDate) {
-                HorizontalDivider()
-                OutlinedButton(onClick = onPass, modifier = Modifier.fillMaxWidth()) {
-                    Text("Busy? Pass it on")
+            if (occurrence.isOpen && mine && !occurrence.needsDate) {
+                OutlinedButton(
+                    onClick = onPass,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                ) {
+                    Icon(Icons.Default.SwapHoriz, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Busy — pass it on")
                 }
                 Text(
                     "Goes to the next person in the rotation. It comes back to you next " +
-                        "time round, so this delays your turn rather than skipping it.",
+                        "time round, and only they are told.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         }
@@ -1523,6 +1754,60 @@ internal fun OccurrenceDetailSheet(
             },
         )
     }
+}
+
+/**
+ * One line of the detail sheet's quiet list: label left, value right.
+ *
+ * [dot] is the small violet disc the mock puts beside "You" — a marker for
+ * *your* turn, and the only place on the sheet where a colour means anything.
+ * [valueColor] exists for the overdue amber and nothing else.
+ */
+@Composable
+private fun SheetInfoRow(
+    label: String,
+    value: String,
+    emphasised: Boolean = false,
+    dot: Boolean = false,
+    valueColor: androidx.compose.ui.graphics.Color? = null,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        if (dot) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary),
+            )
+            Spacer(Modifier.width(6.dp))
+        }
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = if (emphasised) FontWeight.Bold else FontWeight.Normal,
+            ),
+            color = valueColor
+                ?: if (emphasised) MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.End,
+        )
+    }
+}
+
+@Composable
+private fun SheetInfoDivider() {
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 }
 
 @Composable
@@ -1727,6 +2012,19 @@ private fun overdueColor(): androidx.compose.ui.graphics.Color =
     // mode showing the app in dark would have drawn the light amber onto a dark
     // card, which is the one colour in the app that must stay legible.
     if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) AmberOnDark else AmberOnLight
+
+/**
+ * The green a completed row is ticked in — the counterpart to [overdueColor],
+ * and picked the same way: a darker shade in light mode so a small glyph is
+ * actually legible on white, the theme's own `tertiary` in dark.
+ *
+ * Green for done is safe under constraint 3 in a way red for late is not: it
+ * marks a thing that happened, not a person who failed.
+ */
+@Composable
+private fun doneColor(): androidx.compose.ui.graphics.Color =
+    if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) MaterialTheme.colorScheme.tertiary
+    else androidx.compose.ui.graphics.Color(0xFF0F7B5A)
 
 // StatusChip lived here. It rendered a task's status as a coloured pill on the
 // board row, which is the "status pill" v2 does away with: a row is open or it

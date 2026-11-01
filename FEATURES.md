@@ -57,8 +57,33 @@ so it stays legible in light and dark.
 
 **Anyone can tick anything.** "I just did it myself" is the common reality, so
 the board records who actually did it rather than fighting over who was meant
-to. Completion is one tap, undoable for **ten minutes** and only by the person
-who ticked it.
+to.
+
+**The row has no checkbox.** The whole cell is a button: tap it anywhere and
+the chore opens. A completed row is marked, not offered — a green tick where the
+box used to be, and the title dimmed. Nothing on the board decides anything.
+
+**Done is said in the chore's own sheet**, under the household's **done-line**.
+The sheet reads: the chore and when it is wanted, a violet callout when there is
+something to explain (a cover, a pass, an everybody-busy return), **WHAT DONE
+MEANS** — *"Sink, loo and shower screen, and the bin out"* — then whose turn,
+how often, due, needed by, and *History* / *Edit chore*. The action sits at the
+foot of it: **I did this** (*Mark as done* on somebody else's turn — anyone may
+tick anything), with **Busy — pass it on** under it on your own turn.
+
+Putting the two together is the point. The done-line is the household's single
+setup conversation about standards (F4); it was readable only by opening a sheet
+nobody opened, while the decision it governs was one accidental tap away in a
+scrolling list. Now the standard and the button that applies it are the same
+screen, and reaching the button takes a deliberate tap.
+
+**Undo is in the sheet too** — *Undo — I didn't do this* — still only for the
+person who marked it and still only for **ten minutes**. After that the sheet
+shows who did it and when, and nothing more.
+
+**Swipe right is the one shortcut**, and the only thing that still asks: it
+completes a turn without opening it, so it puts up a short sheet quoting the
+done-line first. Swipe left still passes.
 
 **Tabs are Board, Activity and Members.** There is no calendar; see
 [`calendar_decision_record.md`](calendar_decision_record.md) for why it was

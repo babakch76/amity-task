@@ -240,6 +240,9 @@ private fun OpenedFromMyChores(
         controller = controller,
         viewModel = boardViewModel,
         myUserId = myUserId,
+        // This tab spans households, so the sheet says which one the turn came
+        // from. The board's own mount leaves it out: its app bar already has.
+        householdName = state.group?.name,
     )
 
     val nothingOpen = controller.occurrenceId == null &&

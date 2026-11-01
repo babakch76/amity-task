@@ -131,11 +131,13 @@ answers `401`.
 | `MainShell` | The bottom bar and the three tabs below it. Owns the shared `ShellViewModel`, which household is open, the reminder alarms and the invite poll. |
 | `HouseholdTab` — **My groups** | Decides *which* household is open, handles having none, carries create + first-run starters. The board itself is still `GroupDetailScreen`. |
 | `GroupDetailScreen` (2.6k lines) | One household's board: Board / Activity / Members tabs, plus every sheet and dialog. A root destination — no back arrow, bar underneath. |
+| `OccurrenceDetailSheet` (in `GroupDetailScreen.kt`) | Where a turn is **completed**. Built from the Stitch mock *Chore detail — Clean the bathroom*: header + household chip, violet callout, WHAT DONE MEANS, the four-row list, History / Edit chore, then *I did this* (*Mark as done* on someone else's turn) and *Busy — pass it on*. Undo lives here too, within its ten minutes. **Board rows have no checkbox** — a row only opens this. |
 | `MyChoresScreen` — **My chores / My week** | Your own turns across every household. Two readings behind an app-bar toggle: grouped by household, or a week strip over dated buckets. Reuses the board's `TaskCard` and its detail sheet. |
 | `OccurrenceDetailHost` | The detail sheet and everything behind it — history, edit flow, delete confirm, busy pass. Mounted by **both** the board and My chores; driven by a hoisted `ChoreDetailController`. |
 | `ui/components/WeekStrip` | Seven days, today ringed, a dot for a day carrying a turn of yours. Chevrons and swipe both page a week; the week slides the way you sent it. Never a count, never a colour by fullness. |
 | `SettingsScreen` — **Settings** | Name, email, invitations, join with a code, quiet hours, appearance, sign out. |
 | `ui/components/HouseholdSwitcher` | The board's title: household name + chevron, dropping a menu of households plus *Create a household* / *Join with a code*. |
+| `ui/components/MarkDoneSheet.kt` | The confirm behind **swipe-right only** — the one way to complete a turn without opening it. Quotes the done-line, then *Mark it done* / *Not yet*. Mounted from inside `TaskCard`. |
 | `AccountDialogs.kt` | The four dialogs that outlived the group list — invites, join by code, create household, quiet hours. Was `DashboardScreen.kt`. |
 | `CreateChoreFlow` | Add or edit a chore as two full-screen steps; delete lives at the end of edit. |
 | `FirstRunStarters` | Five starter chores offered to a brand-new household. |
@@ -175,7 +177,10 @@ first screen of the app, not just the launcher.
 
 Both screens were ported from Google Stitch mocks (MCP server `stitch`, project
 **Core Design System** `4515006561005969934`, screens *Sign in* and *Create
-account*), which draw `DESIGN.md` §5.1–5.2. Two deliberate departures: the
+account*), which draw `DESIGN.md` §5.1–5.2. The same project's *Chore detail —
+Clean the bathroom* (`1f57d1564abb495b9006f5cefe8e1b48`) is what
+`OccurrenceDetailSheet` was rebuilt from on 2026-09-15; `BACKLOG.md` records the
+three departures from it. Two deliberate departures: the
 mock's **Forgot?** link is not built — there is no password-reset route on the
 backend — and the register password placeholder is *"Create a password"* rather
 than the mock's bullets, which TalkBack reads aloud as bullets.
