@@ -7,6 +7,14 @@ an Android phone, so each interview is run over the screenshot deck
 and the participant gets a **cue card** (section 3) so they have something
 concrete to react to.
 
+> **The screenshots named below are the 2026-09-03 set the interviews were run
+> on.** `screens/` and the deck were re-shot on 2026-11-01 against a later build
+> under new names, so the file names here no longer exist on disk. Restore the
+> set the participants saw with `git checkout edaa161 -- screens/` (and the
+> deck from the same commit); this document and
+> `interviews/build-participant-packs.py` are left as they were, as the record
+> of what was shown.
+
 ---
 
 ## 1. How to run it

@@ -48,6 +48,12 @@ colleague, and a six-screen redesign concept from someone else.
   reverted. Looking at My chores turned up a worse bug than the missing
   snackbar: tapping a turn there opened nothing at all (B-20). Fixed, with the
   snackbar.
+- **Deck re-shot.** 36 screens, eleven slides, from a committed seed
+  (`scripts/seed_demo.py`). Shooting found two more bugs, both fixed — Dark
+  appearance on a light phone hid the status bar (B-21), My chores said "Done
+  by someone" (B-22) — and two left open (B-23, B-24). `INTERVIEWS.md` keeps
+  the old file names on purpose: it records what participants were shown, and
+  now says how to restore that set from git.
 - **Not taken from the concept:** Google / emailed-link sign-in (01), the group
   list as home (03, contradicts 2026-09-13), group settings with archive /
   delete / transfer (06), the setup checklist (02).

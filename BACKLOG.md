@@ -12,6 +12,27 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
 
 ## v2 progress
 
+- **The screens deck re-shot — DONE (2026-11-01).** Every screen had changed
+  since 2026-09-03: no checkbox on the board, no group list, new sign-in, a
+  bottom bar. 36 screens now (was 31), eleven slides (was nine) — new ones for
+  *Finishing a turn* (swipe confirm, "… is next · Undo", "I worked on this
+  too") and *Your turns, everywhere* (My chores, My week). Files are named in
+  deck order.
+
+  The seed is **committed** this time: `task-manager-backend-GO/scripts/
+  seed_demo.py` builds *Flat 3B* (demo, maya, sam) through the API, so the
+  turn rule assigns every turn, then backdates completions, due dates and the
+  feed to match. Two lessons kept in its comments: due times at 23:59 UTC are
+  already tomorrow in Rome, and a fixed-date chore's next slot has to be
+  re-dated from the backdated completion.
+
+  Shooting notes for next time: run the seeded server on :8080 so the build's
+  baked-in address works, and stop the dev server with `lsof -ti tcp:8080
+  -sTCP:LISTEN` — without `-sTCP:LISTEN` it also kills the emulator, which
+  holds a connection to that port. After a cold boot the emulator's demo-mode
+  signal icon draws empty; the icons on those frames were repainted from a
+  pre-reboot frame in each frame's own colours.
+
 - **Members tab from the redesign concept's screen 05 — DONE (2026-11-01).**
   Rows are a name and, only where it applies, an *Owner* or *Away* badge
   (*Back Fri 6 Nov* under the name). Gone: the **email address** as each
@@ -843,6 +864,33 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
 ---
 
 ## Bugs
+
+### B-21 · Dark appearance on a light phone hid the status bar — DONE (2026-11-01)
+
+`enableEdgeToEdge()` picks the status bar's icon colour from the *system*
+theme. With the app set to Dark on a phone in light mode, the clock and
+battery were drawn dark on the dark background. `TaskFlowTheme` now sets the
+bar icon appearance from the theme it is actually drawing. Found while
+re-shooting the deck.
+
+### B-22 · My chores said "Done by someone" for a covered turn — DONE (2026-11-01)
+
+My chores named the doer of your covered turn from `coveredByName`, which is
+set on the turn *after* a cover, never on the covered one. The backend now
+joins `done_by_name` into every occurrence and the row uses it.
+
+### B-23 · My chores does not refresh after changes made on the board — OPEN
+
+Completing or passing a turn on the board leaves My chores showing the old
+state until its refresh button is tapped. The board's household ViewModel
+and the shell's copy are separate; B-20's fix refreshes the shell only when
+the change was made from My chores' own sheet.
+
+### B-24 · Edit chore asks "Discard changes?" when nothing was changed — OPEN
+
+Opening a chore's edit flow, moving to step 2 and closing it without editing
+anything still asks to discard changes. Seen once, while re-shooting; not yet
+narrowed down.
 
 ### B-20 · Tapping a turn in My chores opened nothing — DONE (2026-11-01)
 

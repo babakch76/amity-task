@@ -25,7 +25,7 @@ and why "why not" is recorded as carefully as "what".
 taskflow/
 ├── TaskFlowApp-kotlin/       Android client — Kotlin, Jetpack Compose, Material 3
 ├── task-manager-backend-GO/  Go backend — one binary, SQLite (WAL), JWT
-├── screens/                  31 PNG screenshots of the real build (device-captured)
+├── screens/                  36 PNG screenshots of the real build (emulator, seeded)
 ├── interviews/               User-interview packs (participant PDFs + scripts)
 ├── index.html / app.js / index.css   ⚠️ PRE-PIVOT WEB PROTOTYPE — NOT the app.
 │                             Different product ("Joint Task Management",
@@ -116,6 +116,7 @@ Go 1.22+, CGO required (SQLite). Migrations run on every start.
 
 ```bash
 go run ./cmd/server            # :8080, SQLite at ./taskmanager.db
+python3 scripts/seed_demo.py <empty.db>   # the deck's demo household, Flat 3B
 go vet ./... && go test ./...
 ```
 
