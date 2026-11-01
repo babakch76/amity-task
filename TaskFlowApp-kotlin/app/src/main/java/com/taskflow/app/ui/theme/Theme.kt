@@ -43,8 +43,10 @@ private val LightColorScheme = lightColorScheme(
     inversePrimary = Color(0xFFC4B5FD),
     secondary = Ink,
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFE9EBE4),
-    onSecondaryContainer = Ink,
+    // What Material paints a *selected* chip, segment or toggle in: the violet
+    // tint, so a choice reads as chosen and not merely greyed.
+    secondaryContainer = Color(0xFFEFE7FD),
+    onSecondaryContainer = Color(0xFF4C1D95),
     tertiary = Color(0xFF2F7A55),
     onTertiary = Color.White,
     tertiaryContainer = Color(0xFFE2EFE7),
@@ -61,7 +63,8 @@ private val LightColorScheme = lightColorScheme(
     surfaceContainerLowest = Color.White,
     surfaceContainerLow = Color(0xFFF7F8F4),
     surfaceContainer = Stone,
-    surfaceContainerHigh = Color(0xFFECEEE8),
+    // Dialogs draw on this one: white, so a dialog reads as a clean card.
+    surfaceContainerHigh = Color.White,
     surfaceContainerHighest = Color(0xFFE6E8E1),
     inverseSurface = Ink,
     inverseOnSurface = Stone,
@@ -82,8 +85,8 @@ private val DarkColorScheme = darkColorScheme(
     inversePrimary = Violet,
     secondary = Color(0xFF2A332E),
     onSecondary = Color(0xFFEEF1EC),
-    secondaryContainer = Color(0xFF26302B),
-    onSecondaryContainer = Color(0xFFEEF1EC),
+    secondaryContainer = Color(0xFF3B2470),
+    onSecondaryContainer = Color(0xFFE9DDFF),
     tertiary = Color(0xFF6FC498),
     onTertiary = Color(0xFF0D2A1B),
     tertiaryContainer = Color(0xFF1E3A2B),

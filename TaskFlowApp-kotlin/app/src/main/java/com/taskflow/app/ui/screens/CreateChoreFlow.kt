@@ -20,6 +20,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -156,9 +159,16 @@ fun CreateChoreFlow(
 ) {
     val editing = initial != null
     var draft by remember(initial) { mutableStateOf(initial ?: ChoreDraft()) }
-    var step by remember { mutableIntStateOf(1) }
     var confirmDiscard by remember { mutableStateOf(false) }
     var localError by remember { mutableStateOf<String?>(null) }
+
+    // One screen (Quiet House). "How often" is still the first question, and
+    // everything that answer implies appears under it once it is answered —
+    // the two-step idea kept, without the step. Defaults (everyone, you first)
+    // are filled the moment a kind is picked, as Next used to.
+    LaunchedEffect(draft.kind) {
+        if (draft.kind != null) draft = draft.withDefaults(members, myUserId)
+    }
 
     Dialog(
         onDismissRequest = { confirmDiscard = true },
@@ -169,86 +179,61 @@ fun CreateChoreFlow(
     ) {
         // System back gets the same question the X does, rather than throwing
         // the form away silently.
-        BackHandler(enabled = true) {
-            if (step == 2) step = 1 else confirmDiscard = true
-        }
+        BackHandler(enabled = true) { confirmDiscard = true }
 
-        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
             Scaffold(
+                containerColor = MaterialTheme.colorScheme.surface,
                 topBar = {
-                    TopAppBar(
-                        navigationIcon = {
-                            IconButton(onClick = { confirmDiscard = true }) {
-                                Icon(Icons.Default.Close, contentDescription = "Close")
-                            }
-                        },
-                        title = {
-                            Column {
-                                Text(
-                                    if (editing) "Edit chore" else "New chore",
-                                    fontWeight = FontWeight.Bold,
-                                )
-                                Text(
-                                    text = "Step $step of 2",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                        ),
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        FilledTonalIconButton(
+                            onClick = { confirmDiscard = true },
+                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.background,
+                            ),
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = "Close")
+                        }
+                        Text(
+                            if (editing) "Edit chore" else "New chore",
+                            style = MaterialTheme.typography.titleMedium,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Spacer(Modifier.width(48.dp))
+                    }
                 },
                 bottomBar = {
-                    Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 2.dp) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            if (step == 2) {
-                                OutlinedButton(
-                                    onClick = { step = 1 },
-                                    enabled = !submitting,
-                                    modifier = Modifier.weight(1f),
-                                ) { Text("Back") }
-                            }
+                    Surface(color = MaterialTheme.colorScheme.surface) {
+                        Column {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                             Button(
                                 onClick = {
-                                    if (step == 1) {
-                                        // The defaults have to go *into* the
-                                        // draft here. Filling them in at render
-                                        // time instead showed a rotation of
-                                        // everyone while the draft still held
-                                        // none, so Add chore then failed with
-                                        // "pick at least one person" against a
-                                        // list of three visible names.
-                                        draft = draft.withDefaults(members, myUserId)
-                                        step = 2
-                                        localError = null
-                                    } else {
-                                        val problem = draft.problem(members)
-                                        if (problem != null) localError = problem
-                                        else { localError = null; onSubmit(draft) }
-                                    }
+                                    val problem = draft.problem(members)
+                                    if (problem != null) localError = problem
+                                    else { localError = null; onSubmit(draft) }
                                 },
-                                // Screen 1 will not let you past a chore with no
-                                // name or no answer: screen 2 is built entirely
-                                // out of that answer, so there is nothing to show.
-                                enabled = !submitting &&
-                                    (step == 2 || (draft.name.isNotBlank() && draft.kind != null)),
-                                modifier = Modifier.weight(1f),
+                                enabled = !submitting && draft.name.isNotBlank() && draft.kind != null,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .navigationBarsPadding()
+                                    .padding(horizontal = 20.dp, vertical = 14.dp)
+                                    .height(56.dp),
                             ) {
                                 Text(
                                     when {
-                                        step == 1 -> "Next"
                                         submitting && editing -> "Saving…"
                                         submitting -> "Adding…"
                                         editing -> "Save changes"
                                         else -> "Add chore"
                                     },
+                                    style = MaterialTheme.typography.titleMedium,
                                 )
                             }
                         }
@@ -260,7 +245,7 @@ fun CreateChoreFlow(
                         .padding(padding)
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     val shown = localError ?: serverError
@@ -272,34 +257,33 @@ fun CreateChoreFlow(
                         )
                     }
 
-                    if (step == 1) {
-                        StepOne(
-                            draft = draft,
-                            lockedKind = initial?.kind,
-                            onDraft = { draft = it },
-                        )
-                    } else {
-                        StepTwo(
-                            draft = draft,
-                            members = members,
-                            myUserId = myUserId,
-                            onDraft = { draft = it },
-                        )
-                        onDelete?.let {
-                            Spacer(Modifier.height(4.dp))
-                            HorizontalDivider()
-                            // Delete lives at the foot of the edit flow and
-                            // nowhere else. On the occurrence sheet the same
-                            // button reads as deleting *this turn*.
-                            OutlinedButton(
-                                onClick = it,
-                                enabled = !submitting,
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = MaterialTheme.colorScheme.error,
-                                ),
-                                modifier = Modifier.fillMaxWidth(),
-                            ) { Text("Delete chore") }
+                    StepOne(
+                        draft = draft,
+                        lockedKind = initial?.kind,
+                        onDraft = { draft = it },
+                    )
+                    AnimatedVisibility(visible = draft.kind != null) {
+                        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            StepTwo(
+                                draft = draft,
+                                members = members,
+                                myUserId = myUserId,
+                                onDraft = { draft = it },
+                            )
                         }
+                    }
+                    onDelete?.let {
+                        Spacer(Modifier.height(4.dp))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        OutlinedButton(
+                            onClick = it,
+                            enabled = !submitting,
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error,
+                            ),
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                        ) { Text("Delete chore") }
                     }
                 }
             }
@@ -906,19 +890,7 @@ private fun RotationPicker(
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = member.username.take(1).uppercase(),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onPrimary,
-                            )
-                        }
+                        com.taskflow.app.ui.components.Avatar(member.username, member.id, 32.dp, dimmed = member.away)
                         Spacer(Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(member.username, style = MaterialTheme.typography.bodyMedium)
