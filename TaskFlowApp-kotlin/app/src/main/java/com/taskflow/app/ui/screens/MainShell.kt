@@ -34,6 +34,7 @@ import com.taskflow.app.reminders.ReminderScheduler
 import com.taskflow.app.ui.components.DockTab
 import com.taskflow.app.ui.components.FloatingDock
 import com.taskflow.app.ui.components.QuietSnackbar
+import com.taskflow.app.ui.components.showToast
 
 /**
  * The signed-in app: three places behind a floating dock — **Mine** (your
@@ -115,10 +116,9 @@ fun MainShell(
         actionMessage?.let {
             val undo = viewModel.undoableDone.value
             val undoPass = viewModel.undoablePass.value
-            val result = snackbarHostState.showSnackbar(
+            val result = snackbarHostState.showToast(
                 message = it,
                 actionLabel = (undo ?: undoPass)?.let { "Undo" },
-                duration = SnackbarDuration.Short,
             )
             viewModel.clearActionMessage()
             if (result == SnackbarResult.ActionPerformed) {

@@ -342,3 +342,23 @@ fun SegmentedPair(first: String, second: String, selected: Int, onSelect: (Int) 
         }
     }
 }
+
+/** How long a toast stays: long enough to read "… is next" and still reach Undo. */
+const val TOAST_MILLIS = 8_000L
+
+/**
+ * Show a toast for [TOAST_MILLIS]. Material only offers ~4 s (Short) or ~10 s
+ * (Long), so this shows it indefinitely and takes it down on a timer;
+ * cancelling the show is what dismisses it.
+ */
+suspend fun androidx.compose.material3.SnackbarHostState.showToast(
+    message: String,
+    actionLabel: String? = null,
+): androidx.compose.material3.SnackbarResult =
+    kotlinx.coroutines.withTimeoutOrNull(TOAST_MILLIS) {
+        showSnackbar(
+            message = message,
+            actionLabel = actionLabel,
+            duration = androidx.compose.material3.SnackbarDuration.Indefinite,
+        )
+    } ?: androidx.compose.material3.SnackbarResult.Dismissed

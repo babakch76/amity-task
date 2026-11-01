@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.draw.clip
@@ -73,33 +74,26 @@ fun AuthHeader(
 }
 
 /**
- * The mark: a roof over a tick, white on the brand violet. Drawn rather than
- * taken from the launcher foreground, whose glyph only fills its middle.
+ * The mark: the app's own launcher icon — the violet tick — so the first
+ * screen and the home screen show the same thing. The foreground drawable is
+ * an adaptive-icon layer whose glyph only fills its middle, hence drawn larger
+ * than the tile and clipped to it.
  */
 @Composable
 fun BrandMark(size: androidx.compose.ui.unit.Dp = 64.dp) {
-    val bg = MaterialTheme.colorScheme.primary
-    val fg = MaterialTheme.colorScheme.onPrimary
-    androidx.compose.foundation.Canvas(
+    Box(
         modifier = Modifier
             .size(size)
-            .semantics { contentDescription = "TaskFlow" },
+            .clip(RoundedCornerShape(size * 0.3f))
+            .background(MaterialTheme.colorScheme.primary),
+        contentAlignment = Alignment.Center,
     ) {
-        val u = this.size.width / 40f
-        drawRoundRect(color = bg, cornerRadius = androidx.compose.ui.geometry.CornerRadius(12 * u, 12 * u))
-        val stroke = androidx.compose.ui.graphics.drawscope.Stroke(
-            width = 2.8f * u,
-            cap = androidx.compose.ui.graphics.StrokeCap.Round,
-            join = androidx.compose.ui.graphics.StrokeJoin.Round,
+        Image(
+            painter = painterResource(R.drawable.ic_launcher_foreground),
+            contentDescription = "TaskFlow",
+            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onPrimary),
+            modifier = Modifier.requiredSize(size * 1.3f),
         )
-        val roof = androidx.compose.ui.graphics.Path().apply {
-            moveTo(9 * u, 19.5f * u); lineTo(20 * u, 11 * u); lineTo(31 * u, 19.5f * u)
-        }
-        val tick = androidx.compose.ui.graphics.Path().apply {
-            moveTo(14.5f * u, 24.5f * u); lineTo(18.5f * u, 28.5f * u); lineTo(26 * u, 21 * u)
-        }
-        drawPath(roof, fg, style = stroke)
-        drawPath(tick, fg, style = stroke)
     }
 }
 

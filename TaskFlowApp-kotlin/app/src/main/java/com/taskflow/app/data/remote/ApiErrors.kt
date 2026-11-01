@@ -39,9 +39,12 @@ object ApiErrors {
     fun parse(raw: String?): String? {
         if (raw.isNullOrBlank()) return null
         return try {
+            // The server writes its messages in lower case ("invalid email
+            // or password"); on screen they start a sentence.
             gson.fromJson(raw, ErrorResponse::class.java)
                 ?.error
                 ?.takeIf { it.isNotBlank() }
+                ?.replaceFirstChar { it.uppercase() }
         } catch (e: JsonSyntaxException) {
             null
         }

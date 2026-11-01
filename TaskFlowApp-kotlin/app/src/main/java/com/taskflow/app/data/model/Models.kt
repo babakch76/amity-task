@@ -259,8 +259,8 @@ data class AlsoBy(
 )
 
 /** "Sara", "Sara and Tom", "Sara, Tom and Ali" — or null when there is nobody. */
-fun List<AlsoBy>?.joinedNames(): String? {
-    val names = this.orEmpty().map { it.username }
+fun List<AlsoBy>?.joinedNames(myUserId: String? = null): String? {
+    val names = this.orEmpty().map { if (myUserId != null && it.userId == myUserId) "you" else it.username }
     return when (names.size) {
         0 -> null
         1 -> names[0]

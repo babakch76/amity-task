@@ -176,6 +176,10 @@ fun RegisterContent(
                 // imePadding + scroll: without these the soft keyboard covers
                 // the submit button with no way to reach it.
                 .imePadding()
+                // Edge-to-edge: keep the form off the status and gesture bars
+                // when it is taller than the screen and scrolls to the top.
+                .statusBarsPadding()
+                .navigationBarsPadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.Center,

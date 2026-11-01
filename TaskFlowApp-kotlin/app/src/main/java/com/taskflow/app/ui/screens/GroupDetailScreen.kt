@@ -87,6 +87,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -101,6 +102,7 @@ import com.taskflow.app.ui.components.DOCK_CLEARANCE
 import com.taskflow.app.ui.components.DoneAvatar
 import com.taskflow.app.ui.components.GroupedCard
 import com.taskflow.app.ui.components.QuietSnackbar
+import com.taskflow.app.ui.components.showToast
 import com.taskflow.app.ui.components.RowDivider
 import com.taskflow.app.ui.components.ScreenTitle
 import com.taskflow.app.ui.components.SectionLabel
@@ -283,11 +285,9 @@ fun GroupDetailScreen(
             // snackbar closes, so reading it afterwards would always find null.
             val undoablePass = state.undoablePass
             val undoableDone = state.undoableDone
-            val result = snackbarHostState.showSnackbar(
+            val result = snackbarHostState.showToast(
                 message = text,
                 actionLabel = (undoablePass ?: undoableDone)?.let { "Undo" },
-                withDismissAction = false,
-                duration = SnackbarDuration.Short,
             )
             when {
                 result != SnackbarResult.ActionPerformed -> viewModel.dismissMessage()
@@ -1003,7 +1003,7 @@ private fun cycleLineFor(
     dateAlreadyShown: Boolean,
 ): String {
     if (!row.isOpen) {
-        val also = (row as? BoardRow.OccurrenceRow)?.occurrence?.alsoBy.joinedNames()
+        val also = (row as? BoardRow.OccurrenceRow)?.occurrence?.alsoBy.joinedNames(myUserId)
         val doerName = if (row.doneBy != null && row.doneBy == myUserId) "you" else doneByName ?: "someone"
         val doer = doerName + (also?.let { ", also $it" } ?: "")
         val doneOn = row.doneAt?.let { formatDueDate(it) }
@@ -1513,7 +1513,7 @@ internal fun OccurrenceDetailSheet(
                                 Text(formatStamp(occurrence.doneAt), style = MaterialTheme.typography.bodySmall, color = q.onDoneSoft)
                             }
                         }
-                        occurrence.alsoBy.joinedNames()?.let { also ->
+                        occurrence.alsoBy.joinedNames(myUserId)?.let { also ->
                             Text("Also worked on it: $also", style = MaterialTheme.typography.bodyMedium, color = q.onDoneSoft)
                         }
                     }
@@ -2344,9 +2344,7 @@ private fun MemberList(
                         modifier = Modifier.weight(1f).height(48.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = q.onDock, contentColor = q.dock),
                     ) {
-                        Icon(Icons.Default.Link, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Share code", maxLines = 1)
+                        Text("Share code", maxLines = 1, softWrap = false)
                     }
                     OutlinedButton(
                         onClick = onInviteByName,
@@ -2360,8 +2358,16 @@ private fun MemberList(
 
         if (me != null) {
             GroupedCard {
+                // The whole row is the switch, so a screen reader reads its
+                // title as the switch's label rather than an unnamed toggle.
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    modifier = Modifier
+                        .toggleable(
+                            value = me.away,
+                            role = androidx.compose.ui.semantics.Role.Switch,
+                            onValueChange = { onAway() },
+                        )
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
@@ -2376,7 +2382,7 @@ private fun MemberList(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    Switch(checked = me.away, onCheckedChange = { onAway() })
+                    Switch(checked = me.away, onCheckedChange = null)
                 }
             }
         }
@@ -2623,8 +2629,8 @@ private fun GroupHistoryBody(
                     Surface(
                         onClick = { if (!selected) onWindowChange(value) },
                         shape = RoundedCornerShape(18.dp),
-                        color = if (selected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surface,
-                        contentColor = if (selected) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onSurface,
+                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                        contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                     ) {
                         Text(label, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp))
                     }

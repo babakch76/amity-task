@@ -91,6 +91,14 @@ fun AppNavGraph(
 
         // ─── Register ───
         composable(Routes.REGISTER) {
+            // Only one auth screen is ever on the stack, so system Back here
+            // would leave the app. It goes back to Sign in instead, which is
+            // where someone pressing Back on "Create account" expects to be.
+            androidx.activity.compose.BackHandler {
+                navController.navigate(Routes.LOGIN) {
+                    popUpTo(Routes.REGISTER) { inclusive = true }
+                }
+            }
             RegisterScreen(
                 tokenManager = tokenManager,
                 onRegisterSuccess = { goToShell() },
