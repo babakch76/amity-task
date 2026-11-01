@@ -60,6 +60,11 @@ colleague, and a six-screen redesign concept from someone else.
   coverer's own next slot is skipped. All spec cases still pass; the server
   now sends `pass_to` so the phone no longer carries a copy of the rule.
   Verified on the real `home` bathroom: aa repaid mm's cover, bb is next.
+- **Small fixes, all checked on the phone:** My chores refreshes on opening
+  and after the board changes something (B-23); it has the board's Undo on
+  "… done."; Edit chore no longer claims edits that were never made (B-24);
+  the *Nobody* assignee is gone from legacy tasks (B-12). Pushed for a
+  colleague to test; redeploying the backend is theirs to decide.
 - **Not taken from the concept:** Google / emailed-link sign-in (01), the group
   list as home (03, contradicts 2026-09-13), group settings with archive /
   delete / transfer (06), the setup checklist (02).

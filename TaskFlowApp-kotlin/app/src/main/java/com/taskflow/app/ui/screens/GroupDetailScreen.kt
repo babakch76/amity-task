@@ -2004,11 +2004,11 @@ private fun TaskDetailSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                FilterChip(
-                    selected = task.assignedTo == null,
-                    onClick = { if (task.assignedTo != null) onSetAssignee(null) },
-                    label = { Text("Nobody") },
-                )
+                // No "Nobody" chip (B-12). A task cannot be created unowned —
+                // constraint 8: busy and away are the only ways out of a turn —
+                // so it should not be made unowned a moment later either. A
+                // legacy task that already has nobody simply has no chip
+                // selected until somebody takes it.
                 members.forEach { member ->
                     FilterChip(
                         selected = task.assignedTo == member.id,

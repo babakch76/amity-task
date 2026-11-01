@@ -116,6 +116,11 @@ fun MyChoresScreen(
     // to — the sheet's actions are performed by that household's ViewModel.
     var detailFor by remember { mutableStateOf<Pair<String, String>?>(null) }
 
+    // Fresh every time the tab is opened (B-23). The board does its work
+    // through its own household ViewModel, so a turn completed or passed
+    // there left this list showing the old state until refresh was tapped.
+    LaunchedEffect(Unit) { viewModel.refresh() }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -190,7 +195,9 @@ fun MyChoresScreen(
             groupId = groupId,
             occurrenceId = occurrenceId,
             myUserId = myUserId,
-            onMessage = viewModel::showMessage,
+            onMessage = { text, undoOccurrence ->
+                viewModel.showMessage(text, undoOccurrence?.let { groupId to it })
+            },
             onClosed = {
                 detailFor = null
                 // Whatever the sheet did — passed it, edited the chore, moved
@@ -221,8 +228,11 @@ private fun OpenedFromMyChores(
     groupId: String,
     occurrenceId: String,
     myUserId: String?,
-    /** A result to show on the shell's snackbar — this tab has no other. */
-    onMessage: (String) -> Unit,
+    /**
+     * A result to show on the shell's snackbar — this tab has no other — with
+     * the occurrence it can undo, when it was a completion.
+     */
+    onMessage: (String, String?) -> Unit,
     onClosed: () -> Unit,
 ) {
     val boardViewModel: GroupDetailViewModel = viewModel(
@@ -230,6 +240,15 @@ private fun OpenedFromMyChores(
         factory = GroupDetailViewModel.Factory(groupId),
     )
     val state by boardViewModel.uiState.collectAsState()
+
+    // The ViewModel outlives the sheet — it is keyed to the household, so the
+    // second turn opened from here reuses the first one's. Without a reload it
+    // shows whatever that household looked like then: a turn completed on the
+    // board since still read as open, and one undone still read as done. A
+    // brand-new ViewModel has just loaded, so only a reused one is refreshed.
+    LaunchedEffect(occurrenceId) {
+        if (state.occurrences.isNotEmpty()) boardViewModel.refresh()
+    }
     val controller = remember(occurrenceId) {
         ChoreDetailController().apply { open(occurrenceId) }
     }
@@ -259,7 +278,7 @@ private fun OpenedFromMyChores(
     // the shell, whose snackbar this tab shows.
     LaunchedEffect(state.message) {
         state.message?.let {
-            onMessage(it)
+            onMessage(it, state.undoableDone)
             boardViewModel.dismissMessage()
         }
     }

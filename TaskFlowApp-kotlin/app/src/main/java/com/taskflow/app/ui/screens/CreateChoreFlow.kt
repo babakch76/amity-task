@@ -307,17 +307,34 @@ fun CreateChoreFlow(
     }
 
     if (confirmDiscard) {
+        // Still asked every time, for the reason above — but it says what is
+        // true. Editing and changing nothing used to be told "Your edits won't
+        // be saved", about edits that did not exist (B-24).
+        val unchanged = editing && draft == initial
         AlertDialog(
             onDismissRequest = { confirmDiscard = false },
-            title = { Text(if (editing) "Discard changes?" else "Discard this chore?") },
+            title = {
+                Text(
+                    when {
+                        unchanged -> "Stop editing?"
+                        editing -> "Discard changes?"
+                        else -> "Discard this chore?"
+                    },
+                )
+            },
             text = {
                 Text(
-                    if (editing) "Your edits won't be saved."
-                    else "Nothing has been added to the board yet.",
+                    when {
+                        unchanged -> "Nothing has been changed."
+                        editing -> "Your edits won't be saved."
+                        else -> "Nothing has been added to the board yet."
+                    },
                 )
             },
             confirmButton = {
-                TextButton(onClick = { confirmDiscard = false; onDismiss() }) { Text("Discard") }
+                TextButton(onClick = { confirmDiscard = false; onDismiss() }) {
+                    Text(if (unchanged) "Close" else "Discard")
+                }
             },
             dismissButton = {
                 TextButton(onClick = { confirmDiscard = false }) { Text("Keep editing") }

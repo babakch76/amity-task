@@ -81,6 +81,15 @@ class ShellViewModel : ViewModel() {
     private val _actionMessage = MutableStateFlow<String?>(null)
     val actionMessage: StateFlow<String?> = _actionMessage.asStateFlow()
 
+    /**
+     * A completion the message on screen can still take back, as (group,
+     * occurrence) — the same Undo the board's snackbar offers. Set before the
+     * message it belongs to, and cleared with it, so a stale Undo never rides
+     * on the next one. The server's ten-minute window is the permission.
+     */
+    private val _undoableDone = MutableStateFlow<Pair<String, String>?>(null)
+    val undoableDone: StateFlow<Pair<String, String>?> = _undoableDone.asStateFlow()
+
     private val _isWorking = MutableStateFlow(false)
     val isWorking: StateFlow<Boolean> = _isWorking.asStateFlow()
 
@@ -222,6 +231,7 @@ class ShellViewModel : ViewModel() {
                     UpdateOccurrenceRequest(status = if (done) "done" else "open"),
                 )
                 if (response.isSuccessful) {
+                    _undoableDone.value = if (done) groupId to occurrenceId else null
                     _actionMessage.value = if (done) "Marked done" else "Completion undone"
                     (uiState.value as? ShellUiState.Success)?.let { loadReminderData(it.groups) }
                 } else {
@@ -418,14 +428,17 @@ class ShellViewModel : ViewModel() {
 
     fun clearActionMessage() {
         _actionMessage.value = null
+        _undoableDone.value = null
     }
 
     /**
      * Show a message that came from somewhere else — a household's own
      * ViewModel, behind a sheet opened from My chores — on the shell's
-     * snackbar, which is the one My chores can see.
+     * snackbar, which is the one My chores can see. [undo] is the completion
+     * it can take back, if it was one.
      */
-    fun showMessage(text: String) {
+    fun showMessage(text: String, undo: Pair<String, String>? = null) {
+        _undoableDone.value = undo
         _actionMessage.value = text
     }
 

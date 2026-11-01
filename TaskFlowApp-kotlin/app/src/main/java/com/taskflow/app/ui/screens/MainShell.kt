@@ -19,7 +19,9 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -136,8 +138,17 @@ fun MainShell(
 
     LaunchedEffect(actionMessage) {
         actionMessage?.let {
-            snackbarHostState.showSnackbar(it)
+            // Read once, before showing: it is cleared with the message.
+            val undo = viewModel.undoableDone.value
+            val result = snackbarHostState.showSnackbar(
+                message = it,
+                actionLabel = undo?.let { "Undo" },
+                duration = SnackbarDuration.Short,
+            )
             viewModel.clearActionMessage()
+            if (result == SnackbarResult.ActionPerformed && undo != null) {
+                viewModel.setOccurrenceDone(undo.first, undo.second, done = false)
+            }
         }
     }
 

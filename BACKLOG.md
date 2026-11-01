@@ -879,18 +879,28 @@ My chores named the doer of your covered turn from `coveredByName`, which is
 set on the turn *after* a cover, never on the covered one. The backend now
 joins `done_by_name` into every occurrence and the row uses it.
 
-### B-23 · My chores does not refresh after changes made on the board — OPEN
+### B-23 · My chores does not refresh after changes made on the board — DONE (2026-11-01)
 
 Completing or passing a turn on the board leaves My chores showing the old
 state until its refresh button is tapped. The board's household ViewModel
 and the shell's copy are separate; B-20's fix refreshes the shell only when
 the change was made from My chores' own sheet.
 
-### B-24 · Edit chore asks "Discard changes?" when nothing was changed — OPEN
+**Fixed:** My chores reloads whenever the tab is opened, and the household
+view behind a sheet opened from it reloads when it is reused for another turn
+— otherwise it described the household as it was the first time. The same
+change gave My chores the board's **Undo** on *"… done."*, both for its own
+row action and for completions made in a sheet opened from it.
+
+### B-24 · Edit chore asks "Discard changes?" when nothing was changed — DONE (2026-11-01)
 
 Opening a chore's edit flow, moving to step 2 and closing it without editing
 anything still asks to discard changes. Seen once, while re-shooting; not yet
 narrowed down.
+
+**Fixed:** the X still always asks (the reason is on `CreateChoreFlow`), but
+when the draft equals what it opened with it asks *"Stop editing? Nothing has
+been changed."* with **Close**. A real edit still gets *"Discard changes?"*.
 
 ### B-20 · Tapping a turn in My chores opened nothing — DONE (2026-11-01)
 
@@ -1168,7 +1178,7 @@ nothing either way.
 
 ---
 
-### B-12 · A task can still be un-assigned from the detail sheet — OPEN
+### B-12 · A task can still be un-assigned from the detail sheet — DONE (2026-11-01)
 
 **Reported:** 2026-09-01, noticed while merging the create dialogs (phase 2).
 
@@ -1183,6 +1193,10 @@ Small, and left alone deliberately: phase 2 was a merge of two dialogs and
 changing the detail sheet is a different concern. **Fix:** drop the chip, and
 decide what the sheet should do with the legacy tasks that already have a null
 `assigned_to` (show them as unassigned, but don't offer it as a choice).
+
+**Fixed:** the *Nobody* chip is gone. A legacy task that already has nobody
+shows *Unassigned* on the board and no chip selected in its sheet, until
+somebody takes it.
 
 ---
 
