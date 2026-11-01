@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
@@ -78,6 +79,25 @@ import com.taskflow.app.data.model.Task
 import com.taskflow.app.data.model.isOpen
 import com.taskflow.app.data.model.joinedNames
 import com.taskflow.app.ui.theme.Quiet
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Luggage
+import androidx.compose.material3.Switch
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.taskflow.app.ui.components.Avatar
+import com.taskflow.app.ui.components.AvatarStack
+import com.taskflow.app.ui.components.DOCK_CLEARANCE
+import com.taskflow.app.ui.components.DoneAvatar
+import com.taskflow.app.ui.components.GroupedCard
+import com.taskflow.app.ui.components.QuietSnackbar
+import com.taskflow.app.ui.components.RowDivider
+import com.taskflow.app.ui.components.ScreenTitle
+import com.taskflow.app.ui.components.SectionLabel
+import com.taskflow.app.ui.components.SegmentedPair
 import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.Instant
@@ -133,6 +153,13 @@ fun GroupDetailScreen(
     onCreateHousehold: () -> Unit,
     onJoinHousehold: () -> Unit,
     onLeft: () -> Unit,
+    /** Which part of the household this destination shows (House, Feed or People). */
+    section: HouseSection = HouseSection.BOARD,
+    /** Add on the dock was pressed: open the create flow once, then say so. */
+    createRequested: Boolean = false,
+    onCreateHandled: () -> Unit = {},
+    onOpenPeople: () -> Unit = {},
+    onBack: () -> Unit = {},
     viewModel: GroupDetailViewModel = viewModel(
         key = groupId,
         factory = GroupDetailViewModel.Factory(groupId),
@@ -140,7 +167,8 @@ fun GroupDetailScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    var selectedTab by remember { mutableIntStateOf(0) }
+    // Feed: the stream of what happened, or the per-person record.
+    var feedView by rememberSaveable { mutableIntStateOf(0) }
     // One create flow, not two. Whether the thing repeats is a question inside
     // the form, not a choice of button — see CreateChoreFlow.
     var showCreate by remember { mutableStateOf(false) }
@@ -154,14 +182,12 @@ fun GroupDetailScreen(
     // swipe and the sheet route through, so the rule is stated once.
     val detail = rememberChoreDetailController()
     var showAway by remember { mutableStateOf(false) }
-    var showGroupHistory by remember { mutableStateOf(false) }
 
     // Per-form submit state, so a create dialog can stay open until the write
     // lands and show a rejection where the user is already looking (B-7).
     var createSubmitting by remember { mutableStateOf(false) }
     var createError by remember { mutableStateOf<String?>(null) }
     var showInvite by remember { mutableStateOf(false) }
-    var showMenu by remember { mutableStateOf(false) }
     var confirmLeave by remember { mutableStateOf(false) }
     // Task pending deletion — deleting is irreversible, so it goes via a confirm.
     var taskToDelete by remember { mutableStateOf<Task?>(null) }
@@ -261,80 +287,29 @@ fun GroupDetailScreen(
         }
     }
 
+    LaunchedEffect(createRequested, state.group) {
+        if (createRequested && state.group != null) {
+            showCreate = true
+            onCreateHandled()
+        }
+    }
+
+    LaunchedEffect(section, feedView) {
+        if (section == HouseSection.FEED && feedView == 1) viewModel.loadGroupHistory(state.historyWindow)
+    }
+
+    val othersAway = state.members.filter { it.away && it.id != myUserId }
+    val currentGroup = state.group?.let { loaded -> groups.firstOrNull { it.id == loaded.id } }
+        ?: groups.firstOrNull { it.id == groupId }
+
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                // The title *is* the switcher. There is no back arrow: this is
-                // a root destination, and the household you are looking at is
-                // changed in place rather than by going back to a list.
-                title = {
-                    HouseholdSwitcher(
-                        // The list's copy while the board's own fetch is in
-                        // flight, so the name is right from the first frame
-                        // instead of appearing a beat later.
-                        current = state.group?.let { loaded ->
-                            groups.firstOrNull { it.id == loaded.id }
-                        } ?: groups.firstOrNull { it.id == groupId },
-                        groups = groups,
-                        onSelect = { onSelectGroup(it.id) },
-                        onCreate = onCreateHousehold,
-                        onJoin = onJoinHousehold,
-                    )
-                },
-                actions = {
-                    run {
-                        IconButton(onClick = { viewModel.refresh() }) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                        }
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "More")
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false },
-                        ) {
-                            // Inviting and saying you are away moved to the
-                            // Members tab (2026-11-01): both are about who is
-                            // in the household, and a menu is where things go
-                            // when they have nowhere better.
-                            DropdownMenuItem(
-                                text = { Text("What's been done") },
-                                leadingIcon = { Icon(Icons.Default.List, null) },
-                                onClick = {
-                                    showMenu = false
-                                    showGroupHistory = true
-                                    viewModel.loadGroupHistory(state.historyWindow)
-                                },
-                            )
-                            HorizontalDivider()
-                            DropdownMenuItem(
-                                text = { Text("Leave household") },
-                                onClick = { showMenu = false; confirmLeave = true },
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
-            )
-        },
-        floatingActionButton = {
-            if (selectedTab == 0 && state.group != null) {
-                // One button. There used to be two — a primary one for chores
-                // and a small one for one-off tasks — which made the household
-                // pick a storage model before it could write anything down.
-                // Everything here is a chore to the person adding it; whether it
-                // repeats is a question the form asks.
-                ExtendedFloatingActionButton(
-                    onClick = { showCreate = true },
-                    icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                    text = { Text("Add chore") },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                )
-            }
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0),
+        snackbarHost = {
+            SnackbarHost(
+                snackbarHostState,
+                modifier = Modifier.padding(bottom = if (section == HouseSection.PEOPLE) 16.dp else 96.dp),
+            ) { QuietSnackbar(it) }
         },
     ) { padding ->
         Column(
@@ -342,110 +317,154 @@ fun GroupDetailScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
+            when (section) {
+                HouseSection.BOARD -> Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 20.dp, top = 20.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // The title *is* the switcher: the household you are
+                    // looking at is changed in place, not by going back.
+                    HouseholdSwitcher(
+                        current = currentGroup,
+                        groups = groups,
+                        onSelect = { onSelectGroup(it.id) },
+                        onCreate = onCreateHousehold,
+                        onJoin = onJoinHousehold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    // Who lives here, as faces. Tapping them opens People —
+                    // which is where inviting and saying you're away now live.
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(22.dp))
+                            .clickable(onClick = onOpenPeople)
+                            .semantics { contentDescription = "People in this household" }
+                            .padding(start = 6.dp, top = 5.dp, bottom = 5.dp, end = 2.dp),
+                    ) {
+                        AvatarStack(
+                            people = state.members.take(5).map { Triple(it.username, it.id, it.away) },
+                        )
+                    }
+                }
+
+                HouseSection.FEED -> Column(
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    ScreenTitle(title = "What happened", over = currentGroup?.name)
+                    SegmentedPair(
+                        first = "Everything",
+                        second = "Who did what",
+                        selected = feedView,
+                        onSelect = { feedView = it },
+                    )
+                }
+
+                HouseSection.PEOPLE -> Column(
+                    modifier = Modifier.padding(start = 8.dp, end = 20.dp, top = 8.dp),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to the board")
+                        }
+                        Text(
+                            currentGroup?.name.orEmpty(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        "People",
+                        style = MaterialTheme.typography.headlineLarge,
+                        modifier = Modifier.padding(start = 12.dp, top = 2.dp, bottom = 8.dp),
+                    )
+                }
+            }
+
             if (state.isWorking) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
 
             when {
-                state.isLoading -> LoadingBlock("Loading group…")
+                state.isLoading && state.group == null -> LoadingBlock("Loading…")
 
                 state.error != null -> GroupErrorBlock(
                     message = state.error ?: "",
                     onRetry = { viewModel.refresh() },
                 )
 
-                else -> {
-                    run {
-                        // Fixed, not scrollable: three labels fit a phone's
-                        // width. It was scrollable while there were four.
-                        TabRow(selectedTabIndex = selectedTab) {
-                            Tab(
-                                selected = selectedTab == 0,
-                                onClick = { selectedTab = 0 },
-                                // Open rows, both shapes. It used to count the
-                                // done ones too, so finishing a chore never
-                                // moved the number — and a row under Done is
-                                // not a thing on the board in the sense a
-                                // count next to a tab label implies.
-                                text = {
-                                    val open = state.tasks.count { it.isOpen } +
-                                        state.occurrences.count { it.isOpen }
-                                    Text("Board ($open)")
+                else -> PullToRefreshBox(
+                    isRefreshing = state.isLoading,
+                    onRefresh = { viewModel.refresh() },
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    when (section) {
+                        HouseSection.BOARD -> Column(modifier = Modifier.fillMaxSize()) {
+                            // Away is meant to be visible — it is what explains
+                            // why the rotation is stepping over someone.
+                            if (iAmAway) {
+                                AwayBanner(onBack = { viewModel.setAway(false, null) })
+                            } else if (othersAway.isNotEmpty()) {
+                                OthersAwayNote(othersAway)
+                            }
+                            TaskList(
+                                // Chore occurrences first: they are the model the
+                                // app is moving to, and tasks are the legacy
+                                // one-off shape still carried alongside them.
+                                rows = state.occurrences.map { BoardRow.OccurrenceRow(it) } +
+                                    state.tasks.map { BoardRow.TaskRow(it) },
+                                chores = state.chores,
+                                justAdded = justAdded,
+                                members = state.members,
+                                myUserId = myUserId,
+                                showSwipeHint = showSwipeHint,
+                                onOpenDetail = { row ->
+                                    when (row) {
+                                        is BoardRow.TaskRow -> detailTaskId = row.task.id
+                                        is BoardRow.OccurrenceRow ->
+                                            detail.open(row.occurrence.id)
+                                    }
                                 },
-                            )
-                            Tab(
-                                selected = selectedTab == 1,
-                                onClick = { selectedTab = 1 },
-                                text = { Text("Activity") },
-                            )
-                            Tab(
-                                selected = selectedTab == 2,
-                                onClick = { selectedTab = 2 },
-                                text = { Text("Members (${state.members.size})") },
+                                onToggleDone = { row ->
+                                    when (row) {
+                                        is BoardRow.TaskRow -> viewModel.setTaskStatus(
+                                            row.task.id,
+                                            if (row.isOpen) "done" else "todo",
+                                        )
+                                        is BoardRow.OccurrenceRow ->
+                                            viewModel.toggleOccurrenceDone(row.occurrence, myUserId)
+                                    }
+                                },
+                                onPass = { row ->
+                                    (row as? BoardRow.OccurrenceRow)?.let {
+                                        detail.confirmPass(it.occurrence)
+                                    }
+                                },
+                                onSwiped = {
+                                    if (showSwipeHint) {
+                                        showSwipeHint = false
+                                        LocalHints.dismissSwipeHint(context)
+                                    }
+                                },
+                                onCreate = { showCreate = true },
                             )
                         }
-                    }
 
-                    PullToRefreshBox(
-                        isRefreshing = state.isLoading,
-                        onRefresh = { viewModel.refresh() },
-                        modifier = Modifier.fillMaxSize(),
-                    ) {
-                    when (selectedTab) {
-                        0 -> Column(modifier = Modifier.fillMaxSize()) {
-                        // Away is meant to be visible — it is the thing that
-                        // explains why the rotation is stepping over you. It
-                        // was only ever legible from the overflow menu you set
-                        // it from, so your own board said nothing about it.
-                        if (iAmAway) {
-                            AwayBanner(onBack = { viewModel.setAway(false, null) })
-                        }
-                        TaskList(
-                            // Chore occurrences first: they are the model the
-                            // app is moving to, and tasks are the legacy
-                            // one-off shape still carried alongside them.
-                            rows = state.occurrences.map { BoardRow.OccurrenceRow(it) } +
-                                state.tasks.map { BoardRow.TaskRow(it) },
-                            chores = state.chores,
-                            justAdded = justAdded,
-                            members = state.members,
-                            myUserId = myUserId,
-                            showSwipeHint = showSwipeHint,
-                            onOpenDetail = { row ->
-                                when (row) {
-                                    is BoardRow.TaskRow -> detailTaskId = row.task.id
-                                    is BoardRow.OccurrenceRow ->
-                                        detail.open(row.occurrence.id)
-                                }
-                            },
-                            onToggleDone = { row ->
-                                when (row) {
-                                    is BoardRow.TaskRow -> viewModel.setTaskStatus(
-                                        row.task.id,
-                                        if (row.isOpen) "done" else "todo",
-                                    )
-                                    is BoardRow.OccurrenceRow ->
-                                        viewModel.toggleOccurrenceDone(row.occurrence, myUserId)
-                                }
-                            },
-                            onPass = { row ->
-                                (row as? BoardRow.OccurrenceRow)?.let {
-                                    detail.confirmPass(it.occurrence)
-                                }
-                            },
-                            onSwiped = {
-                                if (showSwipeHint) {
-                                    showSwipeHint = false
-                                    LocalHints.dismissSwipeHint(context)
-                                }
-                            },
-                            onCreate = { showCreate = true },
-                        )
+                        HouseSection.FEED -> if (feedView == 0) {
+                            ActivityList(state.activity, state.members, myUserId)
+                        } else {
+                            GroupHistoryBody(
+                                history = state.groupHistory,
+                                window = state.historyWindow,
+                                loading = state.historyLoading,
+                                myUserId = myUserId,
+                                onWindowChange = { viewModel.loadGroupHistory(it) },
+                            )
                         }
 
-                        1 -> ActivityList(state.activity)
-
-                        2 -> MemberList(
+                        HouseSection.PEOPLE -> MemberList(
                             members = state.members,
                             myUserId = myUserId,
                             onShareCode = { viewModel.generateInviteCode() },
@@ -455,8 +474,9 @@ fun GroupDetailScreen(
                             onAway = {
                                 if (iAmAway) viewModel.setAway(false, null) else showAway = true
                             },
+                            onLeave = { confirmLeave = true },
+                            householdName = currentGroup?.name.orEmpty(),
                         )
-                    }
                     }
                 }
             }
@@ -546,15 +566,6 @@ fun GroupDetailScreen(
         )
     }
 
-    if (showGroupHistory) {
-        GroupHistorySheet(
-            history = state.groupHistory,
-            window = state.historyWindow,
-            loading = state.historyLoading,
-            onWindowChange = { viewModel.loadGroupHistory(it) },
-            onDismiss = { showGroupHistory = false; viewModel.clearHistory() },
-        )
-    }
 
     if (showAway) {
         AwayDialog(
@@ -844,35 +855,25 @@ private fun TaskList(
     val sections = remember(rows, myUserId) {
         val open = rows.filter { it.isOpen }
         listOf(
-            "YOURS" to open.filter { it.assignedTo != null && it.assignedTo == myUserId },
-            "OTHERS" to open.filter { it.assignedTo == null || it.assignedTo != myUserId },
-            "RECENTLY DONE" to recentlyDone(rows, OffsetDateTime.now()),
+            "Yours" to open.filter { it.assignedTo != null && it.assignedTo == myUserId },
+            "Everyone else" to open.filter { it.assignedTo == null || it.assignedTo != myUserId },
+            "Recently done" to recentlyDone(rows, OffsetDateTime.now()),
         ).filter { it.second.isNotEmpty() }
     }
 
     LazyColumn(
-        contentPadding = PaddingValues(
-            start = 16.dp,
-            end = 16.dp,
-            top = 12.dp,
-            // Clears the FAB so the last row is reachable.
-            bottom = 88.dp,
-        ),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        // Clears the floating dock so the last row is reachable.
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = DOCK_CLEARANCE),
     ) {
         sections.forEach { (label, rows) ->
             item(key = "header-$label") {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 0.8.sp,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
-                )
+                SectionLabel(label, Modifier.padding(top = 14.dp, bottom = 8.dp))
             }
             itemsIndexed(rows, key = { _, row -> row.key }) { index, row ->
                 TaskCard(
                     row = row,
+                    first = index == 0,
+                    last = index == rows.lastIndex,
                     scheduleText = scheduleLineFor(row, chores),
                     highlighted = justAdded != null && row.title.equals(justAdded, ignoreCase = true),
                     assigneeName = members.firstOrNull { it.id == row.assignedTo }?.username,
@@ -897,12 +898,12 @@ private fun TaskList(
                 // The hint sits under the first row of the first section, which
                 // is a row you can actually swipe. Under a heading it would be
                 // advice about nothing in particular.
-                if (showSwipeHint && label == "YOURS" && index == 0) {
+                if (showSwipeHint && label == "Yours" && index == rows.lastIndex) {
                     Text(
                         text = "Swipe a row for actions.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 4.dp, top = 2.dp),
+                        modifier = Modifier.padding(start = 4.dp, top = 6.dp),
                     )
                 }
             }
@@ -1034,6 +1035,9 @@ private fun cycleLineFor(
 @Composable
 internal fun TaskCard(
     row: BoardRow,
+    /** Where it sits in its group, so the group draws as one rounded card. */
+    first: Boolean = true,
+    last: Boolean = true,
     scheduleText: String?,
     highlighted: Boolean,
     assigneeName: String?,
@@ -1115,205 +1119,116 @@ internal fun TaskCard(
         },
     )
 
+    val mine = row.assignedTo != null && row.assignedTo == myUserId
+    val corner = 22.dp
+    val shape = RoundedCornerShape(
+        topStart = if (first) corner else 0.dp,
+        topEnd = if (first) corner else 0.dp,
+        bottomStart = if (last) corner else 0.dp,
+        bottomEnd = if (last) corner else 0.dp,
+    )
+    val schedule = scheduleText?.replaceFirstChar { it.uppercase() }
+    val due = row.dueDate?.let { formatDueDate(it) }
+    val who = assigneeName ?: "Unassigned"
+    val meta = when {
+        !row.isOpen -> cycleText
+        mine && overdue && due != null -> "Past its day · was $due"
+        mine -> listOfNotNull(schedule.takeIf { row is BoardRow.OccurrenceRow }, due ?: "Your turn".takeIf { schedule == null })
+            .joinToString(" · ").ifEmpty { schedule.orEmpty() }
+        row is BoardRow.TaskRow -> listOfNotNull(who, due?.let { "once, by $it" } ?: "once").joinToString(" · ")
+        else -> listOfNotNull("$who's turn", due ?: schedule).joinToString(" · ")
+    }
+
     val card: @Composable () -> Unit = {
-    ElevatedCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpenDetail),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = if (highlighted) MaterialTheme.colorScheme.primaryContainer
-            else MaterialTheme.colorScheme.surface,
-        ),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
+    Surface(
+        onClick = onOpenDetail,
+        shape = shape,
+        color = if (highlighted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, top = 12.dp, end = 12.dp, bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // Done is shown, not offered.
-            //
-            // There was a checkbox here, and a checkbox is a control: it says
-            // "decide from the list", which is the one place the household's
-            // definition of done is not on screen. Worse, it decides on a tap
-            // that lands by accident in a scrolling list. The row is now a
-            // button that opens the chore, and the only mark of completion it
-            // carries is a tick — no box to aim at, and nothing to mis-tap.
-            if (!row.isOpen) {
-                Box(
-                    modifier = Modifier
-                        .size(26.dp)
-                        .clip(CircleShape)
-                        .background(doneColor().copy(alpha = 0.14f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Done",
-                        tint = doneColor(),
-                        modifier = Modifier.size(16.dp),
+        Column {
+            if (!first) RowDivider()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 14.dp, top = 12.dp, end = 10.dp, bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                when {
+                    !row.isOpen -> Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(Quiet.colors.doneSoft),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = "Done", tint = doneColor(), modifier = Modifier.size(16.dp))
+                    }
+                    mine || row.assignedTo == null -> Box(
+                        modifier = Modifier
+                            .padding(horizontal = 9.dp)
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(if (overdue) Quiet.colors.pastDot else MaterialTheme.colorScheme.outline),
                     )
+                    else -> Avatar(who, row.assignedTo!!, 34.dp)
                 }
                 Spacer(Modifier.width(12.dp))
-            }
 
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = row.title,
-                        style = MaterialTheme.typography.titleSmall
-                            .copy(fontWeight = FontWeight.Bold),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        // Dimmed rather than struck through: done work stays
-                        // readable, it just stops asking for attention.
-                        color = if (row.isOpen) MaterialTheme.colorScheme.onSurface
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    // Which household, when the rows are not already grouped by
-                    // one. Muted and unclickable: it is a label, not a filter.
-                    householdName?.let { household ->
-                        Spacer(Modifier.width(8.dp))
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = MaterialTheme.shapes.small,
-                        ) {
-                            Text(
-                                text = household,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            )
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = row.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            color = if (row.isOpen) MaterialTheme.colorScheme.onSurface
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        householdName?.let { household ->
+                            Spacer(Modifier.width(8.dp))
+                            Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(999.dp)) {
+                                Text(
+                                    household,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                )
+                            }
                         }
                     }
-                }
-                // Line 2 - the agreement: how often this comes round. It is on
-                // the row rather than only in the sheet because the frequency is
-                // half of what the household agreed, and an agreement nobody can
-                // see is not doing its job (F4).
-                scheduleText?.let {
-                    Spacer(Modifier.height(2.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        // The amber follows the date. On a one-off the date is
-                        // up here, and hard-wiring the dot to the line below
-                        // left an overdue one-off with no signal at all.
-                        if (overdue && dateIsOnScheduleLine) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(overdueColor()),
-                            )
-                        }
+                    if (meta.isNotEmpty()) {
                         Text(
-                            text = it,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (overdue && dateIsOnScheduleLine) overdueColor()
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = meta,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (mine && overdue && row.isOpen) overdueColor() else MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                }
 
-                // Line 3 - this cycle: whose turn it is, and when it is wanted.
-                Spacer(Modifier.height(3.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    // The amber dot sits with whichever line carries the date,
-                    // and for everything except a one-off that is this one.
-                    if (overdue && !dateIsOnScheduleLine) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(overdueColor()),
-                        )
+                    val returned = coveredByName != null && row.isOpen
+                    val marker = when {
+                        needsDate && mine -> "Everyone's busy, so it's back with you."
+                        passedByMe -> "Comes back to you next time. ${assigneeName ?: "Someone"} is covering this one."
+                        returned && mine -> "$coveredByName covered your last turn, so it's yours again"
+                        returned -> assigneeName?.let { "$coveredByName covered $it's last turn" }
+                            ?: "$coveredByName covered the last turn"
+                        else -> null
                     }
-                    if (cycleText.isNotEmpty()) {
-                        Text(
-                            text = cycleText,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (overdue && !dateIsOnScheduleLine) overdueColor()
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                    marker?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary, maxLines = 2)
                     }
                 }
 
-                // The debt rule, said out loud on the two rows it applies to.
-                //
-                // Without this a pass looks like the chore simply left, and the
-                // return looks like a turn that never moved. Both are the rule
-                // working; neither is legible without a sentence.
-                val returned = coveredByName != null && row.isOpen
-                val mine = row.assignedTo != null && row.assignedTo == myUserId
-                val marker = when {
-                    // Said before the debt marker, because it is the more
-                    // surprising of the two: this chore has come back to you
-                    // without anybody doing it.
-                    //
-                    // It states the fact and stops there. "Pick a day" belongs
-                    // on the row only until a day is picked, and the row cannot
-                    // tell: the flag is derived from who has passed, which does
-                    // not change when a date is set. A line that keeps asking
-                    // for something already done is worse than one that simply
-                    // says where things stand, and the detail sheet carries the
-                    // button and the explanation.
-                    needsDate && mine -> "Everyone's busy, so it's back with you."
-
-                    passedByMe -> "Next turn comes back to you. " +
-                        "${assigneeName ?: "Someone"} is covering this one"
-
-                    // Said in the past tense, because the cover has already
-                    // happened. This line used to read "Back to you after X
-                    // covered", which frames a finished event as a pending one
-                    // and reads as though the turn were still on its way back
-                    // when it is already sitting here.
-                    returned && mine ->
-                        "$coveredByName covered your last turn, so it's yours again"
-
-                    // Somebody else's row, so it cannot say "you". It used to:
-                    // the branch above had no ownership test, so every member
-                    // saw "Back to you after maya covered" on the row it
-                    // belonged to, addressed to the wrong person, and maya saw
-                    // herself named in the third person in a sentence aimed at
-                    // her. Whose row it is is already on the cycle line above,
-                    // so this only has to give the reason the rotation did not
-                    // move on.
-                    returned -> assigneeName
-                        ?.let { "$coveredByName covered $it's last turn" }
-                        ?: "$coveredByName covered the last turn"
-
-                    else -> null
-                }
-                marker?.let {
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 2,
-                    )
-                }
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-
-            // Affordance that the row leads somewhere.
-            Text(
-                text = "›",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .35f),
-            )
         }
     }
     }
@@ -1345,7 +1260,7 @@ internal fun TaskCard(
             // *dark red*. A red wash behind the word "Done" is the shame signal
             // constraint 3 rules out, and nobody had chosen it (CLAUDE.md §7).
             Surface(
-                shape = MaterialTheme.shapes.medium,
+                shape = shape,
                 color = if (toEnd) doneColor().copy(alpha = 0.16f)
                 else MaterialTheme.colorScheme.secondary.copy(alpha = 0.16f),
                 modifier = Modifier.fillMaxSize(),
@@ -2118,60 +2033,74 @@ private fun statusLabel(status: String) = when (status) {
 // ═══════════════════════════════════════════════════════════════
 
 @Composable
-private fun ActivityList(events: List<ActivityEvent>) {
+private fun ActivityList(events: List<ActivityEvent>, members: List<MemberInfo>, myUserId: String?) {
     if (events.isEmpty()) {
         EmptyBlock(
             title = "Nothing has happened yet",
-            subtitle = "Task changes, joins and invites show up here as they happen.",
+            subtitle = "Chores done, changes and new people show up here as they happen.",
         )
         return
     }
 
+    // Grouped by the day it happened, in this phone's zone, newest first.
+    val today = java.time.LocalDate.now()
+    val groups = remember(events) {
+        events.groupBy { e ->
+            val day = e.createdAt?.atZoneSameInstant(java.time.ZoneId.systemDefault())?.toLocalDate()
+            when {
+                day == null -> "Earlier"
+                day == today -> "Today"
+                day == today.minusDays(1) -> "Yesterday"
+                day.isAfter(today.minusDays(7)) -> "Earlier this week"
+                else -> "Before that"
+            }
+        }.toList()
+    }
+
     LazyColumn(
-        contentPadding = PaddingValues(
-            start = 16.dp,
-            end = 16.dp,
-            top = 12.dp,
-            // Clears the FAB so the last row is reachable.
-            bottom = 88.dp,
-        ),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = DOCK_CLEARANCE),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(events, key = { it.id }) { event ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.Top,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .padding(top = 4.dp)
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(eventColor(event.eventType)),
-                )
-                Spacer(Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = describeEvent(event),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    humaniseDetail(event)?.let { detail ->
-                        Text(
-                            text = detail,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+        groups.forEach { (label, dayEvents) ->
+            item(key = "h-$label") { SectionLabel(label, Modifier.padding(top = 6.dp)) }
+            item(key = "g-$label") {
+                GroupedCard {
+                    dayEvents.forEachIndexed { i, event ->
+                        if (i > 0) RowDivider()
+                        val name = if (event.actorId == myUserId) "You" else event.actorUsername
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            if (event.eventType == "occurrence_done") {
+                                DoneAvatar(event.actorUsername, event.actorId)
+                            } else {
+                                Avatar(event.actorUsername, event.actorId)
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    describeEvent(event).replaceFirst(event.actorUsername, name),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                humaniseDetail(event)?.let { detail ->
+                                    Text(
+                                        detail,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            Text(
+                                relativeTime(event.createdAt),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 3.dp, start = 8.dp),
+                            )
+                        }
                     }
                 }
-                Text(
-                    text = relativeTime(event.createdAt),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .7f),
-                )
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = .3f))
         }
     }
 }
@@ -2287,18 +2216,11 @@ private fun eventColor(type: String) = when (type) {
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * Who is in the household, and the two things you do about that: bring
- * somebody in, and say you are away.
+ * People: who lives here, bringing somebody in, and saying you are away.
  *
- * Each row is a name and, when it applies, an *Owner* or *Away* badge. Not the
- * email address, which used to be the second line: housemates know each other
- * by name, and an address is the one thing on this screen they have no use
- * for. Not a *Member* badge on everybody else either — a label on every row
- * says nothing. There are no role controls, because no role grants anything
- * any more: every member can edit every chore.
- *
- * Inviting and away were in the app bar's menu. They are about who is here,
- * so they are here, under the list they change.
+ * Each row is a face and a name, with an *Owner* or *Away* badge only where one
+ * applies — never the email, never a "Member" label on everyone. No role
+ * controls: no role grants anything, every member can edit every chore.
  */
 @Composable
 private fun MemberList(
@@ -2307,134 +2229,140 @@ private fun MemberList(
     onShareCode: () -> Unit,
     onInviteByName: () -> Unit,
     onAway: () -> Unit,
+    onLeave: () -> Unit,
+    householdName: String,
 ) {
     val me = members.firstOrNull { it.id == myUserId }
+    val q = Quiet.colors
 
-    LazyColumn(
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        items(members, key = { it.id }) { member ->
-            val isMe = member.id == myUserId
-
-            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+        GroupedCard {
+            members.forEachIndexed { i, member ->
+                if (i > 0) RowDivider()
                 Row(
-                    modifier = Modifier.padding(14.dp),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = .15f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = member.username.take(1).uppercase(),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
+                    Avatar(member.username, member.id, 40.dp, dimmed = member.away)
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (isMe) "${member.username} (you)" else member.username,
-                            style = MaterialTheme.typography.titleSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                            ),
+                            if (member.id == myUserId) "You" else member.username,
+                            style = MaterialTheme.typography.titleMedium,
                         )
-                        // Away is stated here because the spec makes it
-                        // deliberately impossible to hide — the app cannot
-                        // check whether someone is really gone, so it shows
-                        // the claim to everyone instead.
                         if (member.away) {
                             Text(
-                                text = member.awayUntil?.let { "Back ${formatDueDate(it)}" }
-                                    ?: "Away until they say they're back",
+                                member.awayUntil?.let { "Back ${formatDueDate(it)}" } ?: "Away until they say they're back",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        if (member.role == ROLE_OWNER || member.role == ROLE_ADMIN) {
-                            RoleChip(member.role)
-                        }
-                        if (member.away) AwayChip()
+                    when {
+                        member.away -> Badge("Away", q.awaySoft, q.onAwaySoft)
+                        member.role == ROLE_OWNER -> Badge(
+                            "Owner",
+                            MaterialTheme.colorScheme.primaryContainer,
+                            MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
                     }
                 }
             }
         }
 
-        // ── Bringing somebody in ──
-        item(key = "invite") {
-            Column(
-                modifier = Modifier.padding(top = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Button(
-                    onClick = onShareCode,
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = CircleShape,
-                ) {
-                    Icon(Icons.Default.Link, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Share an invite code")
-                }
-                OutlinedButton(
-                    onClick = onInviteByName,
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                ) {
-                    Icon(Icons.Default.PersonAdd, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Invite by username")
-                }
-            }
-        }
-
-        // ── Your availability ──
-        if (me != null) {
-            item(key = "availability") {
-                Column(
-                    modifier = Modifier.padding(top = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Text(
-                        text = "YOUR AVAILABILITY",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 0.8.sp,
-                    )
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = MaterialTheme.shapes.medium,
-                        modifier = Modifier.fillMaxWidth(),
+        // Bringing somebody in: the dark card, so it is the one thing on the
+        // page that reads as an action.
+        Surface(color = q.dock, contentColor = q.onDock, shape = RoundedCornerShape(24.dp)) {
+            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Invite someone to $householdName", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Share a code that works for a few days, or invite someone who already has an account.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = q.onDockMuted,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = onShareCode,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = q.onDock, contentColor = q.dock),
                     ) {
-                        Row(
-                            modifier = Modifier.padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = when {
-                                    !me.away -> "At home"
-                                    me.awayUntil != null -> "Away until ${formatDueDate(me.awayUntil)}"
-                                    else -> "Away"
-                                },
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.weight(1f),
-                            )
-                            TextButton(onClick = onAway) {
-                                Text(if (me.away) "I'm back" else "I'm away")
-                            }
-                        }
+                        Icon(Icons.Default.Link, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Share code", maxLines = 1)
                     }
-                    Text(
-                        "While you're away, your turns pass over you and come back when you are.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    OutlinedButton(
+                        onClick = onInviteByName,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        border = BorderStroke(1.5.dp, q.dockActive),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = q.onDock),
+                    ) { Text("By username") }
                 }
             }
+        }
+
+        if (me != null) {
+            GroupedCard {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                        Text(
+                            if (me.away) me.awayUntil?.let { "Away until ${formatDueDate(it)}" } ?: "I'm away"
+                            else "I'm away",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            "Your turns pass over you and come back when you are. Everyone can see it.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(checked = me.away, onCheckedChange = { onAway() })
+                }
+            }
+        }
+
+        TextButton(onClick = onLeave, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+            Text("Leave $householdName", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun Badge(text: String, bg: androidx.compose.ui.graphics.Color, fg: androidx.compose.ui.graphics.Color) {
+    Surface(color = bg, contentColor = fg, shape = RoundedCornerShape(999.dp)) {
+        Text(text, style = MaterialTheme.typography.labelLarge.copy(fontSize = 12.sp), modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+    }
+}
+
+/** Someone else is away: a quiet slate note above the board. */
+@Composable
+private fun OthersAwayNote(away: List<MemberInfo>) {
+    val q = Quiet.colors
+    val text = if (away.size == 1) {
+        val m = away.first()
+        m.awayUntil?.let { "${m.username} is away until ${formatDueDate(it)}. Turns pass over them." }
+            ?: "${m.username} is away. Turns pass over them."
+    } else {
+        away.joinToString(" and ") { it.username } + " are away. Turns pass over them."
+    }
+    Surface(
+        color = q.awaySoft,
+        contentColor = q.onAwaySoft,
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp).fillMaxWidth(),
+    ) {
+        Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.Luggage, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(10.dp))
+            Text(text, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
@@ -2619,85 +2547,80 @@ internal fun ChoreHistorySheet(
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun GroupHistorySheet(
+private fun GroupHistoryBody(
     history: GroupHistory?,
     window: String,
     loading: Boolean,
+    myUserId: String?,
     onWindowChange: (String) -> Unit,
-    onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Text(
-                text = "What's been done",
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            )
-
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                listOf(
-                    "week" to "This week",
-                    "month" to "This month",
-                    "quarter" to "3 months",
-                ).forEach { (value, label) ->
-                    FilterChip(
-                        selected = window == value,
-                        onClick = { if (window != value) onWindowChange(value) },
-                        label = { Text(label) },
-                    )
-                }
-            }
-
-            HorizontalDivider()
-
-            if (loading || history == null) {
-                Text("Loading…", style = MaterialTheme.typography.bodyMedium)
-            } else {
-                history.people.forEach { person ->
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(
-                            text = person.username,
-                            style = MaterialTheme.typography.titleSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                            ),
-                        )
-                        Text(
-                            text = when (person.completed) {
-                                0 -> "Nothing yet"
-                                1 -> "1 chore done"
-                                else -> "${person.completed} chores done"
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        if (person.awayDays > 0) {
-                            Text(
-                                text = if (person.awayDays == 1) "Away 1 day of this"
-                                else "Away ${person.awayDays} days of this",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontStyle = FontStyle.Italic,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+    // A count each, in the order people joined, everyone listed — zeroes too.
+    // Re-sorting by count or hiding zeroes would make it a leaderboard, which
+    // is the one thing this view must never be (constraint 4).
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = DOCK_CLEARANCE),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("week" to "This week", "month" to "This month", "quarter" to "3 months")
+                .forEach { (value, label) ->
+                    val selected = window == value
+                    Surface(
+                        onClick = { if (!selected) onWindowChange(value) },
+                        shape = RoundedCornerShape(18.dp),
+                        color = if (selected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surface,
+                        contentColor = if (selected) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onSurface,
+                    ) {
+                        Text(label, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp))
                     }
                 }
+        }
 
-                Text(
-                    "Counted by who actually did it, so covering for someone counts for you.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+        if (loading || history == null) {
+            Text("Loading…", style = MaterialTheme.typography.bodyMedium)
+        } else {
+            GroupedCard {
+                history.people.forEachIndexed { i, person ->
+                    if (i > 0) RowDivider()
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Avatar(person.username, person.userId, 38.dp)
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                if (person.userId == myUserId) "You" else person.username,
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            if (person.awayDays > 0) {
+                                Text(
+                                    if (person.awayDays == 1) "Away 1 day of this" else "Away ${person.awayDays} days of this",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        Text(
+                            when (person.completed) {
+                                0 -> "Nothing yet"
+                                1 -> "1 done"
+                                else -> "${person.completed} done"
+                            },
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                    }
+                }
             }
+            Text(
+                "Counted by who actually did it, so covering for someone counts for you. In the order people joined.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
         }
     }
 }

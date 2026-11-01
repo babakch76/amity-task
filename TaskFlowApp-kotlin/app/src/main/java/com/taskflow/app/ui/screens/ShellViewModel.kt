@@ -221,7 +221,7 @@ class ShellViewModel : ViewModel() {
      * the list genuinely changes shape — and this is the same fetch that arms
      * the reminders, which the new occurrence needs too.
      */
-    fun setOccurrenceDone(groupId: String, occurrenceId: String, done: Boolean) {
+    fun setOccurrenceDone(groupId: String, occurrenceId: String, done: Boolean, name: String? = null) {
         viewModelScope.launch {
             _isWorking.value = true
             try {
@@ -232,7 +232,11 @@ class ShellViewModel : ViewModel() {
                 )
                 if (response.isSuccessful) {
                     _undoableDone.value = if (done) groupId to occurrenceId else null
-                    _actionMessage.value = if (done) "Marked done" else "Completion undone"
+                    _actionMessage.value = when {
+                        !done -> "Completion undone"
+                        name != null -> "$name done."
+                        else -> "Marked done"
+                    }
                     (uiState.value as? ShellUiState.Success)?.let { loadReminderData(it.groups) }
                 } else {
                     _actionMessage.value = ApiErrors.messageFor(response)

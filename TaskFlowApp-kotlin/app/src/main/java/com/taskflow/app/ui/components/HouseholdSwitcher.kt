@@ -83,15 +83,14 @@ fun HouseholdSwitcher(
             modifier = Modifier
                 .clip(RoundedCornerShape(percent = 50))
                 .clickable { open = true }
-                .padding(start = 12.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                .padding(start = 4.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
         ) {
             Text(
                 text = current?.name ?: "No household",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 200.dp),
+                modifier = Modifier.weight(1f, fill = false),
             )
             Icon(
                 Icons.Default.KeyboardArrowDown,

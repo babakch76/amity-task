@@ -35,7 +35,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.taskflow.app.TaskFlowApp
+import androidx.lifecycle.ViewModelStoreOwner
 import com.taskflow.app.data.model.Group
+
+/** Which part of the open household a destination shows. */
+enum class HouseSection { BOARD, FEED, PEOPLE }
 
 /**
  * The first tab: **a household's board**, not a list of households.
@@ -62,9 +66,16 @@ import com.taskflow.app.data.model.Group
  */
 @Composable
 fun HouseholdTab(
+    section: HouseSection,
     currentGroupId: String?,
     onSelectGroup: (String) -> Unit,
     viewModel: ShellViewModel,
+    /** Where the household's ViewModel lives, so House, Feed and People share one. */
+    vmOwner: ViewModelStoreOwner,
+    createRequested: Boolean,
+    onCreateHandled: () -> Unit,
+    onOpenPeople: () -> Unit,
+    onBack: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isWorking by viewModel.isWorking.collectAsState()
@@ -118,6 +129,16 @@ fun HouseholdTab(
                     // the selection sends the resolution above round again,
                     // which lands on another household or on the empty state.
                     onLeft = { viewModel.refresh() },
+                    section = section,
+                    createRequested = createRequested,
+                    onCreateHandled = onCreateHandled,
+                    onOpenPeople = onOpenPeople,
+                    onBack = onBack,
+                    viewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                        viewModelStoreOwner = vmOwner,
+                        key = current.id,
+                        factory = GroupDetailViewModel.Factory(current.id),
+                    ),
                 )
             }
         }

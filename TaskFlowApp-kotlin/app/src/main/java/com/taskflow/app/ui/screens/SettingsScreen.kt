@@ -18,6 +18,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.DarkMode
@@ -90,6 +92,7 @@ import com.taskflow.app.ui.theme.AppearanceMode
 fun SettingsScreen(
     onLogout: () -> Unit,
     viewModel: ShellViewModel = viewModel(),
+    onBack: () -> Unit = {},
 ) {
     val me by viewModel.me.collectAsState()
     val invites by viewModel.invites.collectAsState()
@@ -110,21 +113,19 @@ fun SettingsScreen(
     // Close the invites dialog once the last one is dealt with.
     if (invites.isEmpty() && showInvites) showInvites = false
 
+    // You: opened from your face on Mine, so it has a way back and no dock.
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Settings", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
-            )
-        },
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
         ) {
+            IconButton(onClick = onBack, modifier = Modifier.padding(start = 8.dp, top = 8.dp)) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to your turns")
+            }
             if (isWorking) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
@@ -132,7 +133,7 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+                    .padding(start = 20.dp, end = 20.dp, top = 0.dp, bottom = 40.dp),
             ) {
                 ProfileHeader(
                     username = me?.username,
@@ -146,7 +147,7 @@ fun SettingsScreen(
                         value = me?.username,
                         onClick = { showName = true },
                     )
-                    HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsRow(
                         icon = Icons.Default.AlternateEmail,
                         label = "Email",
@@ -166,7 +167,7 @@ fun SettingsScreen(
                         onClick = { showInvites = true },
                         enabled = invites.isNotEmpty(),
                     )
-                    HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsRow(
                         icon = Icons.Default.VpnKey,
                         label = "Join with a code",
@@ -174,7 +175,7 @@ fun SettingsScreen(
                     )
                 }
 
-                SettingsGroup("THIS APP") {
+                SettingsGroup("REMINDERS AND LOOK") {
                     SettingsRow(
                         icon = Icons.Default.Notifications,
                         label = "Quiet hours",
@@ -182,14 +183,14 @@ fun SettingsScreen(
                             " – ${quietHours.to.format(QUIET_HOURS_FORMAT)}",
                         onClick = { showQuietHours = true },
                     )
-                    HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsRow(
                         icon = Icons.Default.DarkMode,
                         label = "Appearance",
                         value = appearance.label,
                         onClick = { showAppearance = true },
                     )
-                    HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsRow(
                         icon = Icons.AutoMirrored.Filled.Logout,
                         label = "Sign out",
@@ -343,33 +344,20 @@ fun SettingsScreen(
  */
 @Composable
 private fun ProfileHeader(username: String?, email: String?) {
+    val context = LocalContext.current
+    val myId = remember { (context.applicationContext as? com.taskflow.app.TaskFlowApp)?.tokenManager?.getUserId() }
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 16.dp),
+            .padding(top = 4.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Surface(
-            color = MaterialTheme.colorScheme.primaryContainer,
-            modifier = Modifier
-                .size(64.dp)
-                .clip(CircleShape),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(
-                    text = username?.firstOrNull()?.uppercase() ?: "·",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-            }
-        }
+        com.taskflow.app.ui.components.Avatar(username ?: "·", myId ?: "", 68.dp)
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = username ?: "…",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -384,23 +372,14 @@ private fun ProfileHeader(username: String?, email: String?) {
     }
 }
 
-/** A labelled card of rows, per DESIGN.md's settings group. */
+/** A labelled card of rows: a small grey heading over one white rounded card. */
 @Composable
 private fun SettingsGroup(label: String, content: @Composable () -> Unit) {
-    Text(
-        text = label,
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        letterSpacing = 0.8.sp,
-        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
+    com.taskflow.app.ui.components.SectionLabel(
+        label.lowercase().replaceFirstChar { it.uppercase() },
+        Modifier.padding(top = 20.dp, bottom = 8.dp),
     )
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-    ) {
-        Column { content() }
-    }
+    com.taskflow.app.ui.components.GroupedCard { content() }
 }
 
 /**

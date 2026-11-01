@@ -1,28 +1,33 @@
 package com.taskflow.app.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -30,90 +35,80 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.taskflow.app.data.local.TurnsView
-import com.taskflow.app.data.local.TurnsViewPreference
 import com.taskflow.app.data.model.Chore
 import com.taskflow.app.data.model.Group
 import com.taskflow.app.data.model.Occurrence
 import com.taskflow.app.data.model.isOpen
-import com.taskflow.app.ui.components.WeekStrip
-import java.time.DayOfWeek
+import com.taskflow.app.data.model.scheduleWording
+import com.taskflow.app.ui.components.Avatar
+import com.taskflow.app.ui.components.CapsLabel
+import com.taskflow.app.ui.components.DOCK_CLEARANCE
+import com.taskflow.app.ui.components.GroupedCard
+import com.taskflow.app.ui.components.RowDivider
+import com.taskflow.app.ui.components.SectionLabel
+import com.taskflow.app.ui.theme.Quiet
 import java.time.LocalDate
+import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
- * **My chores / My week** — the second shell tab, and the only screen in the
- * app that crosses household lines.
+ * **Mine** — your turns, across every household. The first place in the dock,
+ * and the screen the app opens on.
  *
- * The board answers "whose turn is it"; this answers "what is on *me*", for
- * every household at once. A person in two flats had to open each board in
- * turn to assemble that list in their head, which is exactly the sort of thing
- * software is for.
+ * It replaces the two readings the interviews compared (My chores, grouped by
+ * household, and My week, a paged week strip over day buckets). This keeps
+ * what each did well: a glance at the coming week, and one obvious thing to do
+ * next.
  *
- * ### Two readings of the same turns
+ * - **Next 7 days** — a rolling strip from today, a dot on each day carrying a
+ *   turn of yours. Never a count, never a colour by how full a day is.
+ * - **Up next** — the soonest turn that is still ahead of you, with the
+ *   household's definition of done on the card and *I did this* under it.
+ * - **Also yours** — everything else on you; a turn whose day has passed is
+ *   amber and says the date, never how late (constraint 3).
+ * - **Done lately** — what you have already got through this week.
  *
- * The toggle beside the refresh icon switches between them, and the title
- * follows:
- *
- * - **My chores** — grouped by household, which is how the tab started.
- * - **My week** — a week strip on top and date buckets beneath, DESIGN.md
- *   §5.11a. The strip is not a calendar in the sense constraint 5 forbids:
- *   nothing of anybody else's is drawn on it, and there is no free/busy
- *   anywhere near it.
- *
- * Both exist **for the interviews**, not forever: the design has one
- * destination, and which reading people actually reach for is a question about
- * people rather than one to settle by argument. The loser gets deleted.
- * [TurnsViewPreference] remembers the choice on the device.
- *
- * ### What it deliberately does not show
- *
- * Only your own turns. Never another member's name, date, or workload, and no
- * shared or comparison mode — DESIGN.md's never-list, and hard constraint 4
- * behind it. The week strip carries that through: a dot means you have a turn
- * that day, never how many, and no day is coloured by how full it is.
- *
- * ### Why it reuses the board's row and the board's sheet
- *
- * [TaskCard] is the board's own row, and tapping it opens
- * [OccurrenceDetailHost] — the board's own detail sheet, with its history, its
- * edit flow and its busy pass behind it. Neither is a copy. The alternative was
- * a second implementation of each that starts identical and drifts, which is
- * the mistake the two auth screens made before `AuthScaffold` pulled them back
- * together.
- *
- * @param myUserId Whose turns these are. Null only if the token has no user id
- *   on it, in which case the list is honestly empty rather than everyone's.
+ * Only your own turns. Never another member's name, date, or workload
+ * (constraint 4). Tapping any turn opens the board's own detail sheet.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyChoresScreen(
     myUserId: String?,
     viewModel: ShellViewModel = viewModel(),
+    hasInvites: Boolean = false,
+    onOpenSettings: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val reminderData by viewModel.reminderData.collectAsState()
     val me by viewModel.me.collectAsState()
     val isWorking by viewModel.isWorking.collectAsState()
 
-    val context = LocalContext.current
-    var view by remember { mutableStateOf(TurnsViewPreference.get(context)) }
-
     val groups = (uiState as? ShellUiState.Success)?.groups.orEmpty()
     val households = remember(groups, reminderData, myUserId) {
         myChoresByHousehold(groups, reminderData, myUserId)
     }
+    val turns = remember(households) { households.flatMap { it.turns() } }
+    val today = LocalDate.now()
+    val manyHouseholds = households.size > 1
 
-    // The occurrence whose detail sheet is open, and the household it belongs
-    // to — the sheet's actions are performed by that household's ViewModel.
+    val open = turns.filter { it.occurrence.isOpen }
+    val upNext = open.filter { it.date != null && !it.date.isBefore(today) }.minByOrNull { it.date!! }
+        ?: open.firstOrNull { it.date == null }
+    val others = open.filter { it !== upNext }
+        .sortedWith(compareBy<MyTurn> { it.date == null }.thenBy { it.date })
+    val doneLately = turns
+        .filter { !it.occurrence.isOpen && it.doneDate != null && !it.doneDate.isBefore(today.minusDays(6)) }
+        .sortedByDescending { it.occurrence.doneAt }
+
     var detailFor by remember { mutableStateOf<Pair<String, String>?>(null) }
 
     // Fresh every time the tab is opened (B-23). The board does its work
@@ -121,71 +116,88 @@ fun MyChoresScreen(
     // there left this list showing the old state until refresh was tapped.
     LaunchedEffect(Unit) { viewModel.refresh() }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(view.title, fontWeight = FontWeight.Bold) },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            view = view.other
-                            TurnsViewPreference.set(context, view)
-                        },
-                    ) {
-                        Icon(
-                            if (view == TurnsView.BY_HOUSEHOLD) Icons.Default.CalendarMonth
-                            else Icons.AutoMirrored.Filled.FormatListBulleted,
-                            contentDescription = "Show ${view.other.title}",
-                        )
-                    }
-                    IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
-            )
-        },
-    ) { padding ->
+    Column(modifier = Modifier.fillMaxSize()) {
+        if (isWorking) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .verticalScroll(rememberScrollState())
+                .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = DOCK_CLEARANCE),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            if (isWorking) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            Row(verticalAlignment = Alignment.Bottom) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        today.format(TODAY_LINE),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text("Your turns", style = MaterialTheme.typography.headlineLarge)
+                }
+                // You live behind your own face. The dot is the one badge in
+                // the app: invitations are addressed to you.
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable(onClick = onOpenSettings)
+                        .semantics { contentDescription = if (hasInvites) "You and settings, invitation waiting" else "You and settings" },
+                ) {
+                    Avatar(me?.username ?: "?", myUserId ?: "", 44.dp)
+                    if (hasInvites) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .size(12.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary),
+                        )
+                    }
+                }
             }
 
-            if (households.isEmpty()) {
-                // Not a failure, and worded so it does not read as one: an
-                // empty list here is the good outcome.
+            NextSevenDays(today = today, days = open.mapNotNull { it.date }.toSet())
+
+            if (open.isEmpty() && doneLately.isEmpty()) {
                 EmptyBlock(
-                    title = if (view == TurnsView.BY_WEEK) "Nothing on you this week"
-                    else "Nothing on you",
-                    subtitle = "Turns with your name on them show up here, from every " +
-                        "household you're in.",
+                    title = "Nothing on you",
+                    subtitle = "Turns with your name on them show up here, from every household you're in.",
                 )
-                return@Column
             }
 
-            when (view) {
-                TurnsView.BY_HOUSEHOLD -> ByHousehold(
-                    households = households,
-                    myUserId = myUserId,
-                    myName = me?.username,
-                    onOpen = { groupId, occurrenceId -> detailFor = groupId to occurrenceId },
-                    onToggleDone = viewModel::setOccurrenceDone,
+            upNext?.let { turn ->
+                UpNextCard(
+                    turn = turn,
+                    showHousehold = true,
+                    onOpen = { detailFor = turn.group.id to turn.occurrence.id },
+                    onDone = {
+                        viewModel.setOccurrenceDone(turn.group.id, turn.occurrence.id, true, turn.occurrence.choreName)
+                    },
                 )
+            }
 
-                TurnsView.BY_WEEK -> ByWeek(
-                    households = households,
-                    myUserId = myUserId,
-                    myName = me?.username,
-                    showHouseholdChip = households.size > 1,
-                    onOpen = { groupId, occurrenceId -> detailFor = groupId to occurrenceId },
-                    onToggleDone = viewModel::setOccurrenceDone,
-                )
+            if (others.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionLabel(if (upNext != null) "Also yours" else "Yours")
+                    GroupedCard {
+                        others.forEachIndexed { i, turn ->
+                            if (i > 0) RowDivider()
+                            TurnRow(turn, today, manyHouseholds) { detailFor = turn.group.id to turn.occurrence.id }
+                        }
+                    }
+                }
+            }
+
+            if (doneLately.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionLabel("Done lately")
+                    GroupedCard {
+                        doneLately.forEachIndexed { i, turn ->
+                            if (i > 0) RowDivider()
+                            TurnRow(turn, today, manyHouseholds) { detailFor = turn.group.id to turn.occurrence.id }
+                        }
+                    }
+                }
             }
         }
     }
@@ -200,14 +212,232 @@ fun MyChoresScreen(
             },
             onClosed = {
                 detailFor = null
-                // Whatever the sheet did — passed it, edited the chore, moved
-                // its day — happened in another ViewModel. This list is built
-                // from the shell's copy, so it has to be told.
+                // Whatever the sheet did happened in another ViewModel. This
+                // list is built from the shell's copy, so it has to be told.
                 viewModel.refresh()
             },
         )
     }
 }
+
+private val TODAY_LINE: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE, d MMMM")
+
+/** Seven days from today; today filled, a dot under any day with a turn of yours. */
+@Composable
+private fun NextSevenDays(today: LocalDate, days: Set<LocalDate>) {
+    Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(22.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            val inWeek = (0L..6L).count { today.plusDays(it) in days }
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+                Text("Next 7 days", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                Text(
+                    when (inWeek) {
+                        0 -> "Nothing dated"
+                        1 -> "A turn on 1 day"
+                        else -> "Turns on $inWeek days"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Row(modifier = Modifier.fillMaxWidth()) {
+                (0L..6L).forEach { offset ->
+                    val day = today.plusDays(offset)
+                    val isToday = offset == 0L
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            day.format(WEEKDAY_LETTER),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(if (isToday) MaterialTheme.colorScheme.secondary else androidx.compose.ui.graphics.Color.Transparent),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                day.dayOfMonth.toString(),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = if (isToday) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (day in days) MaterialTheme.colorScheme.primary
+                                    else androidx.compose.ui.graphics.Color.Transparent,
+                                ),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private val WEEKDAY_LETTER: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEEE")
+
+/** The one turn to do next, with the agreement on the card and the button under it. */
+@Composable
+private fun UpNextCard(turn: MyTurn, showHousehold: Boolean, onOpen: () -> Unit, onDone: () -> Unit) {
+    val occ = turn.occurrence
+    val chore = turn.chores.firstOrNull { it.id == occ.choreId }
+    Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(26.dp)) {
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CapsLabel("Up next")
+                Spacer(Modifier.weight(1f))
+                if (showHousehold) HouseholdChip(turn.group.name)
+            }
+            Column(
+                modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onOpen),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(occ.choreName, style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    listOfNotNull(
+                        chore?.scheduleWording()?.replaceFirstChar { it.uppercase() },
+                        occ.dueDate?.let { "due ${formatDueDate(it)}" },
+                    ).joinToString(" · "),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            occ.coveredByName?.let { coverer ->
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    shape = RoundedCornerShape(14.dp),
+                ) {
+                    Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.SwapHoriz, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text("$coverer covered your last turn, so this one is yours.", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+            if (occ.doneLine.isNotBlank()) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    CapsLabel("Done means")
+                    Text(occ.doneLine, style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = onDone, modifier = Modifier.weight(1f).height(50.dp)) {
+                    Icon(Icons.Default.Check, null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("I did this", style = MaterialTheme.typography.titleMedium)
+                }
+                // Passing is confirmed in the chore's own sheet, which names who
+                // it goes to — so this opens that, rather than passing blind.
+                OutlinedIconButton(onClick = onOpen, modifier = Modifier.size(50.dp)) {
+                    Icon(Icons.Default.SwapHoriz, contentDescription = "Busy — pass it on")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HouseholdChip(name: String) {
+    Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(999.dp)) {
+        Text(
+            name,
+            style = MaterialTheme.typography.labelLarge.copy(fontSize = androidx.compose.ui.unit.TextUnit(12f, androidx.compose.ui.unit.TextUnitType.Sp)),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+        )
+    }
+}
+
+/** One of your turns in a list: a dot, the chore, and when. */
+@Composable
+private fun TurnRow(turn: MyTurn, today: LocalDate, showHousehold: Boolean, onClick: () -> Unit) {
+    val occ = turn.occurrence
+    val chore = turn.chores.firstOrNull { it.id == occ.choreId }
+    val q = Quiet.colors
+    val done = !occ.isOpen
+    val past = !done && turn.date != null && turn.date.isBefore(today)
+    val meta = when {
+        done -> "Done ${occ.doneAt?.let { formatDueDate(it) }.orEmpty()}"
+        past -> "Past its day · was ${formatDueDate(occ.dueDate!!)}"
+        occ.dueDate != null -> listOfNotNull(
+            chore?.scheduleWording()?.replaceFirstChar { it.uppercase() },
+            formatDueDate(occ.dueDate),
+        ).joinToString(" · ")
+        else -> "When it's needed"
+    } + if (showHousehold) " · ${turn.group.name}" else ""
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (done) {
+            Box(
+                modifier = Modifier.size(22.dp).clip(CircleShape).background(q.doneSoft),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Default.Check, null, tint = q.done, modifier = Modifier.size(14.dp))
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 6.dp)
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(if (past) q.pastDot else MaterialTheme.colorScheme.outline),
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                occ.choreName,
+                style = MaterialTheme.typography.titleMedium,
+                color = if (done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                meta,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (past) q.pastText else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** One of your turns, with everything a row needs to draw itself. */
+internal data class MyTurn(
+    val occurrence: Occurrence,
+    val group: Group,
+    val chores: List<Chore>,
+) {
+    /** The day it is wanted, in the phone's zone, or null for an as-needed turn. */
+    val date: LocalDate? =
+        occurrence.dueDate?.atZoneSameInstant(ZoneId.systemDefault())?.toLocalDate()
+
+    /** The day it was actually done, which is routinely not [date]. */
+    val doneDate: LocalDate? =
+        occurrence.doneAt?.atZoneSameInstant(ZoneId.systemDefault())?.toLocalDate()
+}
+
+private fun MyChoresHousehold.turns(): List<MyTurn> =
+    occurrences.map { MyTurn(it, group, chores) }
 
 /**
  * The board's detail sheet, opened over My chores.
@@ -291,358 +521,6 @@ private fun OpenedFromMyChores(
     LaunchedEffect(arrived, nothingOpen, state.isWorking, state.message) {
         if (arrived && nothingOpen && !state.isWorking && state.message == null) onClosed()
     }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// By household — the original reading
-// ═══════════════════════════════════════════════════════════════
-
-@Composable
-private fun ByHousehold(
-    households: List<MyChoresHousehold>,
-    myUserId: String?,
-    myName: String?,
-    onOpen: (String, String) -> Unit,
-    onToggleDone: (String, String, Boolean) -> Unit,
-) {
-    LazyColumn(
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        households.forEach { household ->
-            item(key = "header-${household.group.id}") {
-                SectionLabel(household.group.name.uppercase())
-            }
-            items(household.occurrences, key = { "occ-${it.id}" }) { occurrence ->
-                TurnCard(
-                    occurrence = occurrence,
-                    chores = household.chores,
-                    householdName = null,
-                    myUserId = myUserId,
-                    myName = myName,
-                    onOpen = { onOpen(household.group.id, occurrence.id) },
-                    onToggleDone = {
-                        onToggleDone(household.group.id, occurrence.id, occurrence.isOpen)
-                    },
-                )
-            }
-            item(key = "gap-${household.group.id}") { Spacer(Modifier.height(6.dp)) }
-        }
-    }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// By week — DESIGN.md §5.11a
-// ═══════════════════════════════════════════════════════════════
-
-@Composable
-private fun ByWeek(
-    households: List<MyChoresHousehold>,
-    myUserId: String?,
-    myName: String?,
-    showHouseholdChip: Boolean,
-    onOpen: (String, String) -> Unit,
-    onToggleDone: (String, String, Boolean) -> Unit,
-) {
-    val today = remember { LocalDate.now() }
-    var weekStart by remember { mutableStateOf(today.with(DayOfWeek.MONDAY)) }
-    var selected by remember { mutableStateOf<LocalDate?>(null) }
-
-    val turns = remember(households) { households.flatMap { it.turns() } }
-    val items = remember(turns, weekStart, selected, today) {
-        weekAgenda(turns, weekStart, today, selected)
-    }
-
-    // The dots are about the whole of your turns, not about what the list is
-    // currently narrowed to: a day you have selected away from should still
-    // show that it has something on it.
-    val datesWithTurns = remember(turns) {
-        turns.filter { it.occurrence.isOpen }.mapNotNull { it.date }.toSet()
-    }
-    val overdueDates = remember(datesWithTurns, today) {
-        datesWithTurns.filter { it.isBefore(today) }.toSet()
-    }
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        WeekStrip(
-            weekStart = weekStart,
-            today = today,
-            selected = selected,
-            datesWithTurns = datesWithTurns,
-            overdueDates = overdueDates,
-            // Tapping the selected day again lets go of it and gives the week
-            // back. Without that, narrowing to a day is a one-way door you can
-            // only leave by paging away and back.
-            onSelect = { day -> selected = if (selected == day) null else day },
-            // Changing week drops the day. You asked to look at a week; showing
-            // one day of it because of a tap two weeks ago would be answering a
-            // question nobody asked.
-            onWeekChange = { weekStart = it; selected = null },
-        )
-
-        if (items.isEmpty()) {
-            NothingOn(weekStart = weekStart, today = today, selected = selected)
-            return@Column
-        }
-
-        LazyColumn(
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 96.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            items(items, key = { it.key }) { item ->
-                when (item) {
-                    is AgendaItem.Header -> SectionLabel(item.label)
-
-                    is AgendaItem.Row -> TurnCard(
-                        occurrence = item.turn.occurrence,
-                        chores = item.turn.chores,
-                        householdName = item.turn.group.name.takeIf { showHouseholdChip },
-                        myUserId = myUserId,
-                        myName = myName,
-                        onOpen = { onOpen(item.turn.group.id, item.turn.occurrence.id) },
-                        onToggleDone = {
-                            onToggleDone(
-                                item.turn.group.id,
-                                item.turn.occurrence.id,
-                                item.turn.occurrence.isOpen,
-                            )
-                        },
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * A week, or a day, with nothing of yours in it.
- *
- * Light rather than congratulatory. Nothing to do is the ordinary state of a
- * flat that is working, not an achievement to be marked — a "well done!" here
- * would be the same gamification the never-list rules out, wearing a joke as a
- * disguise. So these are deadpan, and none of them mentions anybody else or
- * what they might still have on.
- *
- * The line is picked from the week being shown rather than at random, so it
- * stays put while you look at it and changes when you page somewhere else.
- */
-@Composable
-private fun NothingOn(weekStart: LocalDate, today: LocalDate, selected: LocalDate?) {
-    val past = (selected ?: weekStart.plusDays(6)).isBefore(today)
-
-    val lines = when {
-        selected != null && past -> DAY_GONE_LINES
-        selected != null -> DAY_CLEAR_LINES
-        past -> WEEK_GONE_LINES
-        else -> WEEK_CLEAR_LINES
-    }
-    val seed = (selected ?: weekStart).toEpochDay().toInt()
-    val line = lines[((seed % lines.size) + lines.size) % lines.size]
-
-    val heading = when {
-        selected == null -> "Nothing on you this week"
-        selected == today -> "Nothing on you today"
-        // "Nothing on you Tuesday" reads like a sentence missing a word, and
-        // "on you on Tuesday" reads like one with an extra.
-        else -> "Nothing on ${selected.format(DAY_NAME)}"
-    }
-
-    EmptyBlock(title = heading, subtitle = line)
-}
-
-private val DAY_NAME: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE")
-
-private val WEEK_CLEAR_LINES = listOf(
-    "The flat appears to be running itself. Don't look directly at it.",
-    "A whole week and not one bin. Enjoy it while it lasts.",
-    "Suspiciously empty. Somewhere, a kettle is descaling itself.",
-)
-
-private val WEEK_GONE_LINES = listOf(
-    "That week came and went without needing you.",
-    "Nothing here. Whatever happened that week, it happened without a rota.",
-)
-
-private val DAY_CLEAR_LINES = listOf(
-    "A free day. Sit down before something notices.",
-    "Nothing due. The kitchen will cope.",
-    "Not your day. In the good sense.",
-)
-
-private val DAY_GONE_LINES = listOf(
-    "That day asked nothing of you.",
-    "Nothing was on you then either.",
-)
-
-/** One of your turns, with everything a row needs to draw itself. */
-internal data class MyTurn(
-    val occurrence: Occurrence,
-    val group: Group,
-    val chores: List<Chore>,
-) {
-    /** The day it is wanted, in the phone's zone, or null for an as-needed turn. */
-    val date: LocalDate? =
-        occurrence.dueDate?.atZoneSameInstant(ZoneId.systemDefault())?.toLocalDate()
-
-    /** The day it was actually done, which is routinely not [date]. */
-    val doneDate: LocalDate? =
-        occurrence.doneAt?.atZoneSameInstant(ZoneId.systemDefault())?.toLocalDate()
-}
-
-private fun MyChoresHousehold.turns(): List<MyTurn> =
-    occurrences.map { MyTurn(it, group, chores) }
-
-/** A row in the agenda: a day heading, or one turn. */
-internal sealed interface AgendaItem {
-    val key: String
-
-    data class Header(val label: String) : AgendaItem {
-        override val key get() = "header-$label"
-    }
-
-    data class Row(val turn: MyTurn) : AgendaItem {
-        override val key get() = "occ-${turn.occurrence.id}"
-    }
-
-}
-
-/**
- * Your turns inside the window the strip is showing — DESIGN.md §5.11a, scoped.
- *
- * The window is **the displayed week**, or **one day** of it once a day is
- * selected. That is the whole of what the strip is for: it says which days
- * carry something, and the list underneath answers the day or the week you
- * pointed at. A list that ignored the strip and always showed everything would
- * make the strip decorative.
- *
- * Grouped by day, in date order, under a heading that says which day it is.
- * Anything whose day has passed sits under that day with its date line in
- * amber, and there is no "LATE" heading anywhere: a heading that names you as
- * having failed is what constraint 3 is about, and the amber on the row is
- * signal enough.
- *
- * **NO DATE** — as-needed chores that are currently your turn — appears only on
- * the current week and only when no single day is selected. They belong to no
- * date, so pinning them under a day would be a lie, and repeating them on every
- * week you page to would be noise.
- *
- * **DONE THIS CYCLE** is keyed on the day it was *done*, not the day it was
- * due, because the question this section answers is "what have I already got
- * through", and those two dates are routinely different.
- */
-internal fun weekAgenda(
-    turns: List<MyTurn>,
-    weekStart: LocalDate,
-    today: LocalDate,
-    selected: LocalDate?,
-): List<AgendaItem> {
-    val window: ClosedRange<LocalDate> =
-        if (selected != null) selected..selected else weekStart..weekStart.plusDays(6)
-
-    val open = turns.filter { it.occurrence.isOpen }
-    val items = mutableListOf<AgendaItem>()
-    // Belt as well as braces. Drawing one row twice is a duplicate key, and a
-    // LazyColumn throws on those rather than merely looking wrong (B-9).
-    val emitted = mutableSetOf<String>()
-
-    open.filter { it.date != null && it.date in window }
-        .sortedBy { it.date }
-        .groupBy { it.date!! }
-        .toSortedMap()
-        .forEach { (day, rows) ->
-            val fresh = rows.filter { emitted.add(it.occurrence.id) }
-            if (fresh.isEmpty()) return@forEach
-            items += AgendaItem.Header(dayLabel(day, today))
-            fresh.forEach { items += AgendaItem.Row(it) }
-        }
-
-    if (selected == null && today in window) {
-        val undated = open.filter { it.date == null && emitted.add(it.occurrence.id) }
-        if (undated.isNotEmpty()) {
-            items += AgendaItem.Header("NO DATE")
-            undated.forEach { items += AgendaItem.Row(it) }
-        }
-    }
-
-    val done = turns
-        .filterNot { it.occurrence.isOpen }
-        .filter { it.doneDate != null && it.doneDate in window }
-        .sortedByDescending { it.occurrence.doneAt }
-        .filter { emitted.add(it.occurrence.id) }
-    if (done.isNotEmpty()) {
-        items += AgendaItem.Header("DONE THIS CYCLE")
-        done.forEach { items += AgendaItem.Row(it) }
-    }
-
-    return items
-}
-
-/** "TODAY", "TOMORROW", "YESTERDAY", or "MONDAY 14 SEPT". */
-private fun dayLabel(day: LocalDate, today: LocalDate): String = when (day) {
-    today -> "TODAY"
-    today.plusDays(1) -> "TOMORROW"
-    today.minusDays(1) -> "YESTERDAY"
-    else -> day.format(DAY_HEADING).uppercase(Locale.getDefault())
-}
-
-private val DAY_HEADING: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE d MMM")
-
-// ═══════════════════════════════════════════════════════════════
-// Shared pieces
-// ═══════════════════════════════════════════════════════════════
-
-@Composable
-private fun SectionLabel(label: String) {
-    Text(
-        text = label,
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        letterSpacing = 0.8.sp,
-        modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
-    )
-}
-
-/** The board's row, told only what is true on this screen. */
-@Composable
-private fun TurnCard(
-    occurrence: Occurrence,
-    chores: List<Chore>,
-    householdName: String?,
-    myUserId: String?,
-    myName: String?,
-    onOpen: () -> Unit,
-    onToggleDone: () -> Unit,
-) {
-    val row = BoardRow.OccurrenceRow(occurrence)
-    TaskCard(
-        row = row,
-        scheduleText = scheduleLineFor(row, chores),
-        highlighted = false,
-        // Always yours, so the row never says so — and it certainly never names
-        // anybody else.
-        assigneeName = null,
-        // The only name this screen will print, and only on your own row: who
-        // actually ticked it. Your own turn covered by a flatmate is an event
-        // on your row, not a report on their workload — which is what the
-        // never-list is guarding against.
-        // coveredByName is set on the turn *after* a cover, never on the one
-        // that was covered, so it printed "Done by someone" here.
-        doneByName = if (occurrence.doneBy == myUserId) myName else occurrence.doneByName,
-        coveredByName = occurrence.coveredByName,
-        needsDate = occurrence.needsDate,
-        passedByMe = false,
-        // Swipe-to-pass needs the rotation and the household's away states,
-        // which this tab does not fetch. Passing is still one tap away: the
-        // sheet the row opens is the board's own, and its Pass button works,
-        // because the sheet brings that household's ViewModel with it.
-        canPass = false,
-        myUserId = myUserId,
-        householdName = householdName,
-        onOpenDetail = onOpen,
-        onToggleDone = onToggleDone,
-        onPass = {},
-        onSwiped = {},
-    )
 }
 
 /** One household's worth of your turns, with the chores they came from. */
