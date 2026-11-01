@@ -12,6 +12,35 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
 
 ## v2 progress
 
+- **Quiet House redesign — DONE on `mehrdad-design` (2026-11-01).** Built from
+  the design canvas (claude.ai/artifact/5i9xzyDwwvD1LZQkGVgLPf), keeping the
+  brand violet as the one accent. Every hard constraint still holds; the
+  changes are of shape, not of rule:
+  - **A floating dock: Mine · House · Feed, and Add.** Replaces the bottom bar
+    (My groups · My chores · Settings). Settings became **You**, behind your
+    own face; Members became **People**, behind the faces on House; Activity
+    became **Feed**, with *What's been done* as its second view instead of a
+    menu item. The overflow menu is gone.
+  - **Mine replaces My chores and My week**, ending the interviews' A/B. It
+    keeps a glance at the week (a rolling 7-day strip, dots only) and puts one
+    turn forward as **Up next**, with the done-line and *I did this* on the
+    card. The week strip, view toggle, `weekAgenda` and `WeekAgendaTest` are
+    deleted rather than left unused.
+  - **Rows are grouped cards.** Your turns carry a dot (amber when the day
+    has passed — never red, never a count), others' carry the holder's face,
+    done rows a sage tick.
+  - **The chore sheet** draws the rotation as faces with the holder ringed
+    (an order, not a forecast), the done-line as a quote on the button, and a
+    sage card for a finished turn.
+  - **Add a chore is one screen.** *How often* is still asked first and
+    everything it implies appears beneath it — the two-step idea without the
+    step.
+  - **Theme:** stone ground, ink, violet, sage, amber, slate; Bricolage
+    Grotesque + Instrument Sans bundled under OFL; every Material role set.
+  - Not built from the canvas: the Up next card's pass button opens the
+    chore's sheet rather than passing directly, so the receiver is named
+    before anything is sent.
+
 - **The screens deck re-shot — DONE (2026-11-01).** Every screen had changed
   since 2026-09-03: no checkbox on the board, no group list, new sign-in, a
   bottom bar. 36 screens now (was 31), eleven slides (was nine) — new ones for

@@ -6,6 +6,15 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-01 (evening) — Quiet House, on `mehrdad-design`
+
+Designed the app from scratch on a canvas, then built it on a new branch with
+the brand violet kept as the accent. Six commits: theme and fonts; the dock
+with Mine, House, Feed, People and You; the chore sheet; Add a chore on one
+screen; the auth screens. Checked on the phone (light and dark) and the
+emulator (auth). `BACKLOG.md` lists what changed and what the canvas asked
+for that was not built.
+
 ## 2026-11-01 — Review round: done-line onto the button, and a plan
 
 Two pieces of outside feedback came in: three interview-driven points from a

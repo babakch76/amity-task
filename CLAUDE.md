@@ -44,7 +44,7 @@ taskflow/
 | `BACKLOG.md` | Why things are the way they are (67 KB of decision records). |
 | `PROPOSALS.md` | Six changes raised at handover; two are defects, not improvements. |
 | `calendar_decision_record.md` | Why there is no calendar, and why not to add one. |
-| `DESIGN.md` | **Target** design: design system + screen-by-screen UI/UX spec. Ahead of the code, but less so as of 2026-09-13: §5.1–5.2 (Sign in, Create account) are built, and so are the bottom bar and a real Settings tab — with two departures from §4.2/§5 that `BACKLOG.md` records. My week's calendar and day-strip modes are still unbuilt. |
+| `DESIGN.md` | The earlier target design. **Superseded on `mehrdad-design`** by the Quiet House redesign (canvas: claude.ai/artifact/5i9xzyDwwvD1LZQkGVgLPf; `BACKLOG.md` records what changed and why). Still useful for the reasoning behind each screen. |
 | `INTERVIEWS.md` | User-interview scripts and timing. |
 | `journal.md` | Running session log. Append, don't rewrite. |
 
@@ -135,22 +135,23 @@ answers `401`.
 | Screen | Role |
 |---|---|
 | `LoginScreen` / `RegisterScreen` | Auth, text-button toggle between them. Register signs you straight in. Both are a stateful screen plus a stateless `LoginContent` / `RegisterContent` — edit the layout there, and the `@Preview`s at the foot of each file are the design surface. |
-| `MainShell` | The bottom bar and the three tabs below it. Owns the shared `ShellViewModel`, which household is open, the reminder alarms and the invite poll. |
-| `HouseholdTab` — **My groups** | Decides *which* household is open, handles having none, carries create + first-run starters. The board itself is still `GroupDetailScreen`. |
-| `GroupDetailScreen` (2.6k lines) | One household's board: Board / Activity / Members tabs, plus every sheet and dialog. A root destination — no back arrow, bar underneath. |
+| `MainShell` | The floating dock (**Mine · House · Feed** + **Add**) and the five destinations behind it. Owns the shared `ShellViewModel`, the open household's `GroupDetailViewModel` store, which household is open, the reminder alarms and the invite poll. |
+| `HouseholdTab` | Used by **House**, **Feed** and **People** with a `HouseSection`. Decides *which* household is open, handles having none, carries create + first-run starters. |
+| `GroupDetailScreen` (2.9k lines) | One household, drawn per `HouseSection`: **House** (the board), **Feed** (activity + Who did what), **People** (members, invite, away, leave). Every sheet and dialog lives here. |
 | `OccurrenceDetailSheet` (in `GroupDetailScreen.kt`) | Where a turn is **completed**. Built from the Stitch mock *Chore detail — Clean the bathroom*: header + household chip, violet callout, WHAT DONE MEANS, the four-row list, History / Edit chore, then *I did this* (*Mark as done* on someone else's turn) and *Busy — pass it on*. Undo lives here too, within its ten minutes. **Board rows have no checkbox** — a row only opens this. |
-| `MyChoresScreen` — **My chores / My week** | Your own turns across every household. Two readings behind an app-bar toggle: grouped by household, or a week strip over dated buckets. Reuses the board's `TaskCard` and its detail sheet. |
+| `MyChoresScreen` — **Mine** | The start screen. Your turns across every household: next 7 days, **Up next** (done-line + *I did this*), also yours, done lately. Your face opens **You**. Opens the board's own detail sheet. |
 | `OccurrenceDetailHost` | The detail sheet and everything behind it — history, edit flow, delete confirm, busy pass. Mounted by **both** the board and My chores; driven by a hoisted `ChoreDetailController`. |
-| `ui/components/WeekStrip` | Seven days, today ringed, a dot for a day carrying a turn of yours. Chevrons and swipe both page a week; the week slides the way you sent it. Never a count, never a colour by fullness. |
-| `SettingsScreen` — **Settings** | Name, email, invitations, join with a code, quiet hours, appearance, sign out. |
+| `ui/components/Quiet.kt` | The design's shared pieces: `Avatar` (colour per user id), `AvatarStack`, `FloatingDock`, `GroupedCard`, `SectionLabel`, `QuietSnackbar`, `SegmentedPair`. Use these rather than redrawing them. |
+| `SettingsScreen` — **You** | Opened from your face on Mine; has a back arrow, no dock. Name, email, invitations, join with a code, quiet hours, appearance, sign out. |
 | `ui/components/HouseholdSwitcher` | The board's title: household name + chevron, dropping a menu of households plus *Create a household* / *Join with a code*. |
 | `ui/components/MarkDoneSheet.kt` | The confirm behind **swipe-right only** — the one way to complete a turn without opening it. Quotes the done-line, then *Mark it done* / *Not yet*. Mounted from inside `TaskCard`. |
 | `AccountDialogs.kt` | The four dialogs that outlived the group list — invites, join by code, create household, quiet hours. Was `DashboardScreen.kt`. |
-| `CreateChoreFlow` | Add or edit a chore as two full-screen steps; delete lives at the end of edit. |
+| `CreateChoreFlow` | Add or edit a chore on one full screen: *How often* first, and what it implies appears beneath once answered. Delete lives at the end of edit. Opened by **Add** on the dock. |
 | `FirstRunStarters` | Five starter chores offered to a brand-new household. |
 
 Navigation is **three outer routes**: `login`, `register`, `shell`, plus a
-nested graph of three inside the shell (`household`, `mychores`, `settings`).
+nested graph of five inside the shell: `mine` (start), `house`, `feed` behind
+the dock, and `people`, `settings` as pages with a back arrow and no dock.
 Everything else is a sheet or dialog.
 
 **There is no group list and no `group/{groupId}` route.** The app opens on the
@@ -163,24 +164,21 @@ device), and the switcher in its app bar changes it. Three things follow:
 - Which household is open is held by `MainShell` too, because **My chores**
   writes it as well as the switcher — tapping a turn there switches the board
   rather than opening a second one.
-- `GroupDetailViewModel` is obtained with `viewModel(key = groupId, …)`.
-  Without the key, switching household keeps the previous household's ViewModel
-  and leaves its chores on screen under the new name.
+- `GroupDetailViewModel` is obtained with `viewModel(viewModelStoreOwner =
+  shellOwner, key = groupId, …)`. The owner makes House, Feed and People share
+  one; the key stops a household switch keeping the previous household's
+  chores on screen under the new name.
 
-The second tab ships **two readings of the same turns** — by household, and
-DESIGN.md §5.11a's My week — behind a toggle, with the title following it.
-That is deliberate and temporary: it is an A/B for the interviews, and **one of
-them is to be deleted afterwards**. `BACKLOG.md` records the terms. The month
-grid of §5.11b is not built, and is a question rather than a to-do — read
-`calendar_decision_record.md` before starting it.
+The interviews' A/B (My chores by household vs My week) is **settled by the
+redesign**: both were replaced by **Mine** (2026-11-01, branch
+`mehrdad-design`). The month grid of DESIGN.md §5.11b is still not built and
+still a question — read `calendar_decision_record.md` before starting it.
 
 The two auth screens share their top half — emblem, wordmark, subtitle, field
 shape, pill button, amber error line — through `ui/components/AuthScaffold.kt`.
 Change the shape of an auth field there, not in one screen, or the two drift.
-The emblem is `R.drawable.ic_launcher_foreground`, drawn at 72dp and clipped to
-a 56dp tile because it is an adaptive-icon foreground whose mark only occupies
-the middle. That drawable still calls itself a placeholder; it is now on the
-first screen of the app, not just the launcher.
+The mark (`BrandMark`) is drawn in code — a roof over a tick, white on the
+violet — not taken from the launcher foreground.
 
 Both screens were ported from Google Stitch mocks (MCP server `stitch`, project
 **Core Design System** `4515006561005969934`, screens *Sign in* and *Create
@@ -197,27 +195,30 @@ than the mock's bullets, which TalkBack reads aloud as bullets.
 Defined in `ui/theme/Theme.kt` as a Material 3 `ColorScheme`, **not** in
 `colors.xml` (that holds only the cold-start window background).
 
+**Quiet House** (the 2026-11-01 redesign): a stone ground, ink text, one
+accent — the brand violet — and three quiet signals. Fonts are bundled
+variable TTFs (`res/font`, OFL): **Bricolage Grotesque** for screen and chore
+titles, **Instrument Sans** for everything read (`ui/theme/Type.kt`).
+
 | Token | Light | Dark |
 |---|---|---|
-| primary | `#7C3AED` violet-600 | `#A78BFA` violet-400 |
-| secondary | `#60A5FA` | `#60A5FA` |
-| tertiary | `#34D399` | `#34D399` |
-| background | `#F8F9FC` | `#0F1117` |
-| surface | `#FFFFFF` | `#181A24` |
-| onSurface | `#1A1B2E` | `#EEF0F6` |
+| primary | `#7C3AED` violet | `#B79CFA` |
+| background | `#F2F3EE` stone | `#101512` |
+| surface | `#FFFFFF` | `#1A211D` |
+| onSurface | `#17201B` ink | `#EEF1EC` |
+| tertiary (done) | `#2F7A55` sage | `#6FC498` |
+
+Colours Material has no role for — the dock, done, *past its day* (amber,
+`#D99A1E` dot / `#7A5200` text), away (slate) — are in `Quiet.colors`.
 
 **Material You dynamic colour is deliberately off.** A wallpaper-derived scheme
 can put a red primary next to the amber overdue colour, which reads as exactly
 the shame signal constraint 3 rules out. Do not turn it back on.
 
-**The `…Container` roles are not ours.** The table above is the whole of what
-`Theme.kt` sets, so `primaryContainer`, `tertiaryContainer`, `errorContainer`
-and the rest fall through to Material's baseline scheme — in which
-`tertiaryContainer` is a **dark red**. Reaching for one to tint something is how
-a red disc ended up beside the chore rows in the household switcher
-(2026-09-13), with nobody having chosen it. Tint from `primary` / `secondary` /
-`tertiary` at low alpha, or define the container roles properly before using
-them.
+**Every Material role is set explicitly** in `Theme.kt`, containers included.
+The old scheme left them to Material's baseline, where `tertiaryContainer` is a
+dark red — which is how a red disc once appeared in the household switcher with
+nobody having chosen it. If you add a role, set it; never let one fall through.
 
 Appearance (System/Light/Dark) is stored in SharedPreferences **on the device**,
 never synced — it is a property of this phone, not of the account or household.
@@ -230,14 +231,8 @@ never synced — it is a property of this phone, not of the account or household
   a reflective adapter turned absent fields into explicit nulls and silently
   cleared assignees and deadlines. An all-absent request serialises to `{}` and
   the backend answers `400 no fields to update`; skip the call instead.
-- **Bucketing one list into sections is a duplicate-key risk, and in Compose
-  that is a crash.** My week put a turn due tomorrow into two buckets at once,
-  and the `LazyColumn` threw rather than drawing it twice (B-9). `WeekAgendaTest`
-  guards it; keep the `emitted` set in `weekAgenda` if you add a section.
-- **My week's list is scoped to what the strip is pointing at** — the displayed
-  week, or one day of it. Its headings are days, not DESIGN.md §5.11a's
-  TODAY / TOMORROW / LATER THIS WEEK / NEXT WEEK AND BEYOND, which describe an
-  unbounded list. `BACKLOG.md` records why.
+
+
 - **`PATCH /me` is stricter than register.** It parses the email address and
   rejects a display-name form; register accepts any non-empty string. Dev
   accounts created before 2026-09-13 can hold addresses the endpoint would now
