@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -2343,5 +2344,50 @@ func TestUndoPassWritesNoActivityEvent(t *testing.T) {
 	}
 	if after != before {
 		t.Errorf("the undo wrote %d activity event(s); a pass and its undo are private", after-before)
+	}
+}
+
+// Two "done" requests for the same turn at once — a double tap, or the swipe
+// and the sheet together — must complete it once and spawn one next turn. Both
+// used to pass the status check before either wrote, and each spawned a turn:
+// one chore, two open turns, for good.
+func TestCompletingTheSameTurnTwiceAtOnceSpawnsOneNextTurn(t *testing.T) {
+	db := newTestDB(t)
+	ann := newUser(t, db, "ann")
+	bo := newUser(t, db, "bo")
+	groupID := newGroup(t, db, ann, "Flat")
+	addMember(t, db, groupID, bo, "member")
+	chore := createChore(t, db, groupID, ann, fmt.Sprintf(`{
+		"name": "Trash", "schedule_type": "interval", "interval_days": 1, "rotation": [%q, %q]
+	}`, ann, bo))
+	occ := openOccurrencesFor(t, db, groupID, ann, chore.ID)[0]
+
+	const n = 8
+	codes := make(chan int, n)
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			codes <- patchOccurrence(t, db, groupID, occ.ID, ann, "done").Code
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(codes)
+
+	ok := 0
+	for c := range codes {
+		if c == 200 {
+			ok++
+		}
+	}
+	if ok != 1 {
+		t.Errorf("%d of %d concurrent completions succeeded, want exactly 1", ok, n)
+	}
+	if open := openOccurrencesFor(t, db, groupID, ann, chore.ID); len(open) != 1 {
+		t.Errorf("got %d open turns after the race, want 1", len(open))
 	}
 }

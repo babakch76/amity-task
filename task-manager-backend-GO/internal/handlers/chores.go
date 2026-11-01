@@ -689,11 +689,23 @@ func (h *ChoreHandler) UpdateOccurrence(w http.ResponseWriter, r *http.Request) 
 	var eventType string
 	if req.Status == models.OccurrenceDone {
 		completedAt := time.Now()
-		if _, err := tx.Exec(
-			`UPDATE occurrences SET status = 'done', done_by = ?, done_at = ? WHERE id = ?`,
+		// "AND status = 'open'" is the real check; the one above is only the
+		// cheap early answer. Two requests a moment apart — a double tap, or
+		// the swipe and the sheet together — both pass that read, and without
+		// this both would complete it and each spawn a next turn. That is how
+		// one chore ends up with two open turns running side by side for ever
+		// after, because every completion in either chain spawns another.
+		res, err := tx.Exec(
+			`UPDATE occurrences SET status = 'done', done_by = ?, done_at = ?
+			 WHERE id = ? AND status = 'open'`,
 			userID, completedAt.UTC(), occurrenceID,
-		); err != nil {
+		)
+		if err != nil {
 			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		if n, _ := res.RowsAffected(); n != 1 {
+			jsonError(w, "occurrence is already done", http.StatusConflict)
 			return
 		}
 		away, err := h.awayMembers(groupID)

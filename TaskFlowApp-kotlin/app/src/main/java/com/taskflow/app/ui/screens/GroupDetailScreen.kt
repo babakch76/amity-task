@@ -2853,7 +2853,10 @@ private fun isOverdue(row: BoardRow): Boolean {
 private fun formatStamp(time: OffsetDateTime?): String {
     if (time == null) return "unknown"
     return try {
-        time.format(DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm"))
+        // The server sends UTC. Formatted as-is, a completion at 20:22 in Rome
+        // read "19:22" — the phone's own zone, as formatDueDate already does.
+        time.atZoneSameInstant(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm"))
     } catch (_: Exception) {
         "unknown"
     }

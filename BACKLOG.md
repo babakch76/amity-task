@@ -809,6 +809,33 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
 
 ## Bugs
 
+### B-17 · Two "done" at once spawned two next turns — DONE (2026-11-01)
+
+**Seen:** the `home` household's *Trash* had three open turns at once (mm, mm,
+bb). The chain shows `c9b8b03b` with two children: it was completed twice, and
+each completion spawned a next turn. From then on two chains ran side by side,
+and every completion in either one spawned another.
+
+**Cause:** `UpdateOccurrence` checked `status` before opening its transaction
+and then updated by id alone. Two requests a moment apart — a double tap, or
+the swipe and the sheet together — both passed the check. A test firing eight
+at once had five succeed and left five open turns.
+
+**Fixed:** the update is `WHERE id = ? AND status = 'open'`, and anything but
+one row affected is a 409. `TestCompletingTheSameTurnTwiceAtOnceSpawnsOneNextTurn`.
+
+**Not fixed by this:** turns already duplicated stay duplicated — completing
+them only continues both chains. They need deleting by hand. The very first
+duplicate (`c9b8b03b`, created with no parent on 2026-09-14 20:08) is not
+explained by this race and could not be reproduced: nothing in the current code
+creates a parentless turn for an existing chore.
+
+### B-18 · The detail sheet showed completion times in UTC — DONE (2026-11-01)
+
+*Done* read *19:22* for something done at 20:22 in Rome. `formatStamp`
+formatted the server's UTC value as-is; it now converts to the phone's zone,
+as `formatDueDate` beside it already did.
+
 ### B-16 · The activity feed still prints raw event types for every v2 event — DONE (2026-09-02)
 
 **Fixed:** `describeEvent` has the five missing cases, so the feed now reads
