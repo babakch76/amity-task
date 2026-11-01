@@ -114,14 +114,18 @@ fun MainShell(
     LaunchedEffect(actionMessage) {
         actionMessage?.let {
             val undo = viewModel.undoableDone.value
+            val undoPass = viewModel.undoablePass.value
             val result = snackbarHostState.showSnackbar(
                 message = it,
-                actionLabel = undo?.let { "Undo" },
+                actionLabel = (undo ?: undoPass)?.let { "Undo" },
                 duration = SnackbarDuration.Short,
             )
             viewModel.clearActionMessage()
-            if (result == SnackbarResult.ActionPerformed && undo != null) {
-                viewModel.setOccurrenceDone(undo.first, undo.second, done = false)
+            if (result == SnackbarResult.ActionPerformed) {
+                when {
+                    undoPass != null -> viewModel.undoPass(undoPass.first, undoPass.second)
+                    undo != null -> viewModel.setOccurrenceDone(undo.first, undo.second, done = false)
+                }
             }
         }
     }

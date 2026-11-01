@@ -207,8 +207,12 @@ fun MyChoresScreen(
             groupId = groupId,
             occurrenceId = occurrenceId,
             myUserId = myUserId,
-            onMessage = { text, undoOccurrence ->
-                viewModel.showMessage(text, undoOccurrence?.let { groupId to it })
+            onMessage = { text, undoOccurrence, undoPassOccurrence ->
+                viewModel.showMessage(
+                    text,
+                    undoOccurrence?.let { groupId to it },
+                    undoPassOccurrence?.let { groupId to it },
+                )
             },
             onClosed = {
                 detailFor = null
@@ -338,8 +342,11 @@ private fun UpNextCard(turn: MyTurn, showHousehold: Boolean, onOpen: () -> Unit,
                 }
                 // Passing is confirmed in the chore's own sheet, which names who
                 // it goes to — so this opens that, rather than passing blind.
-                OutlinedIconButton(onClick = onOpen, modifier = Modifier.size(50.dp)) {
-                    Icon(Icons.Default.SwapHoriz, contentDescription = "Busy — pass it on")
+                // Hidden when there is nobody to pass to (the server's pass_to).
+                if (occ.passTo != null) {
+                    OutlinedIconButton(onClick = onOpen, modifier = Modifier.size(50.dp)) {
+                        Icon(Icons.Default.SwapHoriz, contentDescription = "Busy — pass it on")
+                    }
                 }
             }
         }
@@ -462,7 +469,7 @@ private fun OpenedFromMyChores(
      * A result to show on the shell's snackbar — this tab has no other — with
      * the occurrence it can undo, when it was a completion.
      */
-    onMessage: (String, String?) -> Unit,
+    onMessage: (String, String?, String?) -> Unit,
     onClosed: () -> Unit,
 ) {
     val boardViewModel: GroupDetailViewModel = viewModel(
@@ -508,7 +515,7 @@ private fun OpenedFromMyChores(
     // the shell, whose snackbar this tab shows.
     LaunchedEffect(state.message) {
         state.message?.let {
-            onMessage(it, state.undoableDone)
+            onMessage(it, state.undoableDone, state.undoablePass)
             boardViewModel.dismissMessage()
         }
     }

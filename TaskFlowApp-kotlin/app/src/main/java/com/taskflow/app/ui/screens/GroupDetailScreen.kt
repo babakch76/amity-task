@@ -239,11 +239,15 @@ fun GroupDetailScreen(
         ActivityResultContracts.RequestPermission(),
     ) { /* granted or not, the app works the same */ }
 
+    // Asked once per install. This screen now backs three destinations
+    // (House, Feed, People), so "on entry" meant the prompt reappeared every
+    // time someone who had said no changed tab.
     LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !LocalHints.notificationsAsked(context)) {
             val granted = ContextCompat.checkSelfPermission(
                 context, Manifest.permission.POST_NOTIFICATIONS,
             ) == PackageManager.PERMISSION_GRANTED
+            LocalHints.markNotificationsAsked(context)
             if (!granted) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
@@ -1000,7 +1004,8 @@ private fun cycleLineFor(
 ): String {
     if (!row.isOpen) {
         val also = (row as? BoardRow.OccurrenceRow)?.occurrence?.alsoBy.joinedNames()
-        val doer = (doneByName ?: "someone") + (also?.let { ", also $it" } ?: "")
+        val doerName = if (row.doneBy != null && row.doneBy == myUserId) "you" else doneByName ?: "someone"
+        val doer = doerName + (also?.let { ", also $it" } ?: "")
         val doneOn = row.doneAt?.let { formatDueDate(it) }
         return if (doneOn != null) "Done by $doer · $doneOn" else "Done by $doer"
     }
@@ -1763,7 +1768,10 @@ internal fun OccurrenceDetailSheet(
             // Passing is offered on your own open turn, but not once the round
             // has closed: there is nobody left to hand it to, and the button
             // would only earn a refusal.
-            if (occurrence.isOpen && mine && !occurrence.needsDate) {
+            // Only when there is somebody to hand it to — the server says who
+            // (pass_to), and says nobody in a household of one or when every
+            // one else is away.
+            if (occurrence.isOpen && mine && !occurrence.needsDate && passReceiver(occurrence, members) != null) {
                 OutlinedButton(
                     onClick = onPass,
                     modifier = Modifier
@@ -2766,7 +2774,7 @@ private fun InviteByUsernameDialog(onDismiss: () -> Unit, onInvite: (String) -> 
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Invite a teammate", fontWeight = FontWeight.Bold) },
+        title = { Text("Invite someone") },
         text = {
             OutlinedTextField(
                 value = username,

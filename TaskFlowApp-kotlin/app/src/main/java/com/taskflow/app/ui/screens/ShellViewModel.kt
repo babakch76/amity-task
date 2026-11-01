@@ -433,6 +433,7 @@ class ShellViewModel : ViewModel() {
     fun clearActionMessage() {
         _actionMessage.value = null
         _undoableDone.value = null
+        _undoablePass.value = null
     }
 
     /**
@@ -441,9 +442,27 @@ class ShellViewModel : ViewModel() {
      * snackbar, which is the one My chores can see. [undo] is the completion
      * it can take back, if it was one.
      */
-    fun showMessage(text: String, undo: Pair<String, String>? = null) {
+    fun showMessage(text: String, undo: Pair<String, String>? = null, undoPass: Pair<String, String>? = null) {
         _undoableDone.value = undo
+        _undoablePass.value = undoPass
         _actionMessage.value = text
+    }
+
+    /** A pass the message on screen can take back, as (group, occurrence). */
+    private val _undoablePass = MutableStateFlow<Pair<String, String>?>(null)
+    val undoablePass: StateFlow<Pair<String, String>?> = _undoablePass.asStateFlow()
+
+    /** Take back a pass made from a sheet opened on Mine. */
+    fun undoPass(groupId: String, occurrenceId: String) {
+        viewModelScope.launch {
+            try {
+                val response = api.undoPass(groupId, occurrenceId)
+                _actionMessage.value = if (response.isSuccessful) "Back with you." else ApiErrors.messageFor(response)
+                (uiState.value as? ShellUiState.Success)?.let { loadReminderData(it.groups) }
+            } catch (e: Exception) {
+                _actionMessage.value = networkMessage(e)
+            }
+        }
     }
 
     /**

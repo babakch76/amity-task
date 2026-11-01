@@ -9,6 +9,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -187,21 +193,49 @@ private fun StarterRow(
     onRename: (String) -> Unit,
 ) {
     Surface(
-        shape = MaterialTheme.shapes.medium,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
         color = if (starter.chosen) MaterialTheme.colorScheme.surface
-        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .4f),
+        else androidx.compose.ui.graphics.Color.Transparent,
         border = androidx.compose.foundation.BorderStroke(
-            width = 1.dp,
-            color = if (starter.chosen) MaterialTheme.colorScheme.primary.copy(alpha = .5f)
+            width = 1.5.dp,
+            color = if (starter.chosen) MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.outline,
         ),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
-            modifier = Modifier.padding(start = 4.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
+            modifier = Modifier.padding(start = 14.dp, end = 12.dp, top = 4.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Checkbox(checked = starter.chosen, onCheckedChange = { onToggle() }, enabled = enabled)
+            // A round tick, filled when chosen — the Quiet House selection mark.
+            val tickColor = MaterialTheme.colorScheme.primary
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(if (starter.chosen) tickColor else androidx.compose.ui.graphics.Color.Transparent)
+                    .border(
+                        1.5.dp,
+                        if (starter.chosen) tickColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                        androidx.compose.foundation.shape.CircleShape,
+                    )
+                    .toggleable(
+                        value = starter.chosen,
+                        enabled = enabled,
+                        role = androidx.compose.ui.semantics.Role.Checkbox,
+                        onValueChange = { onToggle() },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (starter.chosen) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(15.dp),
+                    )
+                }
+            }
             Column(modifier = Modifier.weight(1f)) {
                 // The name is a field, not a label: "Trash" is what one
                 // household calls it and "Bins" is what the next one does, and
@@ -213,8 +247,9 @@ private fun StarterRow(
                     onValueChange = onRename,
                 )
                 Text(
-                    text = starter.wording,
-                    style = MaterialTheme.typography.labelSmall,
+                    text = starter.wording.replaceFirstChar { it.uppercase() },
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 16.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -230,7 +265,7 @@ private fun BasicNameField(value: String, enabled: Boolean, onValueChange: (Stri
         enabled = enabled,
         singleLine = true,
         placeholder = { Text("Name it") },
-        textStyle = MaterialTheme.typography.bodyLarge,
+        textStyle = MaterialTheme.typography.titleMedium,
         colors = TextFieldDefaults.colors(
             focusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
             unfocusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,

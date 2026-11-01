@@ -80,4 +80,17 @@ object LocalHints {
             .putBoolean(SWIPE_SEEN, true)
             .apply()
     }
+
+    private const val NOTIFY_ASKED = "notification_permission_asked"
+
+    /** Whether the notification permission has been asked for on this install. */
+    fun notificationsAsked(context: Context): Boolean =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(NOTIFY_ASKED, false)
+
+    fun markNotificationsAsked(context: Context) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(NOTIFY_ASKED, true)
+            .apply()
+    }
 }
