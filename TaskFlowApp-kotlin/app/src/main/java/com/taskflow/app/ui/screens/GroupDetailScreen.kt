@@ -293,16 +293,10 @@ fun GroupDetailScreen(
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false },
                         ) {
-                            DropdownMenuItem(
-                                text = { Text("Invite by username") },
-                                leadingIcon = { Icon(Icons.Default.PersonAdd, null) },
-                                onClick = { showMenu = false; showInvite = true },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Create invite code") },
-                                leadingIcon = { Icon(Icons.Default.Link, null) },
-                                onClick = { showMenu = false; viewModel.generateInviteCode() },
-                            )
+                            // Inviting and saying you are away moved to the
+                            // Members tab (2026-11-01): both are about who is
+                            // in the household, and a menu is where things go
+                            // when they have nowhere better.
                             DropdownMenuItem(
                                 text = { Text("What's been done") },
                                 leadingIcon = { Icon(Icons.Default.List, null) },
@@ -310,17 +304,6 @@ fun GroupDetailScreen(
                                     showMenu = false
                                     showGroupHistory = true
                                     viewModel.loadGroupHistory(state.historyWindow)
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(if (iAmAway) "I'm back" else "I'm away") },
-                                leadingIcon = { Icon(Icons.Default.DateRange, null) },
-                                onClick = {
-                                    showMenu = false
-                                    // Coming back needs no explaining; going
-                                    // away does, so only that direction gets a
-                                    // dialog.
-                                    if (iAmAway) viewModel.setAway(false, null) else showAway = true
                                 },
                             )
                             HorizontalDivider()
@@ -464,6 +447,13 @@ fun GroupDetailScreen(
                         2 -> MemberList(
                             members = state.members,
                             myUserId = myUserId,
+                            onShareCode = { viewModel.generateInviteCode() },
+                            onInviteByName = { showInvite = true },
+                            // Coming back needs no explaining; going away
+                            // does, so only that direction gets a dialog.
+                            onAway = {
+                                if (iAmAway) viewModel.setAway(false, null) else showAway = true
+                            },
                         )
                     }
                     }
@@ -2320,75 +2310,176 @@ private fun eventColor(type: String) = when (type) {
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * Group roster. Read-only: there are no role controls, because there is
- * nothing a role grants any more — every member can edit every chore.
+ * Who is in the household, and the two things you do about that: bring
+ * somebody in, and say you are away.
+ *
+ * Each row is a name and, when it applies, an *Owner* or *Away* badge. Not the
+ * email address, which used to be the second line: housemates know each other
+ * by name, and an address is the one thing on this screen they have no use
+ * for. Not a *Member* badge on everybody else either — a label on every row
+ * says nothing. There are no role controls, because no role grants anything
+ * any more: every member can edit every chore.
+ *
+ * Inviting and away were in the app bar's menu. They are about who is here,
+ * so they are here, under the list they change.
  */
 @Composable
 private fun MemberList(
     members: List<MemberInfo>,
     myUserId: String?,
+    onShareCode: () -> Unit,
+    onInviteByName: () -> Unit,
+    onAway: () -> Unit,
 ) {
+    val me = members.firstOrNull { it.id == myUserId }
+
     LazyColumn(
-        contentPadding = PaddingValues(
-            start = 16.dp,
-            end = 16.dp,
-            top = 12.dp,
-            // Clears the FAB so the last row is reachable.
-            bottom = 88.dp,
-        ),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(members, key = { it.id }) { member ->
             val isMe = member.id == myUserId
 
             ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = .15f)),
-                            contentAlignment = Alignment.Center,
-                        ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = .15f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = member.username.take(1).uppercase(),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isMe) "${member.username} (you)" else member.username,
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                            ),
+                        )
+                        // Away is stated here because the spec makes it
+                        // deliberately impossible to hide — the app cannot
+                        // check whether someone is really gone, so it shows
+                        // the claim to everyone instead.
+                        if (member.away) {
                             Text(
-                                text = member.username.take(1).uppercase(),
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (isMe) "${member.username} (you)" else member.username,
-                                style = MaterialTheme.typography.titleSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                ),
-                            )
-                            Text(
-                                text = member.email,
+                                text = member.awayUntil?.let { "Back ${formatDueDate(it)}" }
+                                    ?: "Away until they say they're back",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            // Away is stated on the member list because the
-                            // spec makes it deliberately impossible to hide —
-                            // the app cannot check whether someone is really
-                            // gone, so it shows the claim to everyone instead.
-                            if (member.away) {
-                                Text(
-                                    text = member.awayUntil?.let { "Away until ${formatDueDate(it)}" }
-                                        ?: "Away",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                            }
                         }
-                        RoleChip(member.role)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (member.role == ROLE_OWNER || member.role == ROLE_ADMIN) {
+                            RoleChip(member.role)
+                        }
+                        if (member.away) AwayChip()
                     }
                 }
             }
         }
+
+        // ── Bringing somebody in ──
+        item(key = "invite") {
+            Column(
+                modifier = Modifier.padding(top = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(
+                    onClick = onShareCode,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = CircleShape,
+                ) {
+                    Icon(Icons.Default.Link, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Share an invite code")
+                }
+                OutlinedButton(
+                    onClick = onInviteByName,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                ) {
+                    Icon(Icons.Default.PersonAdd, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Invite by username")
+                }
+            }
+        }
+
+        // ── Your availability ──
+        if (me != null) {
+            item(key = "availability") {
+                Column(
+                    modifier = Modifier.padding(top = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = "YOUR AVAILABILITY",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        letterSpacing = 0.8.sp,
+                    )
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = MaterialTheme.shapes.medium,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = when {
+                                    !me.away -> "At home"
+                                    me.awayUntil != null -> "Away until ${formatDueDate(me.awayUntil)}"
+                                    else -> "Away"
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(onClick = onAway) {
+                                Text(if (me.away) "I'm back" else "I'm away")
+                            }
+                        }
+                    }
+                    Text(
+                        "While you're away, your turns pass over you and come back when you are.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The away badge, shaped like [RoleChip]. Tinted from `secondary` — not amber,
+ * which on this app means a date has passed, and being away is not lateness.
+ * The label itself is `onSurfaceVariant`: `#60A5FA` as text at this size is
+ * too faint on white to read.
+ */
+@Composable
+private fun AwayChip() {
+    Surface(
+        color = MaterialTheme.colorScheme.secondary.copy(alpha = .18f),
+        shape = MaterialTheme.shapes.small,
+    ) {
+        Text(
+            text = "Away",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+        )
     }
 }
 

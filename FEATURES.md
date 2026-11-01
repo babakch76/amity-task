@@ -205,7 +205,10 @@ rotation here and back in at the same place, and no turns are owed for the time
 you were gone. **The household can see you are away** — unlike a pass, which is
 the point of having both.
 
-Your own board shows a quiet banner while you are away, with a way back.
+You say it under **Your availability** at the foot of the Members tab — *At
+home* / *I'm away*, or *Away until Fri 6 Nov* / *I'm back*. Everyone else sees
+an **Away** badge on your row, with *Back Fri 6 Nov* under your name. Your own
+board shows a quiet banner while you are away, with a way back.
 
 ---
 
@@ -272,7 +275,10 @@ know it was a decision.
 ## 9. Joining, leaving, and a new household
 
 A household is created by name, and joined either by **direct invite** to a
-username or by a **shared code** that expires. Invites appear on the group list
+username or by a **shared code** that expires. Both are buttons under the list
+on the **Members** tab — *Share an invite code* and *Invite by username* — and
+the rows above them are just names, with an **Owner** or **Away** badge where
+one applies. Invites appear on the group list
 with a badge.
 
 **A new household is offered five starter chores** rather than an empty board:

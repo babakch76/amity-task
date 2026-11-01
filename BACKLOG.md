@@ -12,6 +12,21 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
 
 ## v2 progress
 
+- **Members tab from the redesign concept's screen 05 — DONE (2026-11-01).**
+  Rows are a name and, only where it applies, an *Owner* or *Away* badge
+  (*Back Fri 6 Nov* under the name). Gone: the **email address** as each
+  row's second line — housemates know each other by name, and an address is
+  the one thing on that screen nobody needs — and the grey **Member** badge on
+  every other row, a label that said nothing because it was on everybody.
+  **Inviting and away moved out of the app bar's ⋮ menu** into the tab, under
+  the list they change: *Share an invite code*, *Invite by username*, and
+  *Your availability* (*At home* / *I'm away*). The menu keeps *What's been
+  done* and *Leave household*. The Away badge is tinted from `secondary`,
+  never amber — amber means a date has passed, and being away is not
+  lateness. Not taken from the concept: a **share-invite link**, which needs
+  a deep-link route the app does not have; the code dialog already offers
+  Share.
+
 - **Board extras from the redesign concept's screen 04 — DONE (2026-11-01).**
   Taken: a *"Trash done. bb is next."* snackbar with **Undo** after a
   completion, the rotation order in the sheet, and *RECENTLY DONE* (seven

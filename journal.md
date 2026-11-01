@@ -32,8 +32,16 @@ colleague, and a six-screen redesign concept from someone else.
   the phone, including Undo from the snackbar. Not taken: a forecast of who
   is next on the row, a mark-done button on the row, the counter, the live
   badge — reasons in `BACKLOG.md`.
-- **Next:** names, Owner / Away badges and invites in the Members tab
-  (screen 05, without the share link).
+- **Screen 05 — done.** Members rows are names with an Owner / Away badge
+  only where one applies; the invite buttons and *Your availability* moved
+  from the ⋮ menu into the tab. Checked on the phone, including the Away
+  badge (a five-minute test absence for bb, removed after).
+- **Round complete.** All four planned steps are in. Open from this session:
+  the turn rule gives someone two turns in a row when the person who covered
+  them sits just before them in the rotation (seen as *"You're next."* right
+  after repaying a cover) — designed behaviour or not, it wants a decision
+  before the interviews; and My chores never shows the board's messages, so a
+  completion from there gets no snackbar.
 - **Not taken from the concept:** Google / emailed-link sign-in (01), the group
   list as home (03, contradicts 2026-09-13), group settings with archive /
   delete / transfer (06), the setup checklist (02).
