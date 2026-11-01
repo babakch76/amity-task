@@ -36,7 +36,7 @@ const choreColumns = `id, group_id, name, done_line, schedule_type, interval_day
 const occurrenceColumns = `o.id, o.chore_id, o.group_id, o.assigned_to, o.status,
 	o.due_date, o.done_by, o.done_at, o.created_at, o.spawned_from, o.resume_after,
 	o.passed_from, o.passed_at, o.covered_by, cov.username, c.name, c.done_line,
-	o.passed_chain, o.pending_debts, doer.username`
+	o.passed_chain, o.pending_debts, doer.username, o.skip_credits`
 
 // occurrenceJoins go with occurrenceColumns. The coverer and doer joins are
 // LEFT: almost every occurrence has no coverer, an open one has no doer, and an
@@ -611,6 +611,7 @@ func (h *ChoreHandler) ListOccurrences(w http.ResponseWriter, r *http.Request) {
 	// load, which is the price of not storing a fact that the chain can change
 	// out from under.
 	markChoresNeedingADate(h, groupID, middleware.GetUserID(r), occurrences)
+	markPassTargets(h, groupID, middleware.GetUserID(r), occurrences)
 
 	jsonResponse(w, http.StatusOK, occurrences)
 }
@@ -1244,7 +1245,7 @@ func spawnNext(
 		return nil
 	}
 
-	assignee, resumeAfter, remaining, coveredBy := nextTurn(chore.Rotation, completed, doerID, away)
+	assignee, credits, remaining, coveredBy := nextTurn(chore.Rotation, completed, doerID, away)
 
 	next := models.Occurrence{
 		ID:           uuid.New().String(),
@@ -1254,9 +1255,9 @@ func spawnNext(
 		Status:       models.OccurrenceOpen,
 		DueDate:      nextDueDate(chore, completed, completedAt),
 		SpawnedFrom:  &completed.ID,
-		ResumeAfter:  resumeAfter,
 		CoveredBy:    coveredBy,
 		PendingDebts: remaining,
+		SkipCredits:  credits,
 	}
 	return insertOccurrence(tx, next)
 }
@@ -1310,20 +1311,6 @@ func debtsAfter(completed *models.Occurrence, doerID string, rotation []string) 
 	return out
 }
 
-// resumeFrom picks the point the ordinary rotation continues from.
-//
-// 3.1 and 3.2: the resume point is whoever covered, and they may not be in this
-// chore's rotation at all — any member can mark any chore done, including
-// someone outside its rotation, and a coverer can leave the household
-// afterwards. "After them" then means nothing, so it falls back to the position
-// of whoever owed the turn.
-func resumeFrom(rotation []string, resume *string, owed string) string {
-	if resume != nil && contains(rotation, *resume) {
-		return *resume
-	}
-	return owed
-}
-
 // nextTurn is **the unified turn rule**, and it is the heart of F2.
 //
 // One rule covers three situations the spec treats as the same thing — a
@@ -1331,64 +1318,130 @@ func resumeFrom(rotation []string, resume *string, owed string) string {
 // overflowing bin somebody else finally emptied. All three are a *cover*: the
 // turn counted as the doer's, and whoever owed it still owes it.
 //
-// What comes back is the next assignee, the point the rotation resumes from
-// once every debt is settled, the debts still waiting, and who covered.
+// Two pieces of bookkeeping make that true, and they balance each other:
 //
-// Worked example, rotation [ann, bo, cass], turn 1 on ann, bo does it:
+//   - **A debt** for whoever owed the turn, repaid first, oldest first, by
+//     handing the very next turn back.
+//   - **A credit** for whoever covered: their own next slot in the rotation
+//     is skipped, **once**, because the cover was their turn.
 //
-//	turn 1  ann   ← bo covered
-//	turn 2  ann   ← handed back; resume_after = bo
-//	turn 3  cass  ← after bo, not after ann
-//	turn 4  ann   ← normal rotation from here on
+// Apart from those, the order simply carries on after the person whose turn it
+// was. Worked example, rotation [ann, bo, cass], ann's turn, bo does it:
 //
-// ann and bo have simply swapped places for one cycle. Without resume_after,
-// turn 3 would go to bo, who has just done two in a row.
+//	turn 1  ann's  ← bo covered: ann owes one, bo is owed a skip
+//	turn 2  ann    ← the debt, handed back
+//	turn 3  cass   ← after ann comes bo, skipped once
+//	turn 4  ann    ← ordinary rotation from here on
 //
-// And with a chain, rotation [A, B, C], A passes to B, B passes on to C, C does
-// it: two debts exist and both are honoured before the order resumes.
+// ann and bo have swapped places for one cycle, and everyone has done one.
 //
-//	occ 1  C      ← A passed, then B passed; C did it
-//	occ 2  A      ← first skipper first; B still queued
-//	occ 3  B      ← the second skipper
-//	occ 4  A      ← queue empty, so resume after the doer C
+// The rule used to be "resume after the coverer". That is the same thing when
+// the coverer happens to come next, and only then: in [dd, mm, aa, bb] with mm
+// covering aa it resumed at aa, who had just repaid, so aa went twice and dd
+// lost a turn; with C covering A in [A, B, C, D] it jumped to D and B lost one.
+// Counted against an unbroken rotation the credit is fair in every case —
+// BACKLOG B-19 has the table.
+//
+// A chain — rotation [A, B, C], A passes to B, B passes on to C, C does it —
+// owes two debts and earns one credit:
+//
+//	occ 1  C    ← A passed, then B passed; C did it, and is owed a skip
+//	occ 2  A    ← first skipper first; B still queued
+//	occ 3  B    ← the second skipper
+//	occ 4  A    ← after B comes C, skipped once
+//
+// What comes back is the next assignee, the credits still standing, the debts
+// still waiting, and who covered (for the board to say so).
 func nextTurn(
 	rotation []string,
 	completed *models.Occurrence,
 	doerID string,
 	away map[string]bool,
-) (assignee string, resumeAfter *string, remaining []string, coveredBy *string) {
+) (assignee string, credits []string, remaining []string, coveredBy *string) {
 	owed := owedBy(completed)
 
-	// Where the rotation picks up, and equally who covered: the same person,
-	// because a cover both earns the doer their turn and is the point the order
-	// resumes from. Carried forward untouched while debts are still being paid,
-	// so occ 3 above still resumes after C rather than after B.
-	resume := completed.ResumeAfter
+	for _, id := range completed.SkipCredits {
+		// A credit is a skip *in this rotation*. Somebody who has left it
+		// cannot be skipped, and is owed nothing for it (3.2).
+		if contains(rotation, id) {
+			credits = append(credits, id)
+		}
+	}
+
+	// Who covered travels with the debt, so the board can still say why a
+	// chore came back to someone several occurrences later.
+	coveredBy = completed.CoveredBy
 	if doerID != owed {
 		doer := doerID
-		resume = &doer
+		coveredBy = &doer
+		// The doer earns a skip only for a turn they did not owe. Doing a
+		// chore you passed, or one you were in debt on, settles that instead;
+		// it is your own turn being taken, not a favour. And someone outside
+		// the rotation has no slot to skip (3.1).
+		settling := contains(completed.PendingDebts, doerID) || contains(completed.PassedChain, doerID)
+		if contains(rotation, doerID) && !settling {
+			credits = append(credits, doerID)
+		}
 	}
 
 	queue := debtsAfter(completed, doerID, rotation)
-	if len(queue) > 0 {
-		for i, id := range queue {
-			if away[id] {
-				continue
-			}
-			rest := append(append([]string(nil), queue[:i]...), queue[i+1:]...)
-			// The coverer travels with the debt, so the board can still say why
-			// a chore has come back to this person several occurrences later.
-			return id, resume, rest, resume
+	for i, id := range queue {
+		if away[id] {
+			continue
 		}
-		// 1.5: everyone who owes a turn is away. The debts wait — away is not a
-		// way to discharge one — and the ordinary rotation carries on without
-		// them, rather than parking a live chore on the row of somebody who is
-		// not in the house. Constraint 8 lifts an away member out of every
-		// rotation, and a debt is no exception to that.
-		return nextInRotation(rotation, resumeFrom(rotation, resume, owed), away), resume, queue, nil
+		rest := append(append([]string(nil), queue[:i]...), queue[i+1:]...)
+		return id, credits, rest, coveredBy
 	}
 
-	return nextInRotation(rotation, resumeFrom(rotation, resume, owed), away), nil, nil, nil
+	// No debt to hand back: none at all, or (1.5) everyone who owes one is
+	// away. Debts wait — away is not a way to discharge one — and the ordinary
+	// rotation carries on without them, rather than parking a live chore on
+	// the row of somebody who is not in the house.
+	next, credits := takeTurn(rotation, owed, credits, away)
+	if len(queue) > 0 {
+		return next, credits, queue, nil
+	}
+	return next, credits, nil, nil
+}
+
+// takeTurn walks the rotation on from `from` and returns who lands there, with
+// the credits left over.
+//
+// It steps over anyone away without spending their credit — being away is not
+// a turn taken — and over anyone holding a credit, spending one. Twice round
+// is enough for a skipped person to come back, which is what a two-person
+// rotation needs (1.4, where A, A is the fair answer). If nobody lands, it is
+// nextInRotation's answer.
+func takeTurn(rotation []string, from string, credits []string, away map[string]bool) (string, []string) {
+	left := append([]string(nil), credits...)
+	start := 0
+	for i, id := range rotation {
+		if id == from {
+			start = i + 1
+			break
+		}
+	}
+	for step := 0; step < 2*len(rotation); step++ {
+		candidate := rotation[(start+step)%len(rotation)]
+		if away[candidate] {
+			continue
+		}
+		if i := indexOf(left, candidate); i >= 0 {
+			left = append(left[:i], left[i+1:]...)
+			continue
+		}
+		return candidate, left
+	}
+	return nextInRotation(rotation, from, away), left
+}
+
+func indexOf(ids []string, id string) int {
+	for i, v := range ids {
+		if v == id {
+			return i
+		}
+	}
+	return -1
 }
 
 // everyoneHasPassed reports whether there is nobody left to hand a chore to.
@@ -1453,21 +1506,82 @@ func markChoresNeedingADate(h *ChoreHandler, groupID, userID string, occurrences
 	}
 }
 
+// markPassTargets sets PassTo on the caller's own open rows: who a busy pass
+// would hand each one to, so the confirm can name them before it is sent.
+//
+// The client used to work this out itself, with a copy of the rule. The rule
+// now depends on skip credits, which are not sent to anyone — so the server
+// says the answer instead, and only to the person who could pass. Rows with
+// nobody to pass to (a rotation of one, everyone else away, or a round that has
+// already closed) get nothing, which is what hides the pass.
+//
+// Like markChoresNeedingADate, failures are silent: a missing hint is better
+// than a board that will not load.
+func markPassTargets(h *ChoreHandler, groupID, userID string, occurrences []models.Occurrence) {
+	if userID == "" {
+		return
+	}
+	choreIDs := []string{}
+	for i := range occurrences {
+		o := &occurrences[i]
+		if o.Status == models.OccurrenceOpen && o.AssignedTo == userID && !o.NeedsDate {
+			choreIDs = append(choreIDs, o.ChoreID)
+		}
+	}
+	if len(choreIDs) == 0 {
+		return
+	}
+	away, err := h.awayMembers(groupID)
+	if err != nil {
+		return
+	}
+	rotations, err := h.loadRotations(choreIDs)
+	if err != nil {
+		return
+	}
+	for i := range occurrences {
+		o := &occurrences[i]
+		if o.Status != models.OccurrenceOpen || o.AssignedTo != userID || o.NeedsDate {
+			continue
+		}
+		rotation := rotations[o.ChoreID]
+		if len(rotation) < 2 {
+			continue
+		}
+		receiver := nextCoverer(rotation, o, userID, away)
+		if receiver != "" && receiver != userID {
+			o.PassTo = &receiver
+		}
+	}
+}
+
 // nextCoverer picks who a busy pass hands the chore to.
 //
-// Counted on from the last coverer when there has been one, not from the person
-// passing. Counting from the passer lands on the same neighbour every single
-// time, so one unlucky person absorbs every skip by a serial passer — case 1.3,
-// where covering went B, B, B instead of moving round the household. The last
-// coverer is where the rotation has actually got to.
+// The next person after the holder who is not already owed a skip on this
+// chore. Somebody who has covered it is not asked to cover it again while
+// their credit stands, and that is what spreads a serial passer's skips round
+// the household — case 1.3, B, C, B rather than B, B, B. Asking does not spend
+// the credit; only the ordinary rotation does.
 //
-// The passer is stepped over: handing a chore back to yourself is not a pass.
+// When everyone else is owed a skip, it is the plain walk: the next name after
+// the holder, stepping over the passer, because handing a chore back to
+// yourself is not a pass.
 func nextCoverer(rotation []string, occ *models.Occurrence, passer string, away map[string]bool) string {
-	from := occ.AssignedTo
-	if occ.ResumeAfter != nil && contains(rotation, *occ.ResumeAfter) {
-		from = *occ.ResumeAfter
+	start := 0
+	for i, id := range rotation {
+		if id == occ.AssignedTo {
+			start = i + 1
+			break
+		}
 	}
-	candidate := nextInRotation(rotation, from, away)
+	for step := 0; step < len(rotation); step++ {
+		candidate := rotation[(start+step)%len(rotation)]
+		if away[candidate] || candidate == passer || contains(occ.SkipCredits, candidate) {
+			continue
+		}
+		return candidate
+	}
+	candidate := nextInRotation(rotation, occ.AssignedTo, away)
 	if candidate == passer {
 		candidate = nextInRotation(rotation, passer, away)
 	}
@@ -1665,17 +1779,25 @@ func scanChore(s scanner, c *models.Chore) error {
 }
 
 func scanOccurrence(s scanner, o *models.Occurrence) error {
-	var chain, debts sql.NullString
+	var chain, debts, credits sql.NullString
 	if err := s.Scan(
 		&o.ID, &o.ChoreID, &o.GroupID, &o.AssignedTo, &o.Status,
 		&o.DueDate, &o.DoneBy, &o.DoneAt, &o.CreatedAt, &o.SpawnedFrom, &o.ResumeAfter,
 		&o.PassedFrom, &o.PassedAt, &o.CoveredBy, &o.CoveredByName, &o.ChoreName, &o.DoneLine,
-		&chain, &debts, &o.DoneByName,
+		&chain, &debts, &o.DoneByName, &credits,
 	); err != nil {
 		return err
 	}
 	o.PassedChain = decodeIDs(chain)
 	o.PendingDebts = decodeIDs(debts)
+	o.SkipCredits = decodeIDs(credits)
+
+	// Rows written before skip_credits held the coverer in resume_after,
+	// meaning "the order resumes after them". The nearest thing in the new
+	// rule is a credit for that coverer, which is what this makes it.
+	if len(o.SkipCredits) == 0 && o.ResumeAfter != nil {
+		o.SkipCredits = []string{*o.ResumeAfter}
+	}
 
 	// The migration, done on read rather than as a backfill: a row written
 	// before passed_chain existed carries only passed_from, which describes a
@@ -1796,10 +1918,10 @@ func replaceRotation(tx *sql.Tx, choreID string, rotation []string) error {
 func insertOccurrence(tx *sql.Tx, o models.Occurrence) error {
 	_, err := tx.Exec(
 		`INSERT INTO occurrences (id, chore_id, group_id, assigned_to, status, due_date,
-			spawned_from, resume_after, covered_by, pending_debts, created_at)
+			spawned_from, covered_by, pending_debts, skip_credits, created_at)
 		 VALUES (?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
 		o.ID, o.ChoreID, o.GroupID, o.AssignedTo, o.Status, o.DueDate, o.SpawnedFrom,
-		o.ResumeAfter, o.CoveredBy, encodeIDs(o.PendingDebts),
+		o.CoveredBy, encodeIDs(o.PendingDebts), encodeIDs(o.SkipCredits),
 	)
 	return err
 }

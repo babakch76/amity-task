@@ -385,6 +385,95 @@ func debtsOf(t *testing.T, db *database.DB, occID string) string {
 	return debts.String
 }
 
+// creditsOf reads an occurrence's skip credits straight from the database:
+// like the debts, they are deliberately not on the wire.
+func creditsOf(t *testing.T, db *database.DB, occID string) string {
+	t.Helper()
+	var credits sql.NullString
+	if err := db.QueryRow(`SELECT skip_credits FROM occurrences WHERE id = ?`, occID).Scan(&credits); err != nil {
+		t.Fatalf("reading skip_credits: %v", err)
+	}
+	return credits.String
+}
+
+// B-19. The coverer sits just *before* the person they covered, which none of
+// the cases above have. "Resume after the coverer" then landed straight back
+// on the person who had just repaid, and dd lost a turn. With the skip credit
+// the order carries on after aa, and mm's own slot is the one skipped.
+func TestTurnRule_B19_CovererJustBeforeTheDebtor(t *testing.T) {
+	db := newTestDB(t)
+	dd := newUser(t, db, "dd")
+	mm := newUser(t, db, "mm")
+	aa := newUser(t, db, "aa")
+	bb := newUser(t, db, "bb")
+	g := newGroup(t, db, dd, "Flat")
+	for _, u := range []string{mm, aa, bb} {
+		addMember(t, db, g, u, "member")
+	}
+	name := nameFor(map[string]string{"dd": dd, "mm": mm, "aa": aa, "bb": bb})
+	chore := createChore(t, db, g, dd, fmt.Sprintf(`{
+		"name": "Bathroom", "schedule_type": "interval", "interval_days": 7,
+		"rotation": [%q, %q, %q, %q]
+	}`, dd, mm, aa, bb))
+
+	// dd and mm take their own turns; then mm covers aa's.
+	markDone(t, db, g, theOpenOcc(t, db, g, dd, chore.ID).ID, dd)
+	markDone(t, db, g, theOpenOcc(t, db, g, dd, chore.ID).ID, mm)
+	markDone(t, db, g, theOpenOcc(t, db, g, dd, chore.ID).ID, mm)
+
+	got := []string{}
+	for i := 0; i < 5; i++ {
+		occ := theOpenOcc(t, db, g, dd, chore.ID)
+		got = append(got, name(occ.AssignedTo))
+		markDone(t, db, g, occ.ID, occ.AssignedTo)
+	}
+
+	// aa repays; bb and dd as normal; mm's slot is skipped because mm's
+	// cover was mm's turn; then the plain order again.
+	want := []string{"aa", "bb", "dd", "aa", "bb"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("turns went %v, want %v", got, want)
+	}
+}
+
+// The board names who a pass would go to (pass_to), and it has to be who the
+// pass then actually goes to — including stepping past someone who is already
+// owed a skip, as 1.3 requires. Only the holder is told.
+func TestPassToNamesTheRealReceiver(t *testing.T) {
+	db, g, a, b, c, chore, name := threePersonChore(t, "interval")
+
+	passOK(t, db, g, theOpenOcc(t, db, g, a, chore.ID).ID, a)
+	markDone(t, db, g, theOpenOcc(t, db, g, a, chore.ID).ID, b) // B covers: B is owed a skip.
+
+	var mine, theirs *models.Occurrence
+	for _, o := range listOccurrences(t, db, g, a) {
+		if o.ChoreID == chore.ID && o.Status == models.OccurrenceOpen {
+			o := o
+			mine = &o
+		}
+	}
+	for _, o := range listOccurrences(t, db, g, b) {
+		if o.ChoreID == chore.ID && o.Status == models.OccurrenceOpen {
+			o := o
+			theirs = &o
+		}
+	}
+	if mine == nil || mine.AssignedTo != a {
+		t.Fatalf("the debt should be back with A")
+	}
+	if mine.PassTo == nil || *mine.PassTo != c {
+		t.Fatalf("pass_to: got %v, want C — B already covered and is owed a skip", mine.PassTo)
+	}
+	if theirs.PassTo != nil {
+		t.Errorf("pass_to was sent to %s, who does not hold the chore", name(b))
+	}
+
+	passOK(t, db, g, mine.ID, a)
+	if got := theOpenOcc(t, db, g, a, chore.ID).AssignedTo; got != c {
+		t.Errorf("the pass went to %s, not the C the board promised", name(got))
+	}
+}
+
 // 3.1 Anyone in the household may mark any chore done, including someone who is
 // not in that chore's rotation at all. "Resume after the doer" then means
 // nothing, so the order resumes after the person who owed the turn instead.

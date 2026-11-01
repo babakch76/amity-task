@@ -421,6 +421,11 @@ func addMissingColumns(db *sql.DB) error {
 		// their place in the queue while the ordinary rotation carries on without
 		// them.
 		{table: "occurrences", name: "pending_debts", ddl: `ALTER TABLE occurrences ADD COLUMN pending_debts TEXT`},
+		// The other half of a debt: everyone who covered a turn they did not
+		// owe and has not yet had their own next slot skipped for it. Carried
+		// forward with the debts, and like them a list, because credits can
+		// stand for several cycles. Replaces resume_after (BACKLOG B-19).
+		{table: "occurrences", name: "skip_credits", ddl: `ALTER TABLE occurrences ADD COLUMN skip_credits TEXT`},
 		{table: "users", name: "quiet_from", ddl: `ALTER TABLE users ADD COLUMN quiet_from TEXT NOT NULL DEFAULT '21:00'`},
 		{table: "users", name: "quiet_to", ddl: `ALTER TABLE users ADD COLUMN quiet_to TEXT NOT NULL DEFAULT '09:00'`},
 	}

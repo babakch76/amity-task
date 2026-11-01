@@ -243,7 +243,7 @@ internal fun OccurrenceDetailHost(
     // unless somebody said so.
     controller.passCandidate?.let { occ ->
         val chore = state.chores.firstOrNull { it.id == occ.choreId }
-        val receiver = nextInRotationAfter(chore, occ, state.members)
+        val receiver = passReceiver(occ, state.members)
         if (receiver == null) {
             // Nobody to pass to. Nothing to confirm, so say why rather than
             // showing a dialog with an empty name in it.

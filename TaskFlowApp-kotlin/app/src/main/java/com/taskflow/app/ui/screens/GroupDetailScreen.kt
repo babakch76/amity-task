@@ -883,11 +883,7 @@ private fun TaskList(
                     // nowhere to send it, and offering the gesture there would
                     // promise a hand-off that came straight back.
                     canPass = (row as? BoardRow.OccurrenceRow)?.let { occRow ->
-                        nextInRotationAfter(
-                            chores.firstOrNull { it.id == occRow.occurrence.choreId },
-                            occRow.occurrence,
-                            members,
-                        ) != null
+                        passReceiver(occRow.occurrence, members) != null
                     } == true,
                     passedByMe = (row as? BoardRow.OccurrenceRow)
                         ?.occurrence?.passedFrom == myUserId && myUserId != null,

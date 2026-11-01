@@ -10,48 +10,19 @@ import java.time.OffsetDateTime
 import java.time.ZoneId
 
 /**
- * Who a busy pass would hand this occurrence to.
+ * Who a busy pass would hand this occurrence to, so the confirm can name them
+ * before the request is sent.
  *
- * The same walk the server does: the next name in the rotation after the
- * current holder, skipping anyone who is away, wrapping round. It is computed
- * here only so the confirmation can name the person before the request is sent
- * — the server remains the authority, and it recomputes this on arrival.
+ * The server's answer ([Occurrence.passTo]), not a prediction: who is next
+ * depends on who is owed a skip for covering, which the phone is not told, and
+ * a copy of the rule here is how the dialog comes to promise one person while
+ * the pass goes to another.
  *
- * Null when there is nobody to pass to: a rotation of one, or a household where
- * everybody else is away. The button is hidden in that case rather than offering
- * a pass that would come straight back.
+ * Null when there is nobody to pass to. The button is hidden in that case
+ * rather than offering a pass that would come straight back.
  */
-fun nextInRotationAfter(
-    chore: Chore?,
-    occurrence: Occurrence,
-    members: List<MemberInfo>,
-): MemberInfo? {
-    val rotation = chore?.rotation.orEmpty()
-    if (rotation.size < 2) return null
-
-    // Count on from whoever last covered, not from whoever is holding it.
-    //
-    // This mirrors nextCoverer on the server, and it has to: the dialog names
-    // the receiver before the request is sent, so if the two disagree the
-    // dialog promises one person and the board shows another. Counting from
-    // the holder is what made every skip by a serial passer land on the same
-    // neighbour, and it is the version this used to have.
-    val from = occurrence.resumeAfter?.takeIf { it in rotation } ?: occurrence.assignedTo
-    val start = rotation.indexOf(from)
-    if (start < 0) return null
-
-    val away = members.filter { it.away }.map { it.id }.toSet()
-    for (step in 1..rotation.size) {
-        val candidate = rotation[(start + step) % rotation.size]
-        // Handing a chore back to yourself is not a pass, so step over the
-        // person doing the passing rather than stopping at them.
-        if (candidate == occurrence.assignedTo) continue
-        if (candidate !in away) {
-            return members.firstOrNull { it.id == candidate }
-        }
-    }
-    return null
-}
+fun passReceiver(occurrence: Occurrence, members: List<MemberInfo>): MemberInfo? =
+    occurrence.passTo?.let { id -> members.firstOrNull { it.id == id } }
 
 /**
  * The second line of the pass confirmation: what the receiver will be told.

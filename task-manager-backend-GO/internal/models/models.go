@@ -180,14 +180,11 @@ type Occurrence struct {
 	// SpawnedFrom is the occurrence whose completion created this one. Undoing
 	// that completion removes this occurrence again.
 	SpawnedFrom *string `json:"spawned_from,omitempty"`
-	// ResumeAfter is set only on a debt occurrence — one handed back because
-	// somebody else did the last turn on the assignee's behalf. It holds the
-	// coverer, after whom the rotation continues once this one is repaid.
-	//
-	// Its presence is what makes a row "yours because someone covered for you",
-	// which is a fact the board could show but deliberately does not: the debt
-	// is a scheduling rule, not something to caption on a person's row.
-	ResumeAfter *string `json:"resume_after,omitempty"`
+	// ResumeAfter is legacy and no longer written. Rows from before
+	// SkipCredits hold the coverer here, meaning "the rotation resumes after
+	// them"; scanOccurrence reads it as a credit for that coverer instead,
+	// which is the rule that replaced it (BACKLOG B-19).
+	ResumeAfter *string `json:"-"`
 	// PassedFrom is whoever passed this occurrence away (F5). The debt stays
 	// with them through a chain of passes: passing on is declining a favour,
 	// not a duty, so it does not move the turn onto the person who declined.
@@ -212,6 +209,15 @@ type Occurrence struct {
 	// the only part anyone else needs: whose name is on the row.
 	PassedChain  []string `json:"-"`
 	PendingDebts []string `json:"-"`
+	// SkipCredits is everyone who covered a turn they did not owe and has
+	// not yet had their own next slot skipped for it — the other half of a
+	// debt (see nextTurn). Not on the wire either, for the same reason.
+	SkipCredits []string `json:"-"`
+
+	// PassTo is who a busy pass would hand this to, sent only on the
+	// holder's own open rows so the confirm can name them. Computed by the
+	// server because it depends on the credits, which the client is not sent.
+	PassTo *string `json:"pass_to,omitempty"`
 
 	// NeedsDate is set when everybody who could take this chore has passed it,
 	// so it has come back to whoever asked first and they are the one to say

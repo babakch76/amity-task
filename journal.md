@@ -54,6 +54,12 @@ colleague, and a six-screen redesign concept from someone else.
   by someone" (B-22) — and two left open (B-23, B-24). `INTERVIEWS.md` keeps
   the old file names on purpose: it records what participants were shown, and
   now says how to restore that set from git.
+- **Turn rule changed (B-19).** Mehrdad chose "skip the coverer once" over
+  "resume after the coverer". A cover now leaves a debt and a credit
+  (`skip_credits`); the order carries on after whoever owed it, and the
+  coverer's own next slot is skipped. All spec cases still pass; the server
+  now sends `pass_to` so the phone no longer carries a copy of the rule.
+  Verified on the real `home` bathroom: aa repaid mm's cover, bb is next.
 - **Not taken from the concept:** Google / emailed-link sign-in (01), the group
   list as home (03, contradicts 2026-09-13), group settings with archive /
   delete / transfer (06), the setup checklist (02).

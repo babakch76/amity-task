@@ -82,8 +82,14 @@ Violating one of these is a bug, no matter how good the feature is.
   recurs).
 - **The turn rule:** a chore done by anybody other than the person whose turn it
   was counts as **the doer's** turn. The next one goes back to the person who
-  owed it, and rotation resumes **after the doer**. A cover is a one-cycle swap,
-  not a favour and not a compounding debt.
+  owed it (a **debt**), the rotation carries on **after them**, and the doer's
+  own next slot is **skipped once** (a **credit**, `occurrences.skip_credits`).
+  A cover is a one-cycle swap, not a favour and not a compounding debt. This
+  replaced "resume after the doer" on 2026-11-01 — the spec still says that;
+  `BACKLOG.md` B-19 records why it was unfair whenever the doer was not next.
+- **Who a pass goes to is the server's answer** (`pass_to`, on the holder's own
+  rows): the next person not already owed a skip. The client never predicts
+  it — credits are not on the wire.
 - **Every passer owes one**, repaid oldest first; a person is owed at most one
   turn per chore however many times they passed.
 - **Away holds a debt**, does not cancel it. **A debt belongs to a person, not a

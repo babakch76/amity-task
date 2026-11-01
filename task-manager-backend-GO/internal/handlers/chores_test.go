@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -1116,8 +1117,8 @@ func TestCoverCountsAsTheDoersTurnAndHandsTheChoreBack(t *testing.T) {
 		t.Fatalf("turn 2 went to %s; a cover must hand the chore back to ann, who still owes one",
 			names[turn2.AssignedTo])
 	}
-	if turn2.ResumeAfter == nil || *turn2.ResumeAfter != bo {
-		t.Fatalf("turn 2 should resume after bo, got %v", turn2.ResumeAfter)
+	if got := creditsOf(t, db, turn2.ID); got != bo {
+		t.Fatalf("turn 2 should carry bo's skip for covering, got %q", got)
 	}
 
 	// ann repays it herself.
@@ -1127,11 +1128,11 @@ func TestCoverCountsAsTheDoersTurnAndHandsTheChoreBack(t *testing.T) {
 
 	turn3 := only()
 	if turn3.AssignedTo != cass {
-		t.Fatalf("turn 3 went to %s, want cass — the rotation resumes after the coverer, not after ann",
+		t.Fatalf("turn 3 went to %s, want cass — after ann comes bo, who is skipped once for covering",
 			names[turn3.AssignedTo])
 	}
-	if turn3.ResumeAfter != nil {
-		t.Errorf("turn 3 is an ordinary turn and should carry no resume point, got %v", turn3.ResumeAfter)
+	if got := creditsOf(t, db, turn3.ID); got != "" {
+		t.Errorf("bo's skip should be spent by turn 3, got credits %q", got)
 	}
 
 	// And from here the rotation is back to normal.
@@ -1195,8 +1196,8 @@ func TestCompletingYourOwnTurnLeavesNoDebt(t *testing.T) {
 	if next.AssignedTo != bo {
 		t.Errorf("turn went to %s, want bo", next.AssignedTo)
 	}
-	if next.ResumeAfter != nil {
-		t.Errorf("an ordinary completion must not create a debt, got resume_after=%v", next.ResumeAfter)
+	if got := creditsOf(t, db, next.ID); got != "" {
+		t.Errorf("an ordinary completion must not credit anybody, got %q", got)
 	}
 }
 
@@ -1228,75 +1229,116 @@ func TestUndoingACoverRemovesTheDebt(t *testing.T) {
 	if open[0].ID != first.ID || open[0].AssignedTo != ann {
 		t.Errorf("undo did not restore the original turn: id=%s assignee=%s", open[0].ID, open[0].AssignedTo)
 	}
-	if open[0].ResumeAfter != nil {
-		t.Errorf("the restored occurrence should carry no debt, got %v", open[0].ResumeAfter)
+	if got := creditsOf(t, db, open[0].ID); got != "" {
+		t.Errorf("the restored occurrence should carry no credit, got %q", got)
 	}
 }
 
-// nextTurn in isolation, including the case the worked example exists to pin.
+// nextTurn in isolation, including the cases the worked example exists to pin
+// and the two (B-19) that "resume after the coverer" got wrong.
 func TestNextTurn(t *testing.T) {
-	rotation := []string{"ann", "bo", "cass"}
-	resume := func(s string) *string { return &s }
+	three := []string{"ann", "bo", "cass"}
 
 	cases := []struct {
-		name           string
-		assignedTo     string
-		resumeAfter    *string
-		doer           string
-		wantAssignee   string
-		wantResumeAfte *string
+		name         string
+		rotation     []string
+		assignedTo   string
+		credits      []string
+		doer         string
+		wantAssignee string
+		wantCredits  []string
 	}{
 		{
 			name:         "own turn advances normally",
+			rotation:     three,
 			assignedTo:   "ann",
 			doer:         "ann",
 			wantAssignee: "bo",
 		},
 		{
-			name:           "a cover hands it back and remembers the coverer",
-			assignedTo:     "ann",
-			doer:           "bo",
-			wantAssignee:   "ann",
-			wantResumeAfte: resume("bo"),
+			name:         "a cover hands it back and credits the coverer",
+			rotation:     three,
+			assignedTo:   "ann",
+			doer:         "bo",
+			wantAssignee: "ann",
+			wantCredits:  []string{"bo"},
 		},
 		{
-			name:         "repaying a debt resumes after the coverer",
+			name:         "repaying a debt skips the coverer once",
+			rotation:     three,
 			assignedTo:   "ann",
-			resumeAfter:  resume("bo"),
+			credits:      []string{"bo"},
 			doer:         "ann",
 			wantAssignee: "cass",
 		},
 		{
-			name:           "a debt covered again stays with the same person",
-			assignedTo:     "ann",
-			resumeAfter:    resume("bo"),
-			doer:           "cass",
-			wantAssignee:   "ann",
-			wantResumeAfte: resume("cass"),
+			name:         "a debt covered again stays with the same person",
+			rotation:     three,
+			assignedTo:   "ann",
+			credits:      []string{"bo"},
+			doer:         "cass",
+			wantAssignee: "ann",
+			wantCredits:  []string{"bo", "cass"},
 		},
 		{
 			name:         "the last in the rotation wraps to the first",
+			rotation:     three,
 			assignedTo:   "cass",
 			doer:         "cass",
 			wantAssignee: "ann",
+		},
+		{
+			// B-19: mm covered aa, sitting just before her. Resuming after
+			// mm handed it straight back to aa. Now the order carries on after
+			// aa, and mm's skip waits for mm's own slot.
+			name:         "a coverer just before the debtor is skipped at their own slot",
+			rotation:     []string{"dd", "mm", "aa", "bb"},
+			assignedTo:   "aa",
+			credits:      []string{"mm"},
+			doer:         "aa",
+			wantAssignee: "bb",
+			wantCredits:  []string{"mm"},
+		},
+		{
+			name:         "and when that slot comes, it is skipped",
+			rotation:     []string{"dd", "mm", "aa", "bb"},
+			assignedTo:   "dd",
+			credits:      []string{"mm"},
+			doer:         "dd",
+			wantAssignee: "aa",
+		},
+		{
+			// B-19: C covered A in [A, B, C, D]. Resuming after C jumped to
+			// D, and B lost a turn.
+			name:         "nobody between the debtor and the coverer loses a turn",
+			rotation:     []string{"A", "B", "C", "D"},
+			assignedTo:   "A",
+			credits:      []string{"C"},
+			doer:         "A",
+			wantAssignee: "B",
+			wantCredits:  []string{"C"},
+		},
+		{
+			// 1.4: in a pair, A, A is the fair answer after B covers.
+			name:         "two people: the skip comes straight back round",
+			rotation:     []string{"A", "B"},
+			assignedTo:   "A",
+			credits:      []string{"B"},
+			doer:         "A",
+			wantAssignee: "A",
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			completed := &models.Occurrence{AssignedTo: tc.assignedTo, ResumeAfter: tc.resumeAfter}
-			gotAssignee, gotResume, _, _ := nextTurn(rotation, completed, tc.doer, nil)
+			completed := &models.Occurrence{AssignedTo: tc.assignedTo, SkipCredits: tc.credits}
+			gotAssignee, gotCredits, _, _ := nextTurn(tc.rotation, completed, tc.doer, nil)
 
 			if gotAssignee != tc.wantAssignee {
 				t.Errorf("assignee: got %s, want %s", gotAssignee, tc.wantAssignee)
 			}
-			switch {
-			case tc.wantResumeAfte == nil && gotResume != nil:
-				t.Errorf("resume_after: got %s, want none", *gotResume)
-			case tc.wantResumeAfte != nil && gotResume == nil:
-				t.Errorf("resume_after: got none, want %s", *tc.wantResumeAfte)
-			case tc.wantResumeAfte != nil && *gotResume != *tc.wantResumeAfte:
-				t.Errorf("resume_after: got %s, want %s", *gotResume, *tc.wantResumeAfte)
+			if strings.Join(gotCredits, ",") != strings.Join(tc.wantCredits, ",") {
+				t.Errorf("credits: got %v, want %v", gotCredits, tc.wantCredits)
 			}
 		})
 	}
@@ -1416,8 +1458,8 @@ func TestPassingDefersTheTurnItDoesNotDeleteIt(t *testing.T) {
 		t.Fatalf("turn 2 went to %s; a pass defers ann's turn, it does not delete it",
 			names[turn2.AssignedTo])
 	}
-	if turn2.ResumeAfter == nil || *turn2.ResumeAfter != bo {
-		t.Fatalf("turn 2 should resume after bo, got %v", turn2.ResumeAfter)
+	if got := creditsOf(t, db, turn2.ID); got != bo {
+		t.Fatalf("turn 2 should carry bo's skip for covering, got %q", got)
 	}
 
 	patchOccurrence(t, db, groupID, turn2.ID, ann, "done")
@@ -1471,11 +1513,10 @@ func TestAChainOfPassesRepaysTheFirstPasserFirst(t *testing.T) {
 	}
 	// The assignee alone does not prove the debt was honoured: with this
 	// rotation, "the person after cass" is also ann, so a build that had lost
-	// passed_from entirely would still land on her. resume_after is what
-	// distinguishes the two — it is only set when the completion was a cover.
-	if next.ResumeAfter == nil || *next.ResumeAfter != cass {
-		t.Errorf("resume_after: got %v, want cass — this was a cover, not cass's own turn",
-			next.ResumeAfter)
+	// passed_from entirely would still land on her. cass's skip credit is what
+	// distinguishes the two — it is only earned when the completion was a cover.
+	if got := creditsOf(t, db, next.ID); got != cass {
+		t.Errorf("credits: got %q, want cass — this was a cover, not cass's own turn", got)
 	}
 }
 

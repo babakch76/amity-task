@@ -910,7 +910,7 @@ ViewModel, which nothing in My chores listened to; it is now passed to the
 shell's snackbar, and My chores waits for the request to answer before it
 unmounts the sheet. Checked on the phone: open, mark done, message, undo.
 
-### B-19 · "Resume after the coverer" is only fair when the coverer sits just after — OPEN (2026-11-01)
+### B-19 · "Resume after the coverer" is only fair when the coverer sits just after — DONE (2026-11-01)
 
 **Seen:** `home`'s bathroom, rotation dd → mm → aa → bb. mm covered aa's
 turn, aa repaid it, and the next turn went straight back to aa (*"bathroom
@@ -940,6 +940,32 @@ pass's receiver (`nextInRotationAfter`), and the spec's tests are written in
 the current wording. A first attempt — "whoever just did it is never next" —
 was wrong: it breaks 1.4, where two in a row is the fair answer. This wants a
 decision on the rule before code; the table above is the test list.
+
+**Decided and fixed (same day, Mehrdad's call): "skip the coverer once".**
+A cover now leaves a debt for whoever owed the turn *and* a **credit** for
+whoever covered (`occurrences.skip_credits`, carried forward like
+`pending_debts`). After the debt is repaid the order carries on after the
+person who owed it, and the coverer's next slot is skipped, spending the
+credit. Details that make it hold up:
+
+- **No credit for settling your own debt** — doing a chore you passed, or one
+  you were already owed on, pays that off instead.
+- **No credit outside the rotation**, and credits for someone who has left it
+  are dropped (3.1, 3.2).
+- **Away does not spend a credit.** Being away is not a turn taken.
+- **A pass goes to the next person not already owed a skip**, which is what
+  keeps 1.3's B, C, B; asking does not spend the credit.
+- **`pass_to` is computed by the server** and sent on the holder's own rows.
+  The client's copy of the rule (`nextInRotationAfter`) is gone: it would
+  have needed the credits, which are not sent to anyone.
+- **Old rows** still holding `resume_after` are read as a credit for that
+  coverer; the column is no longer written.
+
+Every spec case (1.1–3.7, the all-busy cases) passes unchanged; new tests pin
+the two cases above (`TestNextTurn`, `TestTurnRule_B19_…`) and `pass_to`. On
+the real `home` data, aa repaying mm's cover now gives *"bathroom done. bb is
+next."* The spec's wording ("continues after the doer") is left as the record
+of what was asked; `FEATURES.md` and `CLAUDE.md` state the rule as built.
 
 ### B-17 · Two "done" at once spawned two next turns — DONE (2026-11-01)
 

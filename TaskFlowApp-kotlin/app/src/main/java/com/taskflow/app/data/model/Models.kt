@@ -191,17 +191,17 @@ data class Occurrence(
     @SerializedName("passed_from")
     val passedFrom: String? = null,
     /**
-     * Where this chore's rotation picks up once every owed turn is repaid, and
-     * equally who covered the turn that put it here.
+     * Who a busy pass would hand this to. Sent only on your own open rows,
+     * and null when there is nobody to pass to — a rotation of one, everyone
+     * else away, or a round that has already closed.
      *
-     * Needed on the client for one reason only: predicting who a busy pass
-     * would go to, which the confirm dialog has to name before the request is
-     * sent. The rotation counts on from here rather than from whoever is
-     * holding the chore, so that a serial passer's skips spread round the
-     * household instead of landing on the same neighbour every time.
+     * The server works it out because it depends on who is owed a skip for
+     * covering, which is not sent to anyone. The phone used to predict it with
+     * its own copy of the rule, and a copy is how the confirm comes to name
+     * one person while the pass goes to another.
      */
-    @SerializedName("resume_after")
-    val resumeAfter: String? = null,
+    @SerializedName("pass_to")
+    val passTo: String? = null,
     /** When it last changed hands — when it became the current holder's turn. */
     @SerializedName("passed_at")
     val passedAt: OffsetDateTime? = null,

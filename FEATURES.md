@@ -148,11 +148,22 @@ doing someone else's chore, a **busy pass**, and the overflowing bin somebody
 else finally emptied. All three are a **cover**.
 
 > A chore done by anybody other than the person whose turn it was counts as
-> **the doer's** turn. The next one goes back to the person who owed it, and the
-> rotation then resumes **after the doer**.
+> **the doer's** turn. The next one goes back to the person who owed it, the
+> rotation carries on after them, and **the doer's own next slot is skipped
+> once**.
 
 So a cover is not a favour that vanishes and not a debt that compounds. It is a
-swap: two people exchange places for one cycle.
+swap: two people exchange places for one cycle, and everybody still does one
+turn a round. In *dd → mm → aa → bb*, with mm covering aa: aa repays, then bb,
+then dd, then mm's slot is skipped, and the plain order resumes.
+
+(Until 2026-11-01 the order resumed *after the doer*. That is the same thing
+when the doer happens to come next, and unfair otherwise — someone went twice
+and someone else lost a turn. `BACKLOG.md` B-19 has the cases.)
+
+**A pass goes to the next person not already owed a skip**, so a serial
+passer's skips spread round the household instead of landing on the same
+neighbour. The confirm names them before you send it.
 
 **Every passer owes one.** If A passes to B and B passes on to C, both A and B
 owe a turn, repaid oldest first. A person is only ever owed **one** turn per
