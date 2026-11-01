@@ -226,6 +226,11 @@ type Occurrence struct {
 	CoveredBy     *string `json:"covered_by,omitempty"`
 	CoveredByName *string `json:"covered_by_name,omitempty"`
 
+	// DoneByName is the doer's display name, joined in. A screen that shows
+	// your turns across households (My chores) has no member list to look the
+	// doer up in, and printed "Done by someone" for a turn a flatmate covered.
+	DoneByName *string `json:"done_by_name,omitempty"`
+
 	// ChoreName and DoneLine are joined in so the board can render a row
 	// without a second round trip per occurrence.
 	ChoreName string `json:"chore_name"`

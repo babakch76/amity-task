@@ -606,7 +606,9 @@ private fun TurnCard(
         // actually ticked it. Your own turn covered by a flatmate is an event
         // on your row, not a report on their workload — which is what the
         // never-list is guarding against.
-        doneByName = if (occurrence.doneBy == myUserId) myName else occurrence.coveredByName,
+        // coveredByName is set on the turn *after* a cover, never on the one
+        // that was covered, so it printed "Done by someone" here.
+        doneByName = if (occurrence.doneBy == myUserId) myName else occurrence.doneByName,
         coveredByName = occurrence.coveredByName,
         needsDate = occurrence.needsDate,
         passedByMe = false,

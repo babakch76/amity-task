@@ -226,6 +226,9 @@ data class Occurrence(
     val coveredBy: String? = null,
     @SerializedName("covered_by_name")
     val coveredByName: String? = null,
+    /** The doer's name, joined in, for screens with no member list to look it up in. */
+    @SerializedName("done_by_name")
+    val doneByName: String? = null,
     /** Joined in by the backend so a row renders without a second round trip. */
     @SerializedName("chore_name")
     val choreName: String = "",

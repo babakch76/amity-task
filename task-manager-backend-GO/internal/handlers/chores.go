@@ -36,13 +36,14 @@ const choreColumns = `id, group_id, name, done_line, schedule_type, interval_day
 const occurrenceColumns = `o.id, o.chore_id, o.group_id, o.assigned_to, o.status,
 	o.due_date, o.done_by, o.done_at, o.created_at, o.spawned_from, o.resume_after,
 	o.passed_from, o.passed_at, o.covered_by, cov.username, c.name, c.done_line,
-	o.passed_chain, o.pending_debts`
+	o.passed_chain, o.pending_debts, doer.username`
 
-// occurrenceJoins go with occurrenceColumns. The coverer join is LEFT: almost
-// every occurrence has no coverer, and an INNER join would quietly drop every
-// row that was not handed back.
+// occurrenceJoins go with occurrenceColumns. The coverer and doer joins are
+// LEFT: almost every occurrence has no coverer, an open one has no doer, and an
+// INNER join would quietly drop every such row.
 const occurrenceJoins = `JOIN chores c ON c.id = o.chore_id
-	LEFT JOIN users cov ON cov.id = o.covered_by`
+	LEFT JOIN users cov ON cov.id = o.covered_by
+	LEFT JOIN users doer ON doer.id = o.done_by`
 
 // undoWindow is how long after marking an occurrence done it can still be taken
 // back, and only by the person who marked it. Anything older is history, and
@@ -1669,7 +1670,7 @@ func scanOccurrence(s scanner, o *models.Occurrence) error {
 		&o.ID, &o.ChoreID, &o.GroupID, &o.AssignedTo, &o.Status,
 		&o.DueDate, &o.DoneBy, &o.DoneAt, &o.CreatedAt, &o.SpawnedFrom, &o.ResumeAfter,
 		&o.PassedFrom, &o.PassedAt, &o.CoveredBy, &o.CoveredByName, &o.ChoreName, &o.DoneLine,
-		&chain, &debts,
+		&chain, &debts, &o.DoneByName,
 	); err != nil {
 		return err
 	}

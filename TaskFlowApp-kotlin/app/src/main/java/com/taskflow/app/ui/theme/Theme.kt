@@ -1,11 +1,16 @@
 package com.taskflow.app.ui.theme
 
+import android.app.Activity
+import android.content.ContextWrapper
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 
 // ─── Brand Colors ──────────────────────────────────────────────
 private val Violet400 = Color(0xFFA78BFA)
@@ -67,6 +72,23 @@ fun TaskFlowTheme(
         }
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
+    }
+
+    // The status and navigation bar icons follow the theme the app is actually
+    // drawing, not the phone's. enableEdgeToEdge() picks them from the system
+    // setting, so Appearance → Dark on a phone in light mode left dark icons on
+    // the dark background — the clock and battery all but gone.
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            var context = view.context
+            while (context is ContextWrapper && context !is Activity) context = context.baseContext
+            val window = (context as? Activity)?.window ?: return@SideEffect
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = !darkTheme
+                isAppearanceLightNavigationBars = !darkTheme
+            }
+        }
     }
 
     MaterialTheme(
