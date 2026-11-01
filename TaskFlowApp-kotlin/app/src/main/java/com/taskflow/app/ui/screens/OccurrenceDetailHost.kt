@@ -108,7 +108,7 @@ internal fun OccurrenceDetailHost(
             // that the correction landed.
             onMarkDone = {
                 controller.occurrenceId = null
-                viewModel.toggleOccurrenceDone(occ)
+                viewModel.toggleOccurrenceDone(occ, myUserId)
             },
             onUndoDone = { viewModel.toggleOccurrenceDone(occ) },
             onAddAlso = { viewModel.addAlso(occ) },

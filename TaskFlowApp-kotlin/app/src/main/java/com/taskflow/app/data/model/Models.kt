@@ -174,6 +174,13 @@ data class Occurrence(
     @SerializedName("created_at")
     val createdAt: OffsetDateTime? = null,
     /**
+     * The occurrence whose completion created this one. It is how the client
+     * knows who is next after a completion without predicting it: the server
+     * applied the turn rule, and this is the turn it produced.
+     */
+    @SerializedName("spawned_from")
+    val spawnedFrom: String? = null,
+    /**
      * The **first** person to pass this occurrence away, if anyone did (F5).
      *
      * Every passer in a chain owes a turn back, and they are repaid in the

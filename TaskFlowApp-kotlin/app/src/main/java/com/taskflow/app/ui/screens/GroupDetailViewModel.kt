@@ -84,6 +84,12 @@ data class GroupDetailUiState(
      * its own window, so this is the offer and not the permission.
      */
     val undoablePass: String? = null,
+    /**
+     * The occurrence a just-shown "done" message can still undo — the same
+     * offer as [undoablePass], for a completion. The server's ten-minute
+     * window is the permission; this is only the button.
+     */
+    val undoableDone: String? = null,
     /** Set after generating a shareable invite code, so the UI can display it. */
     val inviteCode: String? = null,
     /** Flipped once the user has left the group, so the screen can navigate away. */
@@ -369,7 +375,9 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
         // The offer goes with the message it belonged to. A stale Undo sitting
         // on the next snackbar would be a button that reassigns a chore
         // nobody was talking about.
-        _uiState.value = _uiState.value.copy(message = null, undoablePass = null)
+        _uiState.value = _uiState.value.copy(
+            message = null, undoablePass = null, undoableDone = null,
+        )
     }
 
     fun dismissInviteCode() {
@@ -432,10 +440,48 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
      * unless the caller marked it and is inside the ten-minute window, so a
      * stale screen produces a clear message rather than a silent no-op.
      */
-    fun toggleOccurrenceDone(occurrence: Occurrence) {
-        val target = if (occurrence.isOpen) "done" else "open"
-        runAction(successMessage = if (target == "done") "Marked done" else "Completion undone") {
-            api.updateOccurrence(groupId, occurrence.id, UpdateOccurrenceRequest(status = target))
+    fun toggleOccurrenceDone(occurrence: Occurrence, myUserId: String? = null) {
+        if (!occurrence.isOpen) {
+            runAction(successMessage = "Completion undone") {
+                api.updateOccurrence(groupId, occurrence.id, UpdateOccurrenceRequest(status = "open"))
+            }
+            return
+        }
+        runAction(
+            // One state write for the message and its Undo, for the reason
+            // given in passOccurrence.
+            onResult = { failure ->
+                _uiState.value = _uiState.value.copy(
+                    message = failure ?: doneMessage(occurrence, myUserId),
+                    undoableDone = if (failure == null) occurrence.id else null,
+                )
+            },
+        ) {
+            api.updateOccurrence(groupId, occurrence.id, UpdateOccurrenceRequest(status = "done"))
+        }
+    }
+
+    /**
+     * "Trash done. bb is next." — read off the turn the server just spawned
+     * (it has refreshed by the time this runs), never predicted here: the
+     * client does not hold the debts and passes that decide it, deliberately.
+     * A one-off spawns nothing, so it has no "next".
+     */
+    private fun doneMessage(occurrence: Occurrence, myUserId: String?): String {
+        val done = "${occurrence.choreName} done."
+        val next = _uiState.value.occurrences.firstOrNull { it.spawnedFrom == occurrence.id }
+            ?: return done
+        if (next.assignedTo == myUserId) return "$done You're next."
+        val name = _uiState.value.members.firstOrNull { it.id == next.assignedTo }?.username
+            ?: return done
+        return "$done $name is next."
+    }
+
+    /** Take back the completion the snackbar is offering to undo. */
+    fun undoDone(occurrenceId: String) {
+        _uiState.value = _uiState.value.copy(undoableDone = null)
+        runAction(successMessage = "Completion undone") {
+            api.updateOccurrence(groupId, occurrenceId, UpdateOccurrenceRequest(status = "open"))
         }
     }
 

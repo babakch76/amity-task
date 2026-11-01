@@ -23,10 +23,17 @@ colleague, and a six-screen redesign concept from someone else.
   and in history, two feed phrasings. The three time windows in
   `OccurrenceDetailHost` now share one `openUntil` helper instead of one
   hand-written coroutine each. Checked end to end against a throwaway database.
-- **Next, in order:** the board's next-turn line, rotation preview, recent
-  completions and *"… is next · Undo"* snackbar (concept screen 04); names,
-  Owner / Away badges and invites in the Members tab (screen 05, without the
-  share link).
+- **Fixed on the way:** two "done" at once spawned two next turns (B-17), which
+  is how Trash had three open turns; detail-sheet times were UTC (B-18). The
+  test household's stale Trash turns were deleted and a pasted login removed
+  from its done-line, with the owner's go-ahead.
+- **Screen 04 — done.** Snackbar *"… done. bb is next."* + Undo, the rotation
+  in the sheet, *RECENTLY DONE* (seven days, newest first). All checked on
+  the phone, including Undo from the snackbar. Not taken: a forecast of who
+  is next on the row, a mark-done button on the row, the counter, the live
+  badge — reasons in `BACKLOG.md`.
+- **Next:** names, Owner / Away badges and invites in the Members tab
+  (screen 05, without the share link).
 - **Not taken from the concept:** Google / emailed-link sign-in (01), the group
   list as home (03, contradicts 2026-09-13), group settings with archive /
   delete / transfer (06), the setup checklist (02).

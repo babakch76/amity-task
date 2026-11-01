@@ -37,7 +37,7 @@ Rows are grouped by **whose it is**, not by status:
 |---|---|
 | **YOURS** | Open rows assigned to you |
 | **OTHERS** | Open rows assigned to anybody else |
-| **DONE THIS CYCLE** | Completed rows, with who did it and when |
+| **RECENTLY DONE** | Completions from the last seven days, newest first, with who did it (and who else worked on it) and when. Older ones are in each chore's History and in Activity. |
 
 Each row is three lines: **what it is**, **how it recurs and when it is wanted**,
 and **whose turn it is**. For example:
@@ -85,6 +85,15 @@ shows who did it and when, and nothing more.
 **Swipe right is the one shortcut**, and the only thing that still asks: it
 completes a turn without opening it, so it puts up a short sheet quoting the
 done-line first. Swipe left still passes.
+
+**After a completion the board says who is next** — *"Trash done. bb is next."*,
+or *"You're next."* — with **Undo** on the same snackbar. The name is read off
+the turn the server just created, not predicted on the phone, so it is always
+the one the turn rule actually chose. A one-off just says it is done.
+
+**The sheet shows the rotation** as the chore defines it — *Takes turns: dd →
+mm → You → bb*. It is the order, not a forecast: who is next after the current
+turn depends on covers and passes the app deliberately does not show anyone.
 
 **Tabs are Board, Activity and Members.** There is no calendar; see
 [`calendar_decision_record.md`](calendar_decision_record.md) for why it was

@@ -12,6 +12,26 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
 
 ## v2 progress
 
+- **Board extras from the redesign concept's screen 04 — DONE (2026-11-01).**
+  Taken: a *"Trash done. bb is next."* snackbar with **Undo** after a
+  completion, the rotation order in the sheet, and *RECENTLY DONE* (seven
+  days, newest first) in place of *DONE THIS CYCLE*, which had been every
+  completion ever made, oldest first. Changed from the concept, each on
+  purpose:
+  - **No "Next turn: Sara" on the row, no *You → Sara → Marco* forecast.**
+    Who comes after the current turn depends on covers, passes and debts, and
+    the client is deliberately not sent those (constraint 7). A forecast the
+    phone worked out alone would sometimes be wrong. The snackbar names the
+    next person from the turn the server actually spawned (`spawned_from`);
+    the sheet shows the rotation as an *order*, labelled *Takes turns*.
+  - **No *Mark done* button on the row.** Rows open the sheet; done is said
+    under the done-line (2026-09-15).
+  - **No "2 active · 1 completed" counter** — a count of the household's
+    output on the screen everybody opens is a scoreboard in all but name
+    (constraint 4).
+  - **No "Live · Updated just now" badge.** The board already polls and has
+    a refresh button; a liveness label is chrome.
+
 - **"I worked on this too" — DONE (2026-11-01).** From the interviews: five of
   fifteen described redoing part of a chore somebody else had marked done —
   "if it's something small, I usually redo it" — to avoid an argument, and the

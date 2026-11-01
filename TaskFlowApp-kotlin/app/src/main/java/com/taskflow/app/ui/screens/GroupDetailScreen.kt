@@ -243,17 +243,19 @@ fun GroupDetailScreen(
         state.message?.let { text ->
             // Read once, before showing. The state is cleared as soon as the
             // snackbar closes, so reading it afterwards would always find null.
-            val undoable = state.undoablePass
+            val undoablePass = state.undoablePass
+            val undoableDone = state.undoableDone
             val result = snackbarHostState.showSnackbar(
                 message = text,
-                actionLabel = undoable?.let { "Undo" },
+                actionLabel = (undoablePass ?: undoableDone)?.let { "Undo" },
                 withDismissAction = false,
                 duration = SnackbarDuration.Short,
             )
-            if (result == SnackbarResult.ActionPerformed && undoable != null) {
-                viewModel.undoPass(undoable)
-            } else {
-                viewModel.dismissMessage()
+            when {
+                result != SnackbarResult.ActionPerformed -> viewModel.dismissMessage()
+                undoablePass != null -> viewModel.undoPass(undoablePass)
+                undoableDone != null -> viewModel.undoDone(undoableDone)
+                else -> viewModel.dismissMessage()
             }
         }
     }
@@ -439,7 +441,7 @@ fun GroupDetailScreen(
                                         if (row.isOpen) "done" else "todo",
                                     )
                                     is BoardRow.OccurrenceRow ->
-                                        viewModel.toggleOccurrenceDone(row.occurrence)
+                                        viewModel.toggleOccurrenceDone(row.occurrence, myUserId)
                                 }
                             },
                             onPass = { row ->
@@ -853,7 +855,7 @@ private fun TaskList(
         listOf(
             "YOURS" to open.filter { it.assignedTo != null && it.assignedTo == myUserId },
             "OTHERS" to open.filter { it.assignedTo == null || it.assignedTo != myUserId },
-            "DONE THIS CYCLE" to rows.filterNot { it.isOpen },
+            "RECENTLY DONE" to recentlyDone(rows, OffsetDateTime.now()),
         ).filter { it.second.isNotEmpty() }
     }
 
@@ -920,6 +922,28 @@ private fun TaskList(
         }
     }
 }
+
+/**
+ * What the board's last section shows: completions from the past
+ * [RECENTLY_DONE] days, newest first.
+ *
+ * It was every completion the household had ever made, oldest first — a
+ * section that only grew, with today's at the bottom under months of others.
+ * Everything older is still in each chore's History and in Activity. A done
+ * row with no time on it (legacy tasks from before done_at existed) has no
+ * claim to "recent" and is left out.
+ *
+ * `now` is a parameter so this can be tested; the board reads the clock when
+ * its rows change, which is as fresh as a list of past events needs to be.
+ */
+internal fun recentlyDone(rows: List<BoardRow>, now: OffsetDateTime): List<BoardRow> {
+    val since = now.minus(RECENTLY_DONE)
+    return rows
+        .filter { !it.isOpen && it.doneAt?.isAfter(since) == true }
+        .sortedByDescending { it.doneAt }
+}
+
+internal val RECENTLY_DONE: Duration = Duration.ofDays(7)
 
 /**
  * How long after marking something done you can still take it back. Spec F1:
@@ -1575,6 +1599,21 @@ internal fun OccurrenceDetailSheet(
                         SheetInfoDivider()
                         SheetInfoRow("How often", it.scheduleWording())
                     }
+                    // The order turns go round in, as the chore defines it. Not
+                    // "who is next": that depends on covers and passes the
+                    // client is deliberately not told, and a prediction that is
+                    // sometimes wrong is worse than none. The snackbar after a
+                    // completion names the real next person instead.
+                    chore?.rotation?.takeIf { it.size > 1 }?.let { rotation ->
+                        SheetInfoDivider()
+                        SheetInfoRow(
+                            "Takes turns",
+                            rotation.joinToString(" → ") { id ->
+                                if (id == myUserId) "You"
+                                else members.firstOrNull { it.id == id }?.username ?: "someone"
+                            },
+                        )
+                    }
                     SheetInfoDivider()
                     SheetInfoRow(
                         label = "Due",
@@ -1840,25 +1879,35 @@ private fun SheetInfoRow(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
         )
-        if (dot) {
-            Box(
-                modifier = Modifier
-                    .size(6.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary),
+        // Half the row each, so a long value (a rotation of four names) wraps
+        // on the right rather than squeezing the label down to one letter a
+        // line. The dot rides inside the value's half, beside the name it
+        // marks, instead of being left at the halfway line.
+        Row(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (dot) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                )
+                Spacer(Modifier.width(6.dp))
+            }
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = if (emphasised) FontWeight.Bold else FontWeight.Normal,
+                ),
+                color = valueColor
+                    ?: if (emphasised) MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.End,
             )
-            Spacer(Modifier.width(6.dp))
         }
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = if (emphasised) FontWeight.Bold else FontWeight.Normal,
-            ),
-            color = valueColor
-                ?: if (emphasised) MaterialTheme.colorScheme.onSurface
-                else MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.End,
-        )
     }
 }
 
