@@ -79,6 +79,13 @@ import com.taskflow.app.data.model.Task
 import com.taskflow.app.data.model.isOpen
 import com.taskflow.app.data.model.joinedNames
 import com.taskflow.app.ui.theme.Quiet
+import com.taskflow.app.ui.components.CapsLabel
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.WindowInsets
@@ -1368,7 +1375,12 @@ internal fun OccurrenceDetailSheet(
     val mine = myUserId != null && occurrence.assignedTo == myUserId
     val overdue = occurrence.isOpen && occurrence.dueDate?.isBefore(OffsetDateTime.now()) == true
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1382,8 +1394,7 @@ internal fun OccurrenceDetailSheet(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = occurrence.choreName,
-                        style = MaterialTheme.typography.headlineSmall
-                            .copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.headlineMedium,
                     )
                     Spacer(Modifier.height(4.dp))
                     Row(
@@ -1425,12 +1436,13 @@ internal fun OccurrenceDetailSheet(
                 // The sheet already closes by drag or scrim. The X is here
                 // because a sheet this tall can be read to the bottom with the
                 // handle off screen, and then there is nothing to drag.
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                FilledTonalIconButton(
+                    onClick = onDismiss,
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                    ),
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Close")
                 }
             }
 
@@ -1461,8 +1473,9 @@ internal fun OccurrenceDetailSheet(
             }
             callout?.let { line ->
                 Surface(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
-                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
@@ -1472,22 +1485,39 @@ internal fun OccurrenceDetailSheet(
                         Icon(
                             Icons.Default.SwapHoriz,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp),
                         )
-                        Text(
-                            text = line,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
+                        Text(text = line, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
 
             // ── This cycle, as a quiet list ──
+            if (!occurrence.isOpen) {
+                val q = Quiet.colors
+                Surface(color = q.doneSoft, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            occurrence.doneBy?.let { DoneAvatar(doer ?: "?", it, 44.dp) }
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    if (occurrence.doneBy == myUserId) "You did this" else "${doer ?: "Someone"} did this",
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Text(formatStamp(occurrence.doneAt), style = MaterialTheme.typography.bodySmall, color = q.onDoneSoft)
+                            }
+                        }
+                        occurrence.alsoBy.joinedNames()?.let { also ->
+                            Text("Also worked on it: $also", style = MaterialTheme.typography.bodyMedium, color = q.onDoneSoft)
+                        }
+                    }
+                }
+            }
+
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.background,
+                shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column {
@@ -1506,16 +1536,6 @@ internal fun OccurrenceDetailSheet(
                     // client is deliberately not told, and a prediction that is
                     // sometimes wrong is worse than none. The snackbar after a
                     // completion names the real next person instead.
-                    chore?.rotation?.takeIf { it.size > 1 }?.let { rotation ->
-                        SheetInfoDivider()
-                        SheetInfoRow(
-                            "Takes turns",
-                            rotation.joinToString(" → ") { id ->
-                                if (id == myUserId) "You"
-                                else members.firstOrNull { it.id == id }?.username ?: "someone"
-                            },
-                        )
-                    }
                     SheetInfoDivider()
                     SheetInfoRow(
                         label = "Due",
@@ -1529,15 +1549,47 @@ internal fun OccurrenceDetailSheet(
                         SheetInfoDivider()
                         SheetInfoRow("Needed by", "Before $time")
                     }
-                    if (!occurrence.isOpen) {
-                        SheetInfoDivider()
-                        SheetInfoRow("Done by", doer ?: "Not recorded")
-                        occurrence.alsoBy.joinedNames()?.let { also ->
-                            SheetInfoDivider()
-                            SheetInfoRow("Also worked on it", also)
+                }
+            }
+
+            // The order turns go round in, as faces, the current holder ringed.
+            // An order, not a forecast: who is next after this depends on covers
+            // and passes the phone is deliberately not told.
+            chore?.rotation?.takeIf { it.size > 1 }?.let { rotation ->
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    CapsLabel("Takes turns")
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        rotation.forEachIndexed { i, id ->
+                            val member = members.firstOrNull { it.id == id }
+                            val name = if (id == myUserId) "You" else member?.username ?: "someone"
+                            val current = occurrence.isOpen && id == occurrence.assignedTo
+                            if (i > 0) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.outline,
+                                    modifier = Modifier.padding(top = 13.dp).size(18.dp),
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Box(
+                                    modifier = if (current) Modifier
+                                        .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                                        .padding(3.dp) else Modifier.padding(3.dp),
+                                ) {
+                                    Avatar(member?.username ?: name, id, 38.dp, dimmed = member?.away == true)
+                                }
+                                Text(
+                                    name,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
+                                    color = if (current) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
-                        SheetInfoDivider()
-                        SheetInfoRow("Done", formatStamp(occurrence.doneAt))
                     }
                 }
             }
@@ -1585,47 +1637,34 @@ internal fun OccurrenceDetailSheet(
                 }
             }
 
-            HorizontalDivider()
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             // ── What done means (F4) ──
             //
-            // Directly on top of the button that applies it, with nothing in
-            // between. It used to head the sheet, under the callout, and the
-            // four-row list and History / Edit sat between it and the button —
-            // so the agreement was something you had scrolled past by the time
-            // you decided. Now it is the last thing read before "I did this".
+            // Directly on top of the button that applies it, as a quote: the
+            // household's own words, the last thing read before "I did this".
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    text = "WHAT DONE MEANS",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 0.8.sp,
-                )
                 val doneLine = occurrence.doneLine.trim()
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.background,
+                    shape = RoundedCornerShape(20.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Row(
-                        modifier = Modifier.padding(14.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Icon(
-                            Icons.Outlined.CheckCircle,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp),
-                        )
+                        CapsLabel("What done means")
                         Text(
-                            text = doneLine.ifEmpty {
+                            text = if (doneLine.isNotEmpty()) "“$doneLine”" else doneLine.ifEmpty {
                                 // Not a defect to fix before you can tick it: a
                                 // household that never wrote one down is not
                                 // doing it wrong.
                                 "No agreed definition of done yet — your call on " +
                                     "whether it's finished."
                             },
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = if (doneLine.isEmpty()) MaterialTheme.typography.bodyLarge
+                            else MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold, lineHeight = 27.sp),
                             color = if (doneLine.isEmpty())
                                 MaterialTheme.colorScheme.onSurfaceVariant
                             else MaterialTheme.colorScheme.onSurface,
@@ -1680,13 +1719,18 @@ internal fun OccurrenceDetailSheet(
             // still the doer's. The line under it says so, because the obvious
             // worry is that this is a way to correct somebody (constraint 1).
             if (canAddAlso) {
-                OutlinedButton(
+                Text("Did you help finish it?", style = MaterialTheme.typography.titleSmall)
+                Button(
                     onClick = onAddAlso,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Quiet.colors.dock,
+                        contentColor = Quiet.colors.onDock,
+                    ),
                 ) {
-                    Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.GroupAdd, null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("I worked on this too")
                 }
@@ -1728,11 +1772,11 @@ internal fun OccurrenceDetailSheet(
                 ) {
                     Icon(Icons.Default.SwapHoriz, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Busy — pass it on")
+                    Text(passReceiver(occurrence, members)?.let { "Busy — pass to ${it.username}" } ?: "Busy — pass it on")
                 }
                 Text(
-                    "Goes to the next person in the rotation. It comes back to you next " +
-                        "time round, and only they are told.",
+                    (passReceiver(occurrence, members)?.let { "Only ${it.username} is told." } ?: "Only they are told.") +
+                        " It comes back to you next time.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
