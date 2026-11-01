@@ -13,6 +13,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -43,60 +45,61 @@ import com.taskflow.app.R
  * each.
  */
 @Composable
-fun AuthHeader(modifier: Modifier = Modifier) {
+fun AuthHeader(
+    modifier: Modifier = Modifier,
+    title: String = "Whose turn\nis it?",
+    subtitle: String = "One shared board for the people you live with. Turns go round on their own — nobody has to nag.",
+) {
+    // Quiet House: the mark, then the one question the app answers, set large
+    // and left-aligned, then a sentence on what it is.
     Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.Start,
     ) {
         BrandMark()
-
-        Spacer(modifier = Modifier.height(20.dp))
-
+        Spacer(modifier = Modifier.height(22.dp))
         Text(
-            text = "TaskFlow",
-            style = MaterialTheme.typography.headlineMedium.copy(
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 28.sp,
-            ),
-            color = MaterialTheme.colorScheme.primary,
+            text = title,
+            style = MaterialTheme.typography.displayMedium,
+            color = MaterialTheme.colorScheme.onBackground,
         )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
+        Spacer(modifier = Modifier.height(10.dp))
         Text(
-            text = "Your household's chore board.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = mutedInk(),
-            textAlign = TextAlign.Center,
+            text = subtitle,
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, lineHeight = 25.sp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
 
 /**
- * The emblem above the wordmark: the app's own launcher mark on a violet tile,
- * so the first screen a person sees carries the icon they tapped to get here.
- *
- * `ic_launcher_foreground` is an adaptive-icon foreground — a 108dp canvas of
- * which only the centre 72dp is the mark — so it is drawn oversized and clipped
- * to the tile, which brings the mark up to the size the tile wants.
+ * The mark: a roof over a tick, white on the brand violet. Drawn rather than
+ * taken from the launcher foreground, whose glyph only fills its middle.
  */
 @Composable
-fun BrandMark() {
-    Box(
+fun BrandMark(size: androidx.compose.ui.unit.Dp = 64.dp) {
+    val bg = MaterialTheme.colorScheme.primary
+    val fg = MaterialTheme.colorScheme.onPrimary
+    androidx.compose.foundation.Canvas(
         modifier = Modifier
-            .size(56.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.primary),
-        contentAlignment = Alignment.Center,
+            .size(size)
+            .semantics { contentDescription = "TaskFlow" },
     ) {
-        Image(
-            painter = painterResource(R.drawable.ic_launcher_foreground),
-            contentDescription = null,
-            // The drawable's own stroke is white, which is onPrimary in both
-            // schemes today; tinting keeps the mark legible if that changes.
-            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onPrimary),
-            modifier = Modifier.size(72.dp),
+        val u = this.size.width / 40f
+        drawRoundRect(color = bg, cornerRadius = androidx.compose.ui.geometry.CornerRadius(12 * u, 12 * u))
+        val stroke = androidx.compose.ui.graphics.drawscope.Stroke(
+            width = 2.8f * u,
+            cap = androidx.compose.ui.graphics.StrokeCap.Round,
+            join = androidx.compose.ui.graphics.StrokeJoin.Round,
         )
+        val roof = androidx.compose.ui.graphics.Path().apply {
+            moveTo(9 * u, 19.5f * u); lineTo(20 * u, 11 * u); lineTo(31 * u, 19.5f * u)
+        }
+        val tick = androidx.compose.ui.graphics.Path().apply {
+            moveTo(14.5f * u, 24.5f * u); lineTo(18.5f * u, 28.5f * u); lineTo(26 * u, 21 * u)
+        }
+        drawPath(roof, fg, style = stroke)
+        drawPath(tick, fg, style = stroke)
     }
 }
 
@@ -152,7 +155,7 @@ fun AuthField(
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
             visualTransformation = visualTransformation,
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = MaterialTheme.colorScheme.surface,
                 unfocusedContainerColor = MaterialTheme.colorScheme.surface,

@@ -177,11 +177,11 @@ fun RegisterContent(
                 // the submit button with no way to reach it.
                 .imePadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 32.dp, vertical = 24.dp),
+                .padding(horizontal = 24.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            AuthHeader()
+            AuthHeader(title = "Join your\nhouse", subtitle = "Make an account, then start a household or join one with a code.")
 
             Spacer(modifier = Modifier.height(40.dp))
 
