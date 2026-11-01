@@ -12,6 +12,24 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
 
 ## v2 progress
 
+- **WHAT DONE MEANS moved onto the button (2026-11-01).** Raised in review: the
+  done-line headed the detail sheet, and the four-row list plus History / Edit
+  chore stood between it and *I did this* — the agreement was something you had
+  scrolled past by the time you decided. It now sits below the rule, directly
+  on top of the action, with nothing in between. This is a fourth departure
+  from the Stitch mock, which puts it under the header. The swipe path already
+  quoted it (`MarkDoneSheet`), so both routes to done now end on the agreement.
+
+  **Declined in the same review — a completion push to the rest of the
+  household.** Completions already write `occurrence_done` to the Activity
+  feed, and the board polls it while open. A notification to people who are
+  not looking would close the "re-cleaned a room that was already done" gap
+  from the interviews, but it needs either a background poller or FCM, and the
+  feed is judged enough for now. The rules it would have to keep are on record
+  here in case it returns: never to the doer, held until the ten-minute undo
+  lapses, held through the receiver's quiet hours, and never a word about the
+  due date (constraints 2, 3 and 7).
+
 - **Single-tap completion — REPLACED BY A CONFIRM SHEET (2026-09-14).** F1 says
   completion is one tap, and it was. Two problems. A tap lands by accident in a
   scrolling list, and the only way back is the ten-minute undo, which the person

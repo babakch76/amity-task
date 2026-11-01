@@ -65,11 +65,12 @@ box used to be, and the title dimmed. Nothing on the board decides anything.
 
 **Done is said in the chore's own sheet**, under the household's **done-line**.
 The sheet reads: the chore and when it is wanted, a violet callout when there is
-something to explain (a cover, a pass, an everybody-busy return), **WHAT DONE
-MEANS** — *"Sink, loo and shower screen, and the bin out"* — then whose turn,
-how often, due, needed by, and *History* / *Edit chore*. The action sits at the
-foot of it: **I did this** (*Mark as done* on somebody else's turn — anyone may
-tick anything), with **Busy — pass it on** under it on your own turn.
+something to explain (a cover, a pass, an everybody-busy return), then whose
+turn, how often, due, needed by, and *History* / *Edit chore*. Below a rule,
+**WHAT DONE MEANS** — *"Sink, loo and shower screen, and the bin out"* — sits
+directly on top of the action: **I did this** (*Mark as done* on somebody else's
+turn — anyone may tick anything), with **Busy — pass it on** under it on your
+own turn.
 
 Putting the two together is the point. The done-line is the household's single
 setup conversation about standards (F4); it was readable only by opening a sheet

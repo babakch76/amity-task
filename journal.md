@@ -6,6 +6,25 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-01 — Review round: done-line onto the button, and a plan
+
+Two pieces of outside feedback came in: three interview-driven points from a
+colleague, and a six-screen redesign concept from someone else.
+
+- **Done-line above the button — done.** WHAT DONE MEANS moved from under the
+  sheet's header to directly on top of *I did this*. Swipe-right already quoted
+  it. `BACKLOG.md` records it as the fourth departure from the Stitch mock.
+- **Completion push — declined.** The Activity feed already carries
+  `occurrence_done`; the rules a push would need are recorded in `BACKLOG.md`.
+- **Next, in order:** "I worked on this too" (a second contributor on a done
+  turn, also an Activity entry, no effect on rotation or debts); the board's
+  next-turn line, rotation preview, recent completions and *"… is next · Undo"*
+  snackbar (concept screen 04); names, Owner / Away badges and invites in the
+  Members tab (screen 05, without the share link).
+- **Not taken from the concept:** Google / emailed-link sign-in (01), the group
+  list as home (03, contradicts 2026-09-13), group settings with archive /
+  delete / transfer (06), the setup checklist (02).
+
 ## 2026-09-15 — The row stops deciding; the sheet decides
 
 Yesterday's confirm was a control bolted to a row. Today the control is gone.

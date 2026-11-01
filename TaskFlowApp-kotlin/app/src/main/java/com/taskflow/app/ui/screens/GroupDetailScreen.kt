@@ -1540,53 +1540,6 @@ internal fun OccurrenceDetailSheet(
                 }
             }
 
-            // ── What done means (F4) ──
-            //
-            // The agreement, above everything about this particular cycle,
-            // because it is the question the person about to do the chore
-            // actually has. This is also now the *only* place a completion can
-            // be started from, so the standard and the button that applies it
-            // are on one screen.
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    text = "WHAT DONE MEANS",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 0.8.sp,
-                )
-                val doneLine = occurrence.doneLine.trim()
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(14.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Icon(
-                            Icons.Outlined.CheckCircle,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Text(
-                            text = doneLine.ifEmpty {
-                                // Not a defect to fix before you can tick it: a
-                                // household that never wrote one down is not
-                                // doing it wrong.
-                                "No agreed definition of done yet — your call on " +
-                                    "whether it's finished."
-                            },
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = if (doneLine.isEmpty())
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            else MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                }
-            }
-
             // ── This cycle, as a quiet list ──
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant,
@@ -1670,6 +1623,53 @@ internal fun OccurrenceDetailSheet(
             }
 
             HorizontalDivider()
+
+            // ── What done means (F4) ──
+            //
+            // Directly on top of the button that applies it, with nothing in
+            // between. It used to head the sheet, under the callout, and the
+            // four-row list and History / Edit sat between it and the button —
+            // so the agreement was something you had scrolled past by the time
+            // you decided. Now it is the last thing read before "I did this".
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "WHAT DONE MEANS",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    letterSpacing = 0.8.sp,
+                )
+                val doneLine = occurrence.doneLine.trim()
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Icon(
+                            Icons.Outlined.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Text(
+                            text = doneLine.ifEmpty {
+                                // Not a defect to fix before you can tick it: a
+                                // household that never wrote one down is not
+                                // doing it wrong.
+                                "No agreed definition of done yet — your call on " +
+                                    "whether it's finished."
+                            },
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (doneLine.isEmpty())
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            else MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                }
+            }
 
             // ── The action ──
             //
