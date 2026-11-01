@@ -77,6 +77,7 @@ import com.taskflow.app.data.model.ScheduleType
 import com.taskflow.app.data.model.Task
 import com.taskflow.app.data.model.isOpen
 import com.taskflow.app.data.model.joinedNames
+import com.taskflow.app.ui.theme.Quiet
 import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.Instant
@@ -2083,40 +2084,20 @@ private fun TaskDetailSheet(
 }
 
 /**
- * Amber for past-due, in both themes.
+ * Amber for past its day, in both themes — from the theme's Quiet palette.
  *
  * Hard constraint 3: "No red overdue states, late counters, or shame badges —
- * dim/amber at most." Material 3's scheme has no warning slot, so these are
- * explicit; `colorScheme.error` is deliberately not used anywhere overdue is
- * shown, because red reads as failure and lateness here is not a failure.
+ * dim/amber at most." `colorScheme.error` is deliberately not used anywhere a
+ * date has passed: red reads as failure, and lateness here is not a failure.
  */
-private val AmberOnLight = androidx.compose.ui.graphics.Color(0xFF9A6700)
-
-// The deck's dark amber (--pamber / --pamberdot), which is a shade off the one
-// F1 picked by eye. Overdue has to read the same in both appearances, and the
-// deck is where that was decided.
-private val AmberOnDark = androidx.compose.ui.graphics.Color(0xFFE0A534)
-
 @Composable
-private fun overdueColor(): androidx.compose.ui.graphics.Color =
-    // Asks the *theme*, not the system. Once appearance can be overridden in
-    // the app, isSystemInDarkTheme() is the wrong question: a phone in light
-    // mode showing the app in dark would have drawn the light amber onto a dark
-    // card, which is the one colour in the app that must stay legible.
-    if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) AmberOnDark else AmberOnLight
+internal fun overdueColor(): androidx.compose.ui.graphics.Color = Quiet.colors.pastText
 
 /**
- * The green a completed row is ticked in — the counterpart to [overdueColor],
- * and picked the same way: a darker shade in light mode so a small glyph is
- * actually legible on white, the theme's own `tertiary` in dark.
- *
- * Green for done is safe under constraint 3 in a way red for late is not: it
- * marks a thing that happened, not a person who failed.
+ * Sage for done — a thing that happened, not a reward and not a verdict.
  */
 @Composable
-private fun doneColor(): androidx.compose.ui.graphics.Color =
-    if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) MaterialTheme.colorScheme.tertiary
-    else androidx.compose.ui.graphics.Color(0xFF0F7B5A)
+internal fun doneColor(): androidx.compose.ui.graphics.Color = Quiet.colors.done
 
 // StatusChip lived here. It rendered a task's status as a coloured pill on the
 // board row, which is the "status pill" v2 does away with: a row is open or it
