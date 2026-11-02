@@ -4,6 +4,17 @@ For the repo, next to `V2-HANDOFF.md`. Written so a future session (or a
 groupmate) can read the reversal as a decision with reasons, not as drift.
 Nothing in this file asks for new work; the last section is fenced off.
 
+> **Update, 2026-11-02.** The project owner asked for a month view after users
+> complained they could only see a week, and the question they wanted answered
+> is on record: which days will I have chores, so I don't plan something else
+> then. That is built on `household-removal-and-tutorial`, as the month on Mine,
+> and it differs from what this file deleted in the ways that matter: it shows
+> only your own turns, across every household; it is a popup and not a tab; and
+> everything after a chore's one live turn is drawn as *likely*, because reason 2
+> below still holds and those dates do not exist yet. This goes further than the
+> one projected turn the last section allows, and reason 3 applies again: the
+> report will need to defend it against constraint 5.
+
 ---
 
 ## The short version

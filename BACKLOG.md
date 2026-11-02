@@ -17,6 +17,27 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
   interviews run on `main` unchanged. The project owner merges this afterwards,
   and it needs the backend deployed with it: the current server answers the new
   routes with 404 or 405, not a sign-out.
+  - **The month on Mine**, at the project owner's request after users complained
+    they could only see a week. Asked for as a way to see which days will have
+    chores, so as not to plan something else then.
+    - **A popup, not a section that expands in place**, which would push Up next
+      off the screen. Opened from the whole Next 7 days card.
+    - **Your own turns only.** All the household's chores would be a dot on most
+      days and say nothing about whether you are free. It also keeps this within
+      what the strip was allowed: nothing of anybody else's is drawn on it.
+    - **Rings for likely turns.** This reverses, for this one view, the 2026-11-01
+      refusal of a forecast worked out on the phone, which "would sometimes be
+      wrong". It still will be. It is allowed here because it names nobody else
+      and says on its face that it is a guess, and because without it the month
+      would be empty past the next turn. It stops at six months.
+    - **Driving it found two bugs the tests had not.** Comparing with the turn the
+      server actually spawned showed the first version ignoring people who are
+      away, so it now fetches members with the reminder data. And shorter months
+      made the popup shorter, moving the arrows out from under a repeated tap, so
+      every month is six rows.
+    - **Known limits:** covers, passes and debts cannot be allowed for, since the
+      phone is not sent them. Everything assumes each turn is done on its day.
+      Away is taken as it stands today, so an absence not yet declared cannot show.
   - **Book it up narrows constraint 5** (no free/busy scheduling). The project
     owner decided this on 2026-11-02 after participants complained of running
     into each other over the same appliance. Kept deliberately small, and to

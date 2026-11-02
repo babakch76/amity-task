@@ -6,6 +6,20 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-02 (evening) — The month on Mine
+
+Asked for after users complained of only seeing a week. Built as a popup of your
+own turns, up to six months ahead, with filled dots for turns you have and rings
+for likely ones, because `calendar_decision_record.md` is still right that later
+dates do not exist. The record now says what changed.
+
+The useful check was completing real turns on a local server and comparing the
+turn it spawned with the month's prediction. That caught the month ignoring
+people who are away. Going through the months caught the arrows moving. Neither
+showed up in unit tests or in working the dates out by hand.
+
+---
+
 ## 2026-11-02 — Removal, Book it up and the guide, on `household-removal-and-tutorial`
 
 For after the interviews, which run on `main` unchanged. Popups and buttons

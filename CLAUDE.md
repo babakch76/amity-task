@@ -43,7 +43,7 @@ taskflow/
 | `V2-HANDOFF.md` | Working state: deployed, half-done, and what will cost hours. |
 | `BACKLOG.md` | Why things are the way they are (67 KB of decision records). |
 | `PROPOSALS.md` | Six changes raised at handover; two are defects, not improvements. |
-| `calendar_decision_record.md` | Why there is no calendar, and why not to add one. |
+| `calendar_decision_record.md` | Why there is no household calendar, and what the month on Mine does differently. |
 | `DESIGN.md` | The earlier target design. **Superseded on `mehrdad-design`** by the Quiet House redesign (canvas: claude.ai/artifact/5i9xzyDwwvD1LZQkGVgLPf; `BACKLOG.md` records what changed and why). Still useful for the reasoning behind each screen. |
 | `INTERVIEWS.md` | User-interview scripts and timing. |
 | `journal.md` | Running session log. Append, don't rewrite. |
@@ -63,7 +63,10 @@ Violating one of these is a bug, no matter how good the feature is.
 5. No calendar integration or free/busy scheduling. **Narrowed by the project
    owner on 2026-11-02 for Book it up**, a notice saying when somebody wants an
    appliance or a room. It stays a notice: no refusing a clash, no approvals, no
-   reminders, no availability view, no calendar. See `BACKLOG.md`.
+   reminders, no availability view, no calendar. **Narrowed again the same day
+   for the month on Mine**: your own turns only, a popup, and anything past a
+   chore's one live turn drawn as likely. Still no household calendar, no
+   calendar integration, and nobody else's turns. See `BACKLOG.md`.
 6. Household scope only — no priorities, no subtasks, no comment threads.
 7. Every group-visible change is broadcast; **a busy pass notifies only the
    receiver** and writes nothing to the activity feed; nothing about individual
@@ -152,6 +155,7 @@ answers `401`.
 | `CreateChoreFlow` | Add or edit a chore on one full screen: *How often* first, and what it implies appears beneath once answered. Delete lives at the end of edit. Opened by **Add** on the dock. |
 | `FirstRunStarters` | Five starter chores offered to a brand-new household. |
 | `BookIt.kt` | **Book it up**: the section at the top of the board, the sheet and the cancel confirm. Its state is hoisted into `GroupDetailScreen`, because the section moves when the board goes from empty to not and a housemate's new chore must not close the sheet. |
+| `MonthView.kt` | The month popup behind the week strip on Mine. Its pure half (`comingDates`, `nextHolder`, `myTurnDays`) mirrors `nextDueDate` and `nextInRotation` in `chores.go`, so **change them together**. Anything past the open turn is `likely`, and must stay visibly so. |
 | `Guide.kt` | **How TaskFlow works**: the page, its text (`GUIDE`) and the one-time card on Mine. The text must follow `FEATURES.md` sections 4 and 5. |
 
 Navigation is **three outer routes**: `login`, `register`, `shell`, plus a
@@ -176,8 +180,9 @@ device), and the switcher in its app bar changes it. Three things follow:
 
 The interviews' A/B (My chores by household vs My week) is **settled by the
 redesign**: both were replaced by **Mine** (2026-11-01, branch
-`mehrdad-design`). The month grid of DESIGN.md §5.11b is still not built and
-still a question — read `calendar_decision_record.md` before starting it.
+`mehrdad-design`). The month grid of DESIGN.md §5.11b is not built. The month
+on Mine (`MonthView.kt`) is a smaller thing, and `calendar_decision_record.md`
+says how they differ.
 
 The two auth screens share their top half — emblem, wordmark, subtitle, field
 shape, pill button, amber error line — through `ui/components/AuthScaffold.kt`.

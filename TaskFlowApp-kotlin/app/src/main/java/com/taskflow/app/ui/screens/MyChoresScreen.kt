@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -59,6 +60,7 @@ import com.taskflow.app.ui.components.SectionLabel
 import com.taskflow.app.ui.theme.Quiet
 import java.time.LocalDate
 import java.time.OffsetDateTime
+import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -72,7 +74,8 @@ import java.time.format.DateTimeFormatter
  * next.
  *
  * - **Next 7 days** — a rolling strip from today, a dot on each day carrying a
- *   turn of yours. Never a count, never a colour by how full a day is.
+ *   turn of yours. Never a count, never a colour by how full a day is. Tapping
+ *   it opens the month; see MonthView.kt.
  * - **Up next** — the soonest turn that is still ahead of you, with the
  *   household's definition of done on the card and *I did this* under it.
  * - **Also yours** — everything else on you; a turn whose day has passed is
@@ -122,6 +125,7 @@ fun MyChoresScreen(
         .sortedByDescending { it.occurrence.doneAt }
 
     var detailFor by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var showMonth by remember { mutableStateOf(false) }
 
     // Fresh every time the tab is opened (B-23). The board does its work
     // through its own household ViewModel, so a turn completed or passed
@@ -178,7 +182,11 @@ fun MyChoresScreen(
                 )
             }
 
-            NextSevenDays(today = today, days = open.mapNotNull { it.date }.toSet())
+            NextSevenDays(
+                today = today,
+                days = open.mapNotNull { it.date }.toSet(),
+                onExpand = { showMonth = true },
+            )
 
             if (open.isEmpty() && doneLately.isEmpty()) {
                 EmptyBlock(
@@ -224,6 +232,17 @@ fun MyChoresScreen(
         }
     }
 
+    if (showMonth) {
+        MonthSheet(
+            turns = remember(groups, reminderData, myUserId, today) {
+                val until = YearMonth.from(today).plusMonths(MONTHS_AHEAD).atEndOfMonth()
+                myTurnDays(groups, reminderData, myUserId, today, until)
+            },
+            today = today,
+            onDismiss = { showMonth = false },
+        )
+    }
+
     detailFor?.let { (groupId, occurrenceId) ->
         OpenedFromMyChores(
             groupId = groupId,
@@ -248,13 +267,19 @@ fun MyChoresScreen(
 
 private val TODAY_LINE: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE, d MMMM")
 
-/** Seven days from today; today filled, a dot under any day with a turn of yours. */
+/**
+ * Seven days from today; today filled, a dot under any day with a turn of yours.
+ * The whole card opens the month, so the icon in it does not have to be hit.
+ */
 @Composable
-private fun NextSevenDays(today: LocalDate, days: Set<LocalDate>) {
-    Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(22.dp)) {
+private fun NextSevenDays(today: LocalDate, days: Set<LocalDate>, onExpand: () -> Unit) {
+    Surface(onClick = onExpand, color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(22.dp)) {
         Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             val inWeek = (0L..6L).count { today.plusDays(it) in days }
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text("Next 7 days", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                 Text(
                     when (inWeek) {
@@ -264,6 +289,13 @@ private fun NextSevenDays(today: LocalDate, days: Set<LocalDate>) {
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.width(8.dp))
+                Icon(
+                    Icons.Outlined.CalendarMonth,
+                    contentDescription = "See the whole month",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
                 )
             }
             Row(modifier = Modifier.fillMaxWidth()) {

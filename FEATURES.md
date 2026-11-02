@@ -95,9 +95,9 @@ the one the turn rule actually chose. A one-off just says it is done.
 mm → You → bb*. It is the order, not a forecast: who is next after the current
 turn depends on covers and passes the app deliberately does not show anyone.
 
-**Tabs are Board, Activity and Members.** There is no calendar; see
+**Tabs are Board, Activity and Members.** There is no household calendar; see
 [`calendar_decision_record.md`](calendar_decision_record.md) for why it was
-removed rather than fixed.
+removed rather than fixed. Your own turns have a month view on Mine.
 
 ### Book it up
 
@@ -303,9 +303,11 @@ know it was a decision.
 - **No roles or permissions beyond ownership.** Chore editing is open to every
   member, so the manager role and its deadline gate were removed rather than
   kept.
-- **No calendar view.** Under completion-anchored rotation a chore has one live
-  occurrence, so a month grid has almost nothing to draw. Book it up is a list
-  of notices on the board, not a calendar, and it never refuses a booking.
+- **No household calendar.** Under completion-anchored rotation a chore has one
+  live occurrence, so a month grid of the household's chores has almost nothing
+  true to draw. The month on Mine shows only your own turns and marks anything
+  further out as likely. Book it up is a list of notices on the board, not a
+  calendar, and it never refuses a booking.
 - **No multi-select or bulk actions.**
 
 ---
@@ -339,6 +341,31 @@ the feed, because the feed goes too, so each housemate's phone notices the
 household has left their list within about 20 seconds, moves them on and says
 *You're no longer in Flat 3B.* Reminders for a household you are no longer in
 are cancelled, which they were not before.
+
+## The month on Mine
+
+*On the branch `household-removal-and-tutorial`.*
+
+Tap the **Next 7 days** card on Mine and the month opens in a popup, for the
+question "am I free on the 14th?". Arrows go forward up to six months ahead.
+
+**A filled dot is a turn you have. A ring is one you will probably have.** A chore
+only ever has one live turn, and the next is created when that one is done, so
+only that turn has a date the server has promised. The rings are worked out on
+the phone, using the server's own rules: interval chores count on from the open
+turn's day, fixed chores land on their weekday or month day (a day a month does
+not have is skipped), and the turn goes round in rotation order, stepping over
+anyone away on the day it is handed on.
+
+Rings can be wrong, and the popup says so: *Likely turns can move if someone
+covers, passes or goes away.* Interval chores also move whenever somebody does
+one early or late. Covers, passes and debts are deliberately not sent to the
+phone, so they cannot be allowed for.
+
+**Only your own turns**, across every household, and never a housemate's. A dot
+is never a count, and no day is coloured by how full it is. Tap a day to see what
+is on it. As-needed chores have no date, so they are not here, and a turn whose
+day has passed stays on Mine rather than on the month.
 
 ## How TaskFlow works
 

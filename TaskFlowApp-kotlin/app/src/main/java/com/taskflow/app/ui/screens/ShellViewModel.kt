@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.taskflow.app.data.model.Chore
 import com.taskflow.app.data.model.Group
+import com.taskflow.app.data.model.MemberInfo
 import com.taskflow.app.data.model.InviteActionRequest
 import com.taskflow.app.data.model.InviteInfo
 import com.taskflow.app.data.model.Occurrence
@@ -162,6 +163,8 @@ class ShellViewModel : ViewModel() {
         val groupId: String,
         val occurrences: List<Occurrence>,
         val chores: List<Chore>,
+        /** Who is away, so the month on Mine can step over them as the server does. */
+        val members: List<MemberInfo> = emptyList(),
     )
 
     /**
@@ -324,8 +327,10 @@ class ShellViewModel : ViewModel() {
                         .getOrNull()?.takeIf { it.isSuccessful }?.body()
                     val chores = runCatching { api.listChores(group.id) }
                         .getOrNull()?.takeIf { it.isSuccessful }?.body()
+                    val members = runCatching { api.listMembers(group.id) }
+                        .getOrNull()?.takeIf { it.isSuccessful }?.body()
                     if (occurrences == null) null
-                    else GroupReminderData(group.id, occurrences, chores.orEmpty())
+                    else GroupReminderData(group.id, occurrences, chores.orEmpty(), members.orEmpty())
                 }
             }
             .awaitAll()

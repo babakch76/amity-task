@@ -165,6 +165,7 @@ the unsigned APK and the signing step is skipped.
 | `FirstRunStarters` | The five starter chores a brand-new household is offered. |
 | `BookIt.kt` | Book it up: the section at the top of the board and its sheet. |
 | `Guide.kt` | How TaskFlow works: the page in You and the one-time card on Mine. |
+| `MonthView.kt` | The month popup on Mine: your turns, with likely ones as rings. |
 
 `GroupDetailScreen` covers the whole group-scoped API:
 

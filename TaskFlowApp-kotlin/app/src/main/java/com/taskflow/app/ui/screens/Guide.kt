@@ -77,6 +77,11 @@ internal val GUIDE = listOf(
             "have a word with them.",
     ),
     GuideSection(
+        "Planning ahead",
+        "Tap the week on Mine to see the month. A ring means it's likely your " +
+            "turn. Those can move if someone covers or passes, so check closer to the day.",
+    ),
+    GuideSection(
         "Reminders",
         "Your phone reminds you about your turns. To set quiet hours, tap your " +
             "face on Mine.",
