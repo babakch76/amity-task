@@ -14,8 +14,10 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
 
 - **Household removal, Book it up and How TaskFlow works — DONE on
   `household-removal-and-tutorial` (2026-11-02), not merged or deployed.** The
-  interviews run on `main` unchanged. The project owner merges this afterwards,
-  and it needs the backend deployed with it: the current server answers the new
+  interviews run on `main` unchanged. **This branch stays off `main`, by the
+  project owner's choice:** it is deployed straight from the branch once the
+  interviews are done, as the third prototype and the final version shown to the
+  professor. The backend has to go with it: the current server answers the new
   routes with 404 or 405, not a sign-out.
   - **News with the app closed**, at the project owner's request: being told when
     a turn is passed to you, and optionally when a housemate does a chore.
