@@ -63,10 +63,9 @@ Violating one of these is a bug, no matter how good the feature is.
 5. No calendar integration or free/busy scheduling. **Narrowed by the project
    owner on 2026-11-02 for Book it up**, a notice saying when somebody wants an
    appliance or a room. It stays a notice: no refusing a clash, no approvals, no
-   reminders, no availability view, no calendar. **Narrowed again the same day
-   for the month on Mine**: your own turns only, a popup, and anything past a
-   chore's one live turn drawn as likely. Still no household calendar, no
-   calendar integration, and nobody else's turns. See `BACKLOG.md`.
+   reminders, no availability view, no calendar. The month on Mine does not
+   change this constraint: like the week strip, it shows only your own turns,
+   and only when you ask for it. See `calendar_decision_record.md`.
 6. Household scope only — no priorities, no subtasks, no comment threads.
 7. Every group-visible change is broadcast; **a busy pass notifies only the
    receiver** and writes nothing to the activity feed; nothing about individual

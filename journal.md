@@ -6,6 +6,15 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-02 (later) — The month on Mine is not a reversal
+
+Corrected the docs after the project owner pointed out that the entry below, and
+the first version of the record, framed this wrongly. The Calendar tab decision
+stands. The month is a small optional view of your own likely turns, for
+arranging things with housemates around exams and the like. No code changed.
+
+---
+
 ## 2026-11-02 (evening) — The month on Mine
 
 Asked for after users complained of only seeing a week. Built as a popup of your

@@ -346,8 +346,14 @@ are cancelled, which they were not before.
 
 *On the branch `household-removal-and-tutorial`.*
 
-Tap the **Next 7 days** card on Mine and the month opens in a popup, for the
-question "am I free on the 14th?". Arrows go forward up to six months ahead.
+A small optional view, not a calendar: there is still no household calendar, and
+nothing changes on Mine until you ask. Tap the **Next 7 days** card and the month
+opens in a popup, for a rough idea of whether you are likely to have chores
+around exams or other plans, so you can sort something out with your housemates
+in good time. Arrows go forward up to six months ahead.
+
+It is for information only. A later turn does not exist yet, so nothing can be
+passed from here: pass it, get it covered or say you're away when the time comes.
 
 **A filled dot is a turn you have. A ring is one you will probably have.** A chore
 only ever has one live turn, and the next is created when that one is done, so

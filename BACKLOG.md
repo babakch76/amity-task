@@ -18,18 +18,21 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
   and it needs the backend deployed with it: the current server answers the new
   routes with 404 or 405, not a sign-out.
   - **The month on Mine**, at the project owner's request after users complained
-    they could only see a week. Asked for as a way to see which days will have
-    chores, so as not to plan something else then.
+    they could only see a week. A small optional view, not a calendar coming
+    back: the Calendar tab decision stands. It gives people some perspective on
+    whether they are likely to have chores around exams or other commitments, so
+    they can arrange something with housemates. Nothing can be passed from it:
+    a later turn does not exist yet, so a pass or a cover happens when it arrives.
     - **A popup, not a section that expands in place**, which would push Up next
       off the screen. Opened from the whole Next 7 days card.
     - **Your own turns only.** All the household's chores would be a dot on most
       days and say nothing about whether you are free. It also keeps this within
       what the strip was allowed: nothing of anybody else's is drawn on it.
-    - **Rings for likely turns.** This reverses, for this one view, the 2026-11-01
-      refusal of a forecast worked out on the phone, which "would sometimes be
-      wrong". It still will be. It is allowed here because it names nobody else
-      and says on its face that it is a guess, and because without it the month
-      would be empty past the next turn. It stops at six months.
+    - **Rings for likely turns.** The 2026-11-01 refusal of a forecast on the
+      board stands: nothing on the board says who is next. This is a different
+      case. It would still sometimes be wrong, but it names nobody else and says
+      on its face that it is a guess, and without it the view would be empty
+      past the next turn. It stops at six months.
     - **Driving it found two bugs the tests had not.** Comparing with the turn the
       server actually spawned showed the first version ignoring people who are
       away, so it now fetches members with the reminder data. And shorter months

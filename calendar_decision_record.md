@@ -4,16 +4,17 @@ For the repo, next to `V2-HANDOFF.md`. Written so a future session (or a
 groupmate) can read the reversal as a decision with reasons, not as drift.
 Nothing in this file asks for new work; the last section is fenced off.
 
-> **Update, 2026-11-02.** The project owner asked for a month view after users
-> complained they could only see a week, and the question they wanted answered
-> is on record: which days will I have chores, so I don't plan something else
-> then. That is built on `household-removal-and-tutorial`, as the month on Mine,
-> and it differs from what this file deleted in the ways that matter: it shows
-> only your own turns, across every household; it is a popup and not a tab; and
-> everything after a chore's one live turn is drawn as *likely*, because reason 2
-> below still holds and those dates do not exist yet. This goes further than the
-> one projected turn the last section allows, and reason 3 applies again: the
-> report will need to defend it against constraint 5.
+> **Update, 2026-11-02. This decision stands:** the Calendar tab stays deleted
+> and the app has no household calendar. Separately, users wanted some perspective
+> on their own schedule, such as whether they are likely to have chores during
+> exams, so they can arrange something with housemates. So Mine has a small
+> optional view on `household-removal-and-tutorial`, opened only by tapping the
+> week. It shows only your own turns, and everything after a chore's one live turn
+> is drawn as *likely*, because reason 2 below still holds and those dates do not
+> exist yet. It looks further ahead than the one projected turn the last section
+> suggests, because exams are further off than that. Like the week strip, it is
+> not what constraint 5 forbids: no external calendar, no free/busy, and nothing
+> of anybody else's drawn on it.
 
 ---
 
