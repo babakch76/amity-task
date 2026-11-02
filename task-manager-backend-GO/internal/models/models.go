@@ -340,7 +340,31 @@ type ActivityEvent struct {
 	CreatedAt     time.Time `json:"created_at"`
 }
 
+// Booking is somebody saying when they want an appliance or a space, so that
+// the rest of the household can see it coming. See handlers/bookings.go.
+type Booking struct {
+	ID      string `json:"id"`
+	GroupID string `json:"group_id"`
+	UserID  string `json:"user_id"`
+	// Username is joined in from users, so the board can say who it is without
+	// a second round trip.
+	Username  string    `json:"username"`
+	What      string    `json:"what"`
+	Note      string    `json:"note"`
+	StartsAt  time.Time `json:"starts_at"`
+	EndsAt    time.Time `json:"ends_at"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 // --- Request / Response DTOs ---
+
+// CreateBookingRequest is POST /groups/{group_id}/bookings. Note is optional.
+type CreateBookingRequest struct {
+	What     string    `json:"what"`
+	Note     string    `json:"note"`
+	StartsAt time.Time `json:"starts_at"`
+	EndsAt   time.Time `json:"ends_at"`
+}
 
 type RegisterRequest struct {
 	Username string `json:"username"`

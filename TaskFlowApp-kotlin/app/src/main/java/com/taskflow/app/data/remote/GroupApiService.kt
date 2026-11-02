@@ -47,6 +47,22 @@ interface GroupApiService {
      * 409 if the caller is the owner and other members remain — ownership
      * transfer is not implemented.
      */
+    @GET("groups/{group_id}/bookings")
+    suspend fun listBookings(@Path("group_id") groupId: String): Response<List<Booking>>
+
+    @POST("groups/{group_id}/bookings")
+    suspend fun createBooking(
+        @Path("group_id") groupId: String,
+        @Body request: CreateBookingRequest,
+    ): Response<Booking>
+
+    /** Only the person who booked it can cancel it (403 otherwise). */
+    @DELETE("groups/{group_id}/bookings/{booking_id}")
+    suspend fun cancelBooking(
+        @Path("group_id") groupId: String,
+        @Path("booking_id") bookingId: String,
+    ): Response<MessageResponse>
+
     @DELETE("groups/{group_id}/members/me")
     suspend fun leaveGroup(@Path("group_id") groupId: String): Response<MessageResponse>
 

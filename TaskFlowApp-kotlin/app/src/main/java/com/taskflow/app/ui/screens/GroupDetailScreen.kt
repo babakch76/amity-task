@@ -66,6 +66,7 @@ import com.taskflow.app.ui.components.HouseholdSwitcher
 import com.taskflow.app.ui.components.MarkDoneSheet
 import com.taskflow.app.data.model.ActivityEvent
 import com.taskflow.app.data.model.Absence
+import com.taskflow.app.data.model.Booking
 import com.taskflow.app.data.model.Chore
 import com.taskflow.app.data.model.ChoreHistory
 import com.taskflow.app.data.model.ChoreHistoryEntry
@@ -201,6 +202,10 @@ fun GroupDetailScreen(
     var showInvite by remember { mutableStateOf(false) }
     var confirmLeave by remember { mutableStateOf(false) }
     var confirmRemove by remember { mutableStateOf(false) }
+    // Up here rather than in the section: the section moves when the board goes
+    // from empty to not, and a housemate's new chore must not close the sheet.
+    var showBookIt by remember { mutableStateOf(false) }
+    var cancellingBooking by remember { mutableStateOf<Booking?>(null) }
     // Task pending deletion — deleting is irreversible, so it goes via a confirm.
     var taskToDelete by remember { mutableStateOf<Task?>(null) }
     // Detail sheet holds an *id*, not a Task. The Task is looked up from state
@@ -463,6 +468,19 @@ fun GroupDetailScreen(
                                     }
                                 },
                                 onCreate = { showCreate = true },
+                                header = { modifier ->
+                                    BookItSection(
+                                        // Sent by the server as unfinished, but it
+                                        // can finish while the screen is open.
+                                        bookings = state.bookings.filter {
+                                            it.endsAt.isAfter(OffsetDateTime.now())
+                                        },
+                                        myUserId = myUserId,
+                                        onBook = { showBookIt = true },
+                                        onCancel = { cancellingBooking = it },
+                                        modifier = modifier,
+                                    )
+                                },
                             )
                         }
 
@@ -643,6 +661,28 @@ fun GroupDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { confirmLeave = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    if (showBookIt) {
+        BookItSheet(
+            bookings = state.bookings,
+            myUserId = myUserId,
+            onDismiss = { showBookIt = false },
+            onBook = { what, note, start, end, onResult ->
+                viewModel.createBooking(what, note, start, end, onResult)
+            },
+        )
+    }
+
+    cancellingBooking?.let { booking ->
+        CancelBookingDialog(
+            booking = booking,
+            onDismiss = { cancellingBooking = null },
+            onConfirm = {
+                cancellingBooking = null
+                viewModel.cancelBooking(booking.id)
             },
         )
     }
@@ -881,16 +921,21 @@ private fun TaskList(
     onPass: (BoardRow) -> Unit,
     onSwiped: () -> Unit,
     onCreate: () -> Unit,
+    header: @Composable (Modifier) -> Unit,
 ) {
     if (rows.isEmpty()) {
-        EmptyBlock(
-            title = "Nothing on the board",
-            subtitle = "Add the first chore and it'll show up for everyone in the household.",
-        ) {
-            FilledTonalButton(onClick = onCreate) {
-                Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("New chore")
+        // A household with no chores yet can still want the kitchen on Saturday.
+        Column(modifier = Modifier.fillMaxSize()) {
+            header(Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp))
+            EmptyBlock(
+                title = "Nothing on the board",
+                subtitle = "Add the first chore and it'll show up for everyone in the household.",
+            ) {
+                FilledTonalButton(onClick = onCreate) {
+                    Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("New chore")
+                }
             }
         }
         return
@@ -909,6 +954,7 @@ private fun TaskList(
         // Clears the floating dock so the last row is reachable.
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = DOCK_CLEARANCE),
     ) {
+        item(key = "book-it") { header(Modifier) }
         sections.forEach { (label, rows) ->
             item(key = "header-$label") {
                 SectionLabel(label, Modifier.padding(top = 14.dp, bottom = 8.dp))
@@ -2216,6 +2262,10 @@ private fun describeEvent(e: ActivityEvent): String = when (e.eventType) {
     "occurrence_also" -> "${e.actorUsername} also worked on a chore"
     "occurrence_also_withdrawn" -> "${e.actorUsername} took their name off a chore"
 
+    // The detail line underneath names what was booked.
+    "booking_added" -> "${e.actorUsername} booked something"
+    "booking_cancelled" -> "${e.actorUsername} cancelled a booking"
+
     "member_joined" -> "${e.actorUsername} joined the group"
     "member_left" -> "${e.actorUsername} left the group"
     "invite_accepted" -> "${e.actorUsername} accepted an invite"
@@ -2287,7 +2337,7 @@ private fun humaniseDetail(e: ActivityEvent): String? {
 
 @Composable
 private fun eventColor(type: String) = when (type) {
-    "task_created", "chore_created" -> MaterialTheme.colorScheme.primary
+    "task_created", "chore_created", "booking_added" -> MaterialTheme.colorScheme.primary
     // Completions get the same green a done row does. Not a reward — the feed
     // is a record, and this is the one entry that says something finished.
     "occurrence_done", "occurrence_also" -> MaterialTheme.colorScheme.tertiary
@@ -2953,6 +3003,7 @@ internal fun DueDatePickerDialog(
     initial: OffsetDateTime?,
     onDismiss: () -> Unit,
     onPicked: (String) -> Unit,
+    confirmLabel: String = "Set deadline",
 ) {
     // DatePicker works in UTC-midnight millis, so seed it from the deadline's
     // date as the user sees it locally, not from the raw instant.
@@ -2981,7 +3032,7 @@ internal fun DueDatePickerDialog(
                     }
                 },
                 enabled = state.selectedDateMillis != null,
-            ) { Text("Set deadline") }
+            ) { Text(confirmLabel) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     ) {

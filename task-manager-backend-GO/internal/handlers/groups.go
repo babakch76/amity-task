@@ -366,6 +366,16 @@ func (h *GroupHandler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Their plans for this household go with them. The rows would otherwise stay
+	// on the board in the name of somebody nobody can ask about them.
+	if _, err := tx.Exec(
+		`DELETE FROM bookings WHERE group_id = ? AND user_id = ?`,
+		groupID, userID,
+	); err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
 	res, err := tx.Exec(
 		`DELETE FROM group_members WHERE group_id = ? AND user_id = ?`,
 		groupID, userID,

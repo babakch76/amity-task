@@ -88,6 +88,7 @@ func newRouter(db *database.DB) http.Handler {
 	groupH := &handlers.GroupHandler{DB: db}
 	taskH := &handlers.TaskHandler{DB: db}
 	choreH := &handlers.ChoreHandler{DB: db}
+	bookingH := &handlers.BookingHandler{DB: db}
 
 	// Public: only register and login.
 	root := http.NewServeMux()
@@ -141,6 +142,10 @@ func newRouter(db *database.DB) http.Handler {
 	member("DELETE /groups/{group_id}/occurrences/{occurrence_id}/pass", choreH.UndoPass)
 	member("POST /groups/{group_id}/occurrences/{occurrence_id}/also", choreH.AddAlso)
 	member("DELETE /groups/{group_id}/occurrences/{occurrence_id}/also", choreH.RemoveAlso)
+
+	member("GET /groups/{group_id}/bookings", bookingH.ListBookings)
+	member("POST /groups/{group_id}/bookings", bookingH.CreateBooking)
+	member("DELETE /groups/{group_id}/bookings/{booking_id}", bookingH.CancelBooking)
 	member("PUT /groups/{group_id}/occurrences/{occurrence_id}/due-date", choreH.SetOccurrenceDueDate)
 
 	return root

@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.taskflow.app.data.model.ActivityEvent
+import com.taskflow.app.data.model.Booking
+import com.taskflow.app.data.model.CreateBookingRequest
 import com.taskflow.app.data.model.Chore
 import com.taskflow.app.data.model.ChoreHistory
 import com.taskflow.app.data.model.CreateChoreRequest
@@ -28,6 +30,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import retrofit2.Response
+import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 
 /**
@@ -57,6 +60,8 @@ data class GroupDetailUiState(
     /** Chore definitions, for rendering a schedule and for editing. */
     val chores: List<Chore> = emptyList(),
     val members: List<MemberInfo> = emptyList(),
+    /** What people have booked, soonest first. Shown above the chores on the board. */
+    val bookings: List<Booking> = emptyList(),
     /** The signed-in user's quiet-hours window (F3), for the settings dialog. */
     val quietFrom: String = "21:00",
     val quietTo: String = "09:00",
@@ -141,6 +146,7 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
             val choresDeferred = async { runCatching { api.listChores(groupId) } }
             val membersDeferred = async { runCatching { api.listMembers(groupId) } }
             val activityDeferred = async { runCatching { api.listActivity(groupId) } }
+            val bookingsDeferred = async { runCatching { api.listBookings(groupId) } }
             // Quiet hours, for the on-device reminder scheduler (F3).
             val meDeferred = async { runCatching { api.getMe() } }
 
@@ -150,6 +156,7 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
             val choresRes = choresDeferred.await()
             val membersRes = membersDeferred.await()
             val activityRes = activityDeferred.await()
+            val bookingsRes = bookingsDeferred.await()
             val meRes = meDeferred.await()
 
             // The group call is the one that must succeed — without it there is
@@ -179,6 +186,7 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
                 chores = choresRes.getOrNull()?.takeIf { it.isSuccessful }?.body().orEmpty(),
                 members = membersRes.getOrNull()?.takeIf { it.isSuccessful }?.body().orEmpty(),
                 activity = activity,
+                bookings = bookingsRes.getOrNull()?.takeIf { it.isSuccessful }?.body().orEmpty(),
                 // Falls back to the current state, which starts at the spec's
                 // default — a failed /me must not silently widen the window.
                 quietFrom = me?.quietFrom ?: _uiState.value.quietFrom,
@@ -224,9 +232,40 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
         runCatching { api.listChores(groupId) }.getOrNull()
             ?.takeIf { it.isSuccessful }?.body()
             ?.let { _uiState.value = _uiState.value.copy(chores = it) }
+        runCatching { api.listBookings(groupId) }.getOrNull()
+            ?.takeIf { it.isSuccessful }?.body()
+            ?.let { _uiState.value = _uiState.value.copy(bookings = it) }
         runCatching { api.getGroup(groupId) }.getOrNull()
             ?.takeIf { it.isSuccessful }?.body()
             ?.let { _uiState.value = _uiState.value.copy(group = it) }
+    }
+
+    // ─── Bookings ───────────────────────────────────────────────
+
+    fun createBooking(
+        what: String,
+        note: String,
+        start: OffsetDateTime,
+        end: OffsetDateTime,
+        onResult: (String?) -> Unit,
+    ) {
+        runAction(successMessage = "${what.trim()} booked.", onResult = onResult) {
+            api.createBooking(
+                groupId,
+                CreateBookingRequest(
+                    what = what.trim(),
+                    note = note.trim(),
+                    startsAt = start.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+                    endsAt = end.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+                ),
+            )
+        }
+    }
+
+    fun cancelBooking(bookingId: String) {
+        runAction(successMessage = "Booking cancelled.") {
+            api.cancelBooking(groupId, bookingId)
+        }
     }
 
     // ─── Tasks ──────────────────────────────────────────────────

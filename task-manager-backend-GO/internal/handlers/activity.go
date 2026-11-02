@@ -37,6 +37,11 @@ const (
 	EventOccurrenceAlso          = "occurrence_also"
 	EventOccurrenceAlsoWithdrawn = "occurrence_also_withdrawn"
 
+	// Somebody booked an appliance or a space, or called it off. Detail is what
+	// they booked. See bookings.go.
+	EventBookingAdded     = "booking_added"
+	EventBookingCancelled = "booking_cancelled"
+
 	EventMemberJoined   = "member_joined"
 	EventMemberLeft     = "member_left"
 	EventInviteAccepted = "invite_accepted"

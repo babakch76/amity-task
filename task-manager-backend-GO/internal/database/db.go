@@ -271,6 +271,19 @@ func migrate(db *sql.DB) error {
 		PRIMARY KEY (occurrence_id, user_id)
 	);
 
+	CREATE TABLE IF NOT EXISTS bookings (
+		id         TEXT PRIMARY KEY,
+		group_id   TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+		user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		what       TEXT NOT NULL,
+		note       TEXT NOT NULL DEFAULT '',
+		starts_at  DATETIME NOT NULL,
+		ends_at    DATETIME NOT NULL,
+		created_at DATETIME NOT NULL
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_bookings_group ON bookings(group_id);
+
 	CREATE INDEX IF NOT EXISTS idx_group_members_group ON group_members(group_id);
 	CREATE INDEX IF NOT EXISTS idx_group_members_user  ON group_members(user_id);
 	CREATE INDEX IF NOT EXISTS idx_tasks_group         ON tasks(group_id);

@@ -365,6 +365,36 @@ data class GroupHistory(
  * `task_created`, `task_updated`, `task_deleted`, `tasks_bulk_updated`,
  * `member_joined`, `member_left`, `invite_accepted`.
  */
+/**
+ * Somebody saying when they want an appliance or a space, so the rest of the
+ * household can see it coming. Listed by GET /groups/{group_id}/bookings, which
+ * only returns what has not finished.
+ */
+data class Booking(
+    val id: String,
+    @SerializedName("group_id")
+    val groupId: String,
+    @SerializedName("user_id")
+    val userId: String,
+    val username: String,
+    val what: String,
+    val note: String = "",
+    @SerializedName("starts_at")
+    val startsAt: OffsetDateTime,
+    @SerializedName("ends_at")
+    val endsAt: OffsetDateTime,
+)
+
+/** POST /groups/{group_id}/bookings. Times are RFC 3339; the note may be empty. */
+data class CreateBookingRequest(
+    val what: String,
+    val note: String,
+    @SerializedName("starts_at")
+    val startsAt: String,
+    @SerializedName("ends_at")
+    val endsAt: String,
+)
+
 data class ActivityEvent(
     val id: String,
     @SerializedName("group_id")
