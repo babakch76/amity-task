@@ -60,7 +60,10 @@ Violating one of these is a bug, no matter how good the feature is.
 3. **No red overdue states, late counters, or shame badges** — amber or dim at
    most. `colorScheme.error` must never appear where overdue is rendered.
 4. No points, streaks, leaderboards, percentages, or gamification.
-5. No calendar integration or free/busy scheduling.
+5. No calendar integration or free/busy scheduling. **Narrowed by the project
+   owner on 2026-11-02 for Book it up**, a notice saying when somebody wants an
+   appliance or a room. It stays a notice: no refusing a clash, no approvals, no
+   reminders, no availability view, no calendar. See `BACKLOG.md`.
 6. Household scope only — no priorities, no subtasks, no comment threads.
 7. Every group-visible change is broadcast; **a busy pass notifies only the
    receiver** and writes nothing to the activity feed; nothing about individual
@@ -135,23 +138,25 @@ answers `401`.
 | Screen | Role |
 |---|---|
 | `LoginScreen` / `RegisterScreen` | Auth, text-button toggle between them. Register signs you straight in. Both are a stateful screen plus a stateless `LoginContent` / `RegisterContent` — edit the layout there, and the `@Preview`s at the foot of each file are the design surface. |
-| `MainShell` | The floating dock (**Mine · House · Feed** + **Add**) and the five destinations behind it. Owns the shared `ShellViewModel`, the open household's `GroupDetailViewModel` store, which household is open, the reminder alarms and the invite poll. |
+| `MainShell` | The floating dock (**Mine · House · Feed** + **Add**) and the six destinations behind it. Owns the shared `ShellViewModel`, the open household's `GroupDetailViewModel` store, which household is open, the reminder alarms and the invite poll. |
 | `HouseholdTab` | Used by **House**, **Feed** and **People** with a `HouseSection`. Decides *which* household is open, handles having none, carries create + first-run starters. |
-| `GroupDetailScreen` (2.9k lines) | One household, drawn per `HouseSection`: **House** (the board), **Feed** (activity + Who did what), **People** (members, invite, away, leave). Every sheet and dialog lives here. |
+| `GroupDetailScreen` (2.9k lines) | One household, drawn per `HouseSection`: **House** (the board), **Feed** (activity + Who did what), **People** (members, invite, away, leave, or remove for the owner). Every sheet and dialog lives here. |
 | `OccurrenceDetailSheet` (in `GroupDetailScreen.kt`) | Where a turn is **completed**. Built from the Stitch mock *Chore detail — Clean the bathroom*: header + household chip, violet callout, WHAT DONE MEANS, the four-row list, History / Edit chore, then *I did this* (*Mark as done* on someone else's turn) and *Busy — pass it on*. Undo lives here too, within its ten minutes. **Board rows have no checkbox** — a row only opens this. |
 | `MyChoresScreen` — **Mine** | The start screen. Your turns across every household: next 7 days, **Up next** (done-line + *I did this*), also yours, done lately. Your face opens **You**. Opens the board's own detail sheet. |
 | `OccurrenceDetailHost` | The detail sheet and everything behind it — history, edit flow, delete confirm, busy pass. Mounted by **both** the board and My chores; driven by a hoisted `ChoreDetailController`. |
 | `ui/components/Quiet.kt` | The design's shared pieces: `Avatar` (colour per user id), `AvatarStack`, `FloatingDock`, `GroupedCard`, `SectionLabel`, `QuietSnackbar`, `SegmentedPair`. Use these rather than redrawing them. |
-| `SettingsScreen` — **You** | Opened from your face on Mine; has a back arrow, no dock. Name, email, invitations, join with a code, quiet hours, appearance, sign out. |
+| `SettingsScreen` — **You** | Opened from your face on Mine; has a back arrow, no dock. Name, email, invitations, join with a code, How TaskFlow works, quiet hours, appearance, sign out. |
 | `ui/components/HouseholdSwitcher` | The board's title: household name + chevron, dropping a menu of households plus *Create a household* / *Join with a code*. |
 | `ui/components/MarkDoneSheet.kt` | The confirm behind **swipe-right only** — the one way to complete a turn without opening it. Quotes the done-line, then *Mark it done* / *Not yet*. Mounted from inside `TaskCard`. |
 | `AccountDialogs.kt` | The four dialogs that outlived the group list — invites, join by code, create household, quiet hours. Was `DashboardScreen.kt`. |
 | `CreateChoreFlow` | Add or edit a chore on one full screen: *How often* first, and what it implies appears beneath once answered. Delete lives at the end of edit. Opened by **Add** on the dock. |
 | `FirstRunStarters` | Five starter chores offered to a brand-new household. |
+| `BookIt.kt` | **Book it up**: the section at the top of the board, the sheet and the cancel confirm. Its state is hoisted into `GroupDetailScreen`, because the section moves when the board goes from empty to not and a housemate's new chore must not close the sheet. |
+| `Guide.kt` | **How TaskFlow works**: the page, its text (`GUIDE`) and the one-time card on Mine. The text must follow `FEATURES.md` sections 4 and 5. |
 
 Navigation is **three outer routes**: `login`, `register`, `shell`, plus a
-nested graph of five inside the shell: `mine` (start), `house`, `feed` behind
-the dock, and `people`, `settings` as pages with a back arrow and no dock.
+nested graph of six inside the shell: `mine` (start), `house`, `feed` behind
+the dock, and `people`, `settings`, `guide` as pages with a back arrow and no dock.
 Everything else is a sheet or dialog.
 
 **There is no group list and no `group/{groupId}` route.** The app opens on the

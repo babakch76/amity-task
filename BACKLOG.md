@@ -12,6 +12,35 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
 
 ## v2 progress
 
+- **Household removal, Book it up and How TaskFlow works — DONE on
+  `household-removal-and-tutorial` (2026-11-02), not merged or deployed.** The
+  interviews run on `main` unchanged. The project owner merges this afterwards,
+  and it needs the backend deployed with it: the current server answers the new
+  routes with 404 or 405, not a sign-out.
+  - **Book it up narrows constraint 5** (no free/busy scheduling). The project
+    owner decided this on 2026-11-02 after participants complained of running
+    into each other over the same appliance. Kept deliberately small, and to
+    stay within the other constraints it is a notice, not a lock: no refusal, no
+    approval, no reminders, no availability view. Group-visible, so it is in the
+    feed (constraint 7). Note that this was added after the interview version
+    was fixed, so no interview tested it.
+  - **Removal:** owner only, the one thing in the API gated on ownership, because
+    it takes everybody's record with it. Housemates are told by their own phones
+    (`KnownHouseholds`), since the feed goes too.
+  - **A reminder bug found on the way and fixed:** a household you left kept its
+    alarms, because rescheduling only touches households still on the list.
+  - **Removed:** *Leave* for the owner in People, which could only fail while
+    anybody else was in the household. *Remove* replaces it. The last member
+    leaving still deletes the household through the API.
+  - **Tried and dropped:** Material's `TimeInput` for booking times. Tapping the
+    hour box puts the cursor after the two digits and the next digit is silently
+    refused, so the keyboard appears broken. The clock face has no such trap.
+  - **Known limits, left alone to keep this small:** a clash is matched by name,
+    so "the washer" does not clash with "Washing machine". Finished bookings stay
+    in the table, hidden from the list. A busy house's bookings push the chores
+    down the board, as there is no cap on the section. No screenshots or deck
+    slides show any of this yet.
+
 - **Quiet House redesign — DONE on `mehrdad-design` (2026-11-01).** Built from
   the design canvas (claude.ai/artifact/5i9xzyDwwvD1LZQkGVgLPf), keeping the
   brand violet as the one accent. Every hard constraint still holds; the

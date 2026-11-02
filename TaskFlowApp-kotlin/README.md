@@ -163,6 +163,8 @@ the unsigned APK and the signing step is skipped.
 | `GroupDetailScreen` | Three tabs — **Board**, **Activity**, **Members** — plus an overflow menu for invites, the household's record, going away, and leaving. |
 | `CreateChoreFlow` | Adding or editing a chore, as two full-screen steps. Also the delete. |
 | `FirstRunStarters` | The five starter chores a brand-new household is offered. |
+| `BookIt.kt` | Book it up: the section at the top of the board and its sheet. |
+| `Guide.kt` | How TaskFlow works: the page in You and the one-time card on Mine. |
 
 `GroupDetailScreen` covers the whole group-scoped API:
 

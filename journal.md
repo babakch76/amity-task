@@ -6,6 +6,23 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-02 — Removal, Book it up and the guide, on `household-removal-and-tutorial`
+
+For after the interviews, which run on `main` unchanged. Popups and buttons
+audited at 360dp and 150% font, and every popup now scrolls. Owners can remove a
+household, and housemates are told by their own phones because the feed goes
+with it. Book it up added at the project owner's request after participants
+complained of clashing over appliances, as a notice rather than a lock, which
+narrows constraint 5. How TaskFlow works added to You, with a one-time card on
+Mine.
+
+All driven on the emulator against a throwaway local server with two accounts.
+That caught what the tests could not: `TimeInput` refusing digits after a tap,
+so booking uses the clock face. Checked at 360dp and 150% font and in dark mode.
+Nothing here is merged or deployed. `BACKLOG.md` has the detail and the limits.
+
+---
+
 ## 2026-11-01 (evening) — Quiet House, on `mehrdad-design`
 
 Designed the app from scratch on a canvas, then built it on a new branch with

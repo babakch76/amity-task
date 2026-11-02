@@ -57,7 +57,10 @@ GET    /groups                                               → [groups]
 GET    /groups/:group_id                                     → group
 GET    /groups/:group_id/members                             → [members]
 
-# Leave a group (removes only the caller's membership)
+# Remove a household for everyone. Owner only (403 otherwise). Cascades.
+DELETE /groups/:group_id                                     → { message }
+
+# Leave a group (removes only the caller's membership, and their bookings there)
 DELETE /groups/:group_id/members/me                          → { message }
 
 # Away, or back (F5). `until` is RFC 3339, or null for open-ended.
@@ -71,8 +74,8 @@ the manager role: the spec makes chore editing open to every member, so a
 permission gate contradicted it. `group_members.role` still accepts `admin` at
 the schema level because dropping a CHECK constraint rewrites the table for no
 gain, but nothing sets it and nothing reads it. Ownership is the only
-distinction left, and it does exactly one thing: the owner cannot leave a
-household while other members remain.
+distinction left, and it does exactly two things: the owner cannot leave a
+household while other members remain, and only the owner can remove it.
 
 `DELETE /members/me` has three outcomes:
 
@@ -81,6 +84,23 @@ household while other members remain.
 | Last remaining member               | `200` — group deleted, cascade clears its data |
 | Owner, other members still present  | `409` — ownership transfer is out of scope     |
 | Any other member                    | `200` — membership row removed                 |
+
+### Bookings
+
+Somebody saying when they want an appliance or a space. A notice, not a lock:
+overlapping bookings are both accepted, and `what` is free text. Only the person
+who booked can cancel (403 otherwise). Both writes are in the activity feed as
+`booking_added` and `booking_cancelled`, with `what` as the detail.
+
+```
+GET    /groups/:group_id/bookings                            → [bookings], soonest first, unfinished only
+POST   /groups/:group_id/bookings  { "what", "note?", "starts_at", "ends_at" }  → booking
+DELETE /groups/:group_id/bookings/:booking_id                → { message }
+```
+
+`what` is 1 to 40 characters, `note` at most 140. Times are RFC 3339. `ends_at`
+must be after `starts_at` and in the future; `starts_at` may be in the past, for
+"I've just put a wash on".
 
 ### Chores and occurrences
 

@@ -99,6 +99,32 @@ turn depends on covers and passes the app deliberately does not show anyone.
 [`calendar_decision_record.md`](calendar_decision_record.md) for why it was
 removed rather than fixed.
 
+### Book it up
+
+*On the branch `household-removal-and-tutorial`, not yet on the live server.*
+
+The top of the board, above the chores, is where somebody says when they want
+something the house shares: the washing machine on Saturday, the kitchen for
+guests. A booking is **what**, **when**, and optionally **what it's for**. The
+usual things are one tap (Washing machine, Dryer, Kitchen, Bathroom, Living
+room) and anything else can be typed.
+
+Everyone sees it: a row with the person's face, the time and the note, and an
+entry in the feed. Rows read *You · Today, 18:00 to 20:00*, and *Now, until
+20:00* once it has started. They leave the board when they finish. An until at
+or before the from means it runs past midnight.
+
+**It is a notice, not a lock.** Booking something already booked for that time
+lists who has it and turns the button into **Book it anyway**. Nothing is
+refused, nobody approves anything, and an owner has no more say than anyone
+else. A clash is compared by name, ignoring case, so "Kitchen" and "kitchen"
+clash but "the washer" and "Washing machine" do not, which is why the usual
+names are offered first.
+
+**Only the person who booked can cancel it**, and leaving a household clears
+your bookings there. There are no reminders: a booking is not a chore, and
+nothing is owed or late.
+
 ---
 
 ## 3. Chores, and the four ways they come round
@@ -278,7 +304,8 @@ know it was a decision.
   member, so the manager role and its deadline gate were removed rather than
   kept.
 - **No calendar view.** Under completion-anchored rotation a chore has one live
-  occurrence, so a month grid has almost nothing to draw.
+  occurrence, so a month grid has almost nothing to draw. Book it up is a list
+  of notices on the board, not a calendar, and it never refuses a booking.
 - **No multi-select or bulk actions.**
 
 ---
@@ -303,6 +330,26 @@ with a line saying what to do next.
 
 Leaving is available to any member; the owner cannot leave while others remain,
 and the last member leaving deletes the household.
+
+**The owner can remove a household for everyone**, from the foot of People,
+where they see *Remove* in place of a *Leave* that could only fail. The
+confirmation counts who else is affected and says it can't be undone. The board,
+chores, history and bookings all go. Accounts do not. Nothing can be written to
+the feed, because the feed goes too, so each housemate's phone notices the
+household has left their list within about 20 seconds, moves them on and says
+*You're no longer in Flat 3B.* Reminders for a household you are no longer in
+are cancelled, which they were not before.
+
+## How TaskFlow works
+
+*On the branch `household-removal-and-tutorial`.*
+
+A page in **You** under Help, with one short card per idea: the three places,
+adding and doing a chore, covers, passing, everyone busy, going away, booking,
+reminders and bringing people in. A card on **Mine** says it exists, once, until
+it is opened or dismissed. There is no carousel at first launch: slides shown
+before there is a board teach nothing you can try. The page's wording has to
+follow sections 4 and 5 of this file.
 
 ---
 

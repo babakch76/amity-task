@@ -280,6 +280,9 @@ what the app says a household is.
 
 ## 6. Leaving and deleting a household
 
+*Explicit deletion (option 3 below) is built on `household-removal-and-tutorial`,
+not yet merged. Ownership transfer and automatic succession are not.*
+
 **Asked for.** The ability for members to leave a group, and the ability to
 delete groups.
 
