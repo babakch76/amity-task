@@ -49,7 +49,7 @@ import com.taskflow.app.R
 fun AuthHeader(
     modifier: Modifier = Modifier,
     title: String = "Whose turn\nis it?",
-    subtitle: String = "One shared board for the people you live with. Turns go round on their own — nobody has to nag.",
+    subtitle: String = "One shared board for the people you live with. Turns go round on their own, so nobody has to nag.",
 ) {
     // Quiet House: the mark, then the one question the app answers, set large
     // and left-aligned, then a sentence on what it is.

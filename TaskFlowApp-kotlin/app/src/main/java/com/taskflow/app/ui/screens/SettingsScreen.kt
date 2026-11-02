@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -55,12 +54,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.taskflow.app.ui.components.QuietAlertDialog
 import com.taskflow.app.ui.components.authAmber
 import com.taskflow.app.ui.theme.Appearance
 import com.taskflow.app.ui.theme.AppearanceMode
@@ -283,7 +284,7 @@ fun SettingsScreen(
     }
 
     if (showAppearance) {
-        AlertDialog(
+        QuietAlertDialog(
             onDismissRequest = { showAppearance = false },
             title = { Text("Appearance") },
             text = {
@@ -321,7 +322,7 @@ fun SettingsScreen(
     // Signing out drops the token, and with it anything unsent. Cheap to
     // confirm, and the row is two taps from the board.
     if (showSignOut) {
-        AlertDialog(
+        QuietAlertDialog(
             onDismissRequest = { showSignOut = false },
             title = { Text("Sign out?") },
             text = { Text("You'll need your email and password to get back in.") },
@@ -414,11 +415,14 @@ private fun SettingsRow(
             tint = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else contentColor,
             modifier = Modifier.size(24.dp),
         )
+        // The label is measured first and the value takes what is left, so at
+        // a large font it is the value that shortens. The other way round broke
+        // the label mid-word: "Invitatio / ns".
         Text(
             text = label,
             style = MaterialTheme.typography.titleSmall,
             color = contentColor,
-            modifier = Modifier.weight(1f),
+            modifier = if (value == null) Modifier.weight(1f) else Modifier,
         )
         value?.let {
             Text(
@@ -427,7 +431,8 @@ private fun SettingsRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 160.dp),
+                textAlign = TextAlign.End,
+                modifier = Modifier.weight(1f),
             )
         }
     }
@@ -460,7 +465,7 @@ private fun EditFieldDialog(
     var value by remember { mutableStateOf(initial) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    AlertDialog(
+    QuietAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {

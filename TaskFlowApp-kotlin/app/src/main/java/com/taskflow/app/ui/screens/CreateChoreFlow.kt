@@ -21,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.ui.draw.clip
@@ -37,6 +38,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.taskflow.app.data.model.Chore
 import com.taskflow.app.data.model.MemberInfo
 import com.taskflow.app.data.model.ScheduleType
+import com.taskflow.app.ui.components.QuietAlertDialog
 import java.time.DayOfWeek
 import java.time.OffsetDateTime
 import java.time.format.TextStyle
@@ -224,7 +226,7 @@ fun CreateChoreFlow(
                                     .fillMaxWidth()
                                     .navigationBarsPadding()
                                     .padding(horizontal = 20.dp, vertical = 14.dp)
-                                    .height(56.dp),
+                                    .heightIn(min = 56.dp),
                             ) {
                                 Text(
                                     when {
@@ -282,7 +284,7 @@ fun CreateChoreFlow(
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = MaterialTheme.colorScheme.error,
                             ),
-                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                         ) { Text("Delete chore") }
                     }
                 }
@@ -295,7 +297,7 @@ fun CreateChoreFlow(
         // true. Editing and changing nothing used to be told "Your edits won't
         // be saved", about edits that did not exist (B-24).
         val unchanged = editing && draft == initial
-        AlertDialog(
+        QuietAlertDialog(
             onDismissRequest = { confirmDiscard = false },
             title = {
                 Text(
@@ -893,7 +895,15 @@ private fun RotationPicker(
                         com.taskflow.app.ui.components.Avatar(member.username, member.id, 32.dp, dimmed = member.away)
                         Spacer(Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(member.username, style = MaterialTheme.typography.bodyMedium)
+                            // One line each, shortened if it must be. Left to
+                            // wrap, a narrow column stacked names a letter per
+                            // line at a large font.
+                            Text(
+                                member.username,
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                             if (index == 0 || member.away) {
                                 Text(
                                     text = listOfNotNull(
@@ -902,6 +912,8 @@ private fun RotationPicker(
                                     ).joinToString(" · "),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
                         }
@@ -913,7 +925,14 @@ private fun RotationPicker(
                             onClick = { onChange(inOrder.moved(index, index + 1)) },
                             enabled = index < inOrder.lastIndex,
                         ) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move down") }
-                        TextButton(onClick = { onChange(inOrder.filterNot { it == id }) }) { Text("Remove") }
+                        // An icon, because the word took the room the name needed.
+                        IconButton(onClick = { onChange(inOrder.filterNot { it == id }) }) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Remove ${member.username}",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }

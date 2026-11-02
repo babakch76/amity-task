@@ -17,6 +17,7 @@ import com.taskflow.app.data.model.Group
 import com.taskflow.app.data.model.InviteInfo
 import com.taskflow.app.data.remote.ApiErrors
 import com.taskflow.app.data.remote.RetrofitClient
+import com.taskflow.app.ui.components.QuietAlertDialog
 import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 
@@ -59,19 +60,11 @@ internal fun PendingInvitesDialog(
     onDismiss: () -> Unit,
     onRespond: (InviteInfo, String) -> Unit,
 ) {
-    AlertDialog(
+    QuietAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Invitations", fontWeight = FontWeight.Bold) },
         text = {
-            // Scrollable and height-capped. Without this, AlertDialog clips its
-            // content and everything past roughly the sixth invite becomes
-            // unreachable — no scroll, no indication anything is missing.
-            Column(
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier
-                    .heightIn(max = 400.dp)
-                    .verticalScroll(rememberScrollState()),
-            ) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 invites.forEach { invite ->
                     Column(modifier = Modifier.padding(vertical = 4.dp)) {
                         Text(
@@ -119,7 +112,7 @@ internal fun JoinWithCodeDialog(
 ) {
     var code by remember { mutableStateOf("") }
 
-    AlertDialog(
+    QuietAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Join a household", fontWeight = FontWeight.Bold) },
         text = {
@@ -163,7 +156,7 @@ internal fun CreateGroupDialog(
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
-    AlertDialog(
+    QuietAlertDialog(
         onDismissRequest = { if (!isLoading) onDismiss() },
         title = { Text("Create a household", fontWeight = FontWeight.Bold) },
         text = {
@@ -272,7 +265,7 @@ internal fun QuietHoursDialog(
     fun valid(value: String): Boolean =
         Regex("""^([01]\d|2[0-3]):([0-5]\d)$""").matches(value)
 
-    AlertDialog(
+    QuietAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Quiet hours", fontWeight = FontWeight.Bold) },
         text = {

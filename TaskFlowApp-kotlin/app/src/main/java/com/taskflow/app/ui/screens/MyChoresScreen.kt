@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -335,7 +336,7 @@ private fun UpNextCard(turn: MyTurn, showHousehold: Boolean, onOpen: () -> Unit,
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Button(onClick = onDone, modifier = Modifier.weight(1f).height(50.dp)) {
+                Button(onClick = onDone, modifier = Modifier.weight(1f).heightIn(min = 50.dp)) {
                     Icon(Icons.Default.Check, null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("I did this", style = MaterialTheme.typography.titleMedium)
@@ -345,7 +346,7 @@ private fun UpNextCard(turn: MyTurn, showHousehold: Boolean, onOpen: () -> Unit,
                 // Hidden when there is nobody to pass to (the server's pass_to).
                 if (occ.passTo != null) {
                     OutlinedIconButton(onClick = onOpen, modifier = Modifier.size(50.dp)) {
-                        Icon(Icons.Default.SwapHoriz, contentDescription = "Busy — pass it on")
+                        Icon(Icons.Default.SwapHoriz, contentDescription = "Busy? Pass it on")
                     }
                 }
             }

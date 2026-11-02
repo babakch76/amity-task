@@ -40,6 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -101,6 +102,7 @@ import com.taskflow.app.ui.components.AvatarStack
 import com.taskflow.app.ui.components.DOCK_CLEARANCE
 import com.taskflow.app.ui.components.DoneAvatar
 import com.taskflow.app.ui.components.GroupedCard
+import com.taskflow.app.ui.components.QuietAlertDialog
 import com.taskflow.app.ui.components.QuietSnackbar
 import com.taskflow.app.ui.components.showToast
 import com.taskflow.app.ui.components.RowDivider
@@ -602,7 +604,7 @@ fun GroupDetailScreen(
     // Deleting a task is irreversible — there is no undelete endpoint, so a
     // snackbar-with-Undo would be a lie. Confirm up front instead.
     taskToDelete?.let { task ->
-        AlertDialog(
+        QuietAlertDialog(
             onDismissRequest = { taskToDelete = null },
             title = { Text("Delete this task?", fontWeight = FontWeight.Bold) },
             text = {
@@ -626,7 +628,7 @@ fun GroupDetailScreen(
     }
 
     if (confirmLeave) {
-        AlertDialog(
+        QuietAlertDialog(
             onDismissRequest = { confirmLeave = false },
             title = { Text("Leave household?", fontWeight = FontWeight.Bold) },
             text = {
@@ -1547,7 +1549,7 @@ internal fun OccurrenceDetailSheet(
                         // As-needed chores genuinely have no date. Saying so
                         // beats an empty field, which reads like missing data.
                         value = occurrence.dueDate?.let { formatDueDate(it) }
-                            ?: "No date — it waits until it's needed",
+                            ?: "No date. It waits until it's needed",
                         valueColor = if (overdue) overdueColor() else null,
                     )
                     chore?.neededByTime?.let { time ->
@@ -1665,7 +1667,7 @@ internal fun OccurrenceDetailSheet(
                                 // Not a defect to fix before you can tick it: a
                                 // household that never wrote one down is not
                                 // doing it wrong.
-                                "No agreed definition of done yet — your call on " +
+                                "No agreed definition of done yet. It's your call on " +
                                     "whether it's finished."
                             },
                             style = if (doneLine.isEmpty()) MaterialTheme.typography.bodyLarge
@@ -1694,7 +1696,7 @@ internal fun OccurrenceDetailSheet(
                     onClick = onMarkDone,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
+                        .heightIn(min = 56.dp),
                     shape = CircleShape,
                 ) {
                     Icon(Icons.Default.Check, null, modifier = Modifier.size(20.dp))
@@ -1712,8 +1714,8 @@ internal fun OccurrenceDetailSheet(
                     onClick = onUndoDone,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp),
-                ) { Text("Undo — I didn't do this") }
+                        .heightIn(min = 52.dp),
+                ) { Text("Undo, I didn't do this") }
             }
 
             // ── "I worked on this too" ──
@@ -1729,7 +1731,7 @@ internal fun OccurrenceDetailSheet(
                     onClick = onAddAlso,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp),
+                        .heightIn(min = 52.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Quiet.colors.dock,
                         contentColor = Quiet.colors.onDock,
@@ -1752,8 +1754,8 @@ internal fun OccurrenceDetailSheet(
                     onClick = onUndoAlso,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp),
-                ) { Text("Undo — take my name off") }
+                        .heightIn(min = 52.dp),
+                ) { Text("Undo, take my name off") }
             }
 
             if (occurrence.needsDate && mine) {
@@ -1761,7 +1763,7 @@ internal fun OccurrenceDetailSheet(
                     onClick = { pickingDay = true },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp),
+                        .heightIn(min = 52.dp),
                 ) { Text("Pick a day") }
             }
 
@@ -1776,11 +1778,11 @@ internal fun OccurrenceDetailSheet(
                     onClick = onPass,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp),
+                        .heightIn(min = 52.dp),
                 ) {
                     Icon(Icons.Default.SwapHoriz, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(passReceiver(occurrence, members)?.let { "Busy — pass to ${it.username}" } ?: "Busy — pass it on")
+                    Text(passReceiver(occurrence, members)?.let { "Busy? Pass to ${it.username}" } ?: "Busy? Pass it on")
                 }
                 Text(
                     (passReceiver(occurrence, members)?.let { "Only ${it.username} is told." } ?: "Only they are told.") +
@@ -2338,20 +2340,35 @@ private fun MemberList(
                     style = MaterialTheme.typography.bodySmall,
                     color = q.onDockMuted,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val shareCode: @Composable (Modifier) -> Unit = { modifier ->
                     Button(
                         onClick = onShareCode,
-                        modifier = Modifier.weight(1f).height(48.dp),
+                        modifier = modifier.heightIn(min = 48.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = q.onDock, contentColor = q.dock),
-                    ) {
-                        Text("Share code", maxLines = 1, softWrap = false)
-                    }
+                    ) { Text("Share code") }
+                }
+                val byUsername: @Composable (Modifier) -> Unit = { modifier ->
                     OutlinedButton(
                         onClick = onInviteByName,
-                        modifier = Modifier.weight(1f).height(48.dp),
+                        modifier = modifier.heightIn(min = 48.dp),
                         border = BorderStroke(1.5.dp, q.dockActive),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = q.onDock),
                     ) { Text("By username") }
+                }
+                // Half a card is not enough for these labels once the system
+                // font is enlarged: split evenly they broke mid-word ("By
+                // userna / me"). So each takes the full width then, and the
+                // labels are free to wrap so neither can ever be clipped.
+                if (LocalDensity.current.fontScale > 1.1f) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        shareCode(Modifier.fillMaxWidth())
+                        byUsername(Modifier.fillMaxWidth())
+                    }
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        shareCode(Modifier.weight(1f))
+                        byUsername(Modifier.weight(1f))
+                    }
                 }
             }
         }
@@ -2622,7 +2639,12 @@ private fun GroupHistoryBody(
             .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = DOCK_CLEARANCE),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Wraps rather than squeezes: in a Row the last chip got whatever width
+        // was left, and at a large font that was a tall blank sliver.
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             listOf("week" to "This week", "month" to "This month", "quarter" to "3 months")
                 .forEach { (value, label) ->
                     val selected = window == value
@@ -2705,7 +2727,7 @@ private fun AwayDialog(
     // case, and guessing a return date you then have to correct is worse.
     var days by remember { mutableStateOf<Int?>(null) }
 
-    AlertDialog(
+    QuietAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Away from the house", fontWeight = FontWeight.Bold) },
         text = {
@@ -2778,7 +2800,7 @@ private fun AwayDialog(
 private fun InviteByUsernameDialog(onDismiss: () -> Unit, onInvite: (String) -> Unit) {
     var username by remember { mutableStateOf("") }
 
-    AlertDialog(
+    QuietAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Invite someone") },
         text = {
@@ -2807,13 +2829,14 @@ private fun InviteByUsernameDialog(onDismiss: () -> Unit, onInvite: (String) -> 
  * to read it off the screen and retype it into a chat app — error-prone, and
  * the whole point of the code is that it travels.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun InviteCodeDialog(code: String, onDismiss: () -> Unit) {
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
     var copied by remember { mutableStateOf(false) }
 
-    AlertDialog(
+    QuietAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Invite code", fontWeight = FontWeight.Bold) },
         text = {
@@ -2838,7 +2861,10 @@ private fun InviteCodeDialog(code: String, onDismiss: () -> Unit) {
                     )
                 }
                 Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     FilledTonalButton(onClick = {
                         clipboard.setText(AnnotatedString(code))
                         copied = true

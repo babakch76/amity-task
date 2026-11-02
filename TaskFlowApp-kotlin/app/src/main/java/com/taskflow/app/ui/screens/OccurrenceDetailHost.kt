@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import com.taskflow.app.data.model.Chore
 import com.taskflow.app.data.model.Occurrence
 import com.taskflow.app.data.model.isOpen
+import com.taskflow.app.ui.components.QuietAlertDialog
 import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.OffsetDateTime
@@ -188,7 +189,7 @@ internal fun OccurrenceDetailHost(
     // asking "are you sure?". There is no undelete endpoint and a snackbar that
     // pretended otherwise would be a lie.
     controller.choreToDelete?.let { chore ->
-        AlertDialog(
+        QuietAlertDialog(
             onDismissRequest = { controller.choreToDelete = null },
             title = { Text("Delete ${chore.name}?") },
             text = {
@@ -249,7 +250,7 @@ internal fun OccurrenceDetailHost(
             // showing a dialog with an empty name in it.
             controller.passCandidate = null
         } else {
-            AlertDialog(
+            QuietAlertDialog(
                 onDismissRequest = { controller.passCandidate = null },
                 title = { Text("Pass ${occ.choreName} to ${receiver.username}?") },
                 text = {

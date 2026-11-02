@@ -8,10 +8,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
@@ -79,6 +82,10 @@ fun MarkDoneSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                // Scrolls for the same reason the dialogs do: a long done-line
+                // at a large font would otherwise push the buttons off the
+                // sheet, and they are the point of it.
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -148,7 +155,7 @@ fun MarkDoneSheet(
                 )
             } else {
                 Text(
-                    text = "No agreed definition of done for this one yet — your " +
+                    text = "No agreed definition of done for this one yet. It's your " +
                         "call on whether it's finished. Ticking it records this " +
                         "cycle as done for the whole household.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -161,7 +168,7 @@ fun MarkDoneSheet(
             // answers are not equals.
             Button(
                 onClick = onConfirm,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
             ) { Text("Mark it done") }
 
             TextButton(

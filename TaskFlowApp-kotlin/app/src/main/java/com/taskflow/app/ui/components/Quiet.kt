@@ -11,19 +11,23 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.ShowChart
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -274,6 +278,43 @@ fun FloatingDock(
     }
 }
 
+/**
+ * Every popup in the app, so none of them can lose its last line.
+ *
+ * Material's AlertDialog gives its text a bounded slot and silently clips
+ * whatever does not fit. On a small screen or with a larger system font the end
+ * of the text simply stopped at the buttons, with no sign that anything was
+ * missing and no way to reach it: the away dialog lost "Everyone in the
+ * household can see that you're away", which is the line that matters most.
+ *
+ * So the body always scrolls, and a rule above the buttons says there is more.
+ * Use this rather than AlertDialog directly.
+ */
+@Composable
+fun QuietAlertDialog(
+    onDismissRequest: () -> Unit,
+    confirmButton: @Composable () -> Unit,
+    title: @Composable () -> Unit,
+    text: @Composable () -> Unit,
+    dismissButton: (@Composable () -> Unit)? = null,
+) {
+    val scroll = rememberScrollState()
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        confirmButton = confirmButton,
+        dismissButton = dismissButton,
+        title = title,
+        text = {
+            Box {
+                Column(modifier = Modifier.verticalScroll(scroll)) { text() }
+                if (scroll.canScrollForward) {
+                    HorizontalDivider(modifier = Modifier.align(Alignment.BottomCenter))
+                }
+            }
+        },
+    )
+}
+
 /** Bottom padding a scrolling list needs so its last row clears the dock. */
 val DOCK_CLEARANCE = 120.dp
 
@@ -326,7 +367,7 @@ fun SegmentedPair(first: String, second: String, selected: Int, onSelect: (Int) 
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(40.dp)
+                    .heightIn(min = 40.dp)
                     .clip(RoundedCornerShape(11.dp))
                     .background(if (on) MaterialTheme.colorScheme.surface else Color.Transparent)
                     .clickable(role = Role.Tab) { onSelect(i) }
