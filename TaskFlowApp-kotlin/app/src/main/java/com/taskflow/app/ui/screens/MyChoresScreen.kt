@@ -39,7 +39,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -91,17 +90,7 @@ fun MyChoresScreen(
     viewModel: ShellViewModel = viewModel(),
     hasInvites: Boolean = false,
     onOpenSettings: () -> Unit = {},
-    onOpenGuide: () -> Unit = {},
 ) {
-    val context = LocalContext.current
-    var showGuideCard by remember {
-        mutableStateOf(!LocalHints.seen(context, LocalHints.Hint.GUIDE_CARD))
-    }
-    fun guideCardDone() {
-        showGuideCard = false
-        LocalHints.markSeen(context, LocalHints.Hint.GUIDE_CARD)
-    }
-
     val uiState by viewModel.uiState.collectAsState()
     val reminderData by viewModel.reminderData.collectAsState()
     val me by viewModel.me.collectAsState()
@@ -170,16 +159,6 @@ fun MyChoresScreen(
                         )
                     }
                 }
-            }
-
-            if (showGuideCard) {
-                GuideCard(
-                    onOpen = {
-                        guideCardDone()
-                        onOpenGuide()
-                    },
-                    onDismiss = { guideCardDone() },
-                )
             }
 
             NextSevenDays(
@@ -272,7 +251,7 @@ private val TODAY_LINE: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE, d
  * The whole card opens the month, so the icon in it does not have to be hit.
  */
 @Composable
-private fun NextSevenDays(today: LocalDate, days: Set<LocalDate>, onExpand: () -> Unit) {
+internal fun NextSevenDays(today: LocalDate, days: Set<LocalDate>, onExpand: () -> Unit) {
     Surface(onClick = onExpand, color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(22.dp)) {
         Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             val inWeek = (0L..6L).count { today.plusDays(it) in days }
@@ -345,7 +324,7 @@ private val WEEKDAY_LETTER: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE
 
 /** The one turn to do next, with the agreement on the card and the button under it. */
 @Composable
-private fun UpNextCard(turn: MyTurn, showHousehold: Boolean, onOpen: () -> Unit, onDone: () -> Unit) {
+internal fun UpNextCard(turn: MyTurn, showHousehold: Boolean, onOpen: () -> Unit, onDone: () -> Unit) {
     val occ = turn.occurrence
     val chore = turn.chores.firstOrNull { it.id == occ.choreId }
     Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(26.dp)) {
@@ -422,7 +401,7 @@ private fun HouseholdChip(name: String) {
 
 /** One of your turns in a list: a dot, the chore, and when. */
 @Composable
-private fun TurnRow(turn: MyTurn, today: LocalDate, showHousehold: Boolean, onClick: () -> Unit) {
+internal fun TurnRow(turn: MyTurn, today: LocalDate, showHousehold: Boolean, onClick: () -> Unit) {
     val occ = turn.occurrence
     val chore = turn.chores.firstOrNull { it.id == occ.choreId }
     val q = Quiet.colors

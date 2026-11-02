@@ -140,7 +140,7 @@ answers `401`.
 | Screen | Role |
 |---|---|
 | `LoginScreen` / `RegisterScreen` | Auth, text-button toggle between them. Register signs you straight in. Both are a stateful screen plus a stateless `LoginContent` / `RegisterContent` — edit the layout there, and the `@Preview`s at the foot of each file are the design surface. |
-| `MainShell` | The floating dock (**Mine · House · Feed** + **Add**) and the six destinations behind it. Owns the shared `ShellViewModel`, the open household's `GroupDetailViewModel` store, which household is open, the reminder alarms and the invite poll. |
+| `MainShell` | The floating dock (**Mine · House · Feed** + **Add**) and the seven destinations behind it. Owns the shared `ShellViewModel`, the open household's `GroupDetailViewModel` store, which household is open, the reminder alarms and the invite poll. |
 | `HouseholdTab` | Used by **House**, **Feed** and **People** with a `HouseSection`. Decides *which* household is open, handles having none, carries create + first-run starters. |
 | `GroupDetailScreen` (2.9k lines) | One household, drawn per `HouseSection`: **House** (the board), **Feed** (activity + Who did what), **People** (members, invite, away, leave, or remove for the owner). Every sheet and dialog lives here. |
 | `OccurrenceDetailSheet` (in `GroupDetailScreen.kt`) | Where a turn is **completed**. Built from the Stitch mock *Chore detail — Clean the bathroom*: header + household chip, violet callout, WHAT DONE MEANS, the four-row list, History / Edit chore, then *I did this* (*Mark as done* on someone else's turn) and *Busy — pass it on*. Undo lives here too, within its ten minutes. **Board rows have no checkbox** — a row only opens this. |
@@ -155,11 +155,14 @@ answers `401`.
 | `FirstRunStarters` | Five starter chores offered to a brand-new household. |
 | `BookIt.kt` | **Book it up**: the section at the top of the board, the sheet and the cancel confirm. Its state is hoisted into `GroupDetailScreen`, because the section moves when the board goes from empty to not and a housemate's new chore must not close the sheet. |
 | `MonthView.kt` | The month popup behind the week strip on Mine. Its pure half (`comingDates`, `nextHolder`, `myTurnDays`) mirrors `nextDueDate` and `nextInRotation` in `chores.go`, so **change them together**. Anything past the open turn is `likely`, and must stay visibly so. |
-| `Guide.kt` | **How TaskFlow works**: the page, its text (`GUIDE`) and the one-time card on Mine. The text must follow `FEATURES.md` sections 4 and 5. |
+| `Guide.kt` | **How TaskFlow works**: the page and its text (`GUIDE`). The text must follow `FEATURES.md` sections 4 and 5. |
+| `Tour.kt` | **The tour**: the fixed steps (`TOUR`), the spotlight and the swipe practice. Parts are marked with `Modifier.tourTarget`. Keep it the same for everybody: see `BACKLOG.md` for why it does not walk the person's own account. |
+| `TourSample.kt` | The sample flat behind the tour: the app's real composables given fixed data, with no ViewModel or network. If `MyChoresScreen` or the board changes shape, change this to match. |
 
 Navigation is **three outer routes**: `login`, `register`, `shell`, plus a
-nested graph of six inside the shell: `mine` (start), `house`, `feed` behind
-the dock, and `people`, `settings`, `guide` as pages with a back arrow and no dock.
+nested graph of seven inside the shell: `mine` (start), `house`, `feed` behind
+the dock, `people`, `settings`, `guide` as pages with a back arrow and no dock, and
+`tour`, which draws a dock of its own.
 Everything else is a sheet or dialog.
 
 **There is no group list and no `group/{groupId}` route.** The app opens on the

@@ -6,6 +6,27 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-02 (night) — The tour
+
+An in-app tutorial, with the swipe as the main thing to teach. Built first as a
+spotlight over the person's real screens. The project owner saw it come out at 5,
+11 and 12 steps on different accounts and asked why there was not one prepared case.
+That was the better design: twelve fixed steps over a sample flat, built from the
+app's own composables with fixed data. Most of the conditional steps, the waiting
+and the special cases came out with it.
+
+Driving the first version found things unit tests could not: started from You it
+stayed on You, because `go()` saves the stack; system Back went to the NavHost first,
+because the handler that registers last wins and the Scaffold content composes late;
+and a tall card on a small phone with big text squeezed the words under the status
+bar. The second version needed only the last of those fixed, and was re-driven in
+full, including a real tap through the spotlight with no write in Logcat.
+
+Reading the code also showed there are two swipes, not one: right marks a turn done
+as well as left passing it. The guide only mentioned left. It does now.
+
+---
+
 ## 2026-11-02 (later) — The month on Mine is not a reversal
 
 Corrected the docs after the project owner pointed out that the entry below, and

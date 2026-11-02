@@ -2164,7 +2164,7 @@ private fun statusLabel(status: String) = when (status) {
 // ═══════════════════════════════════════════════════════════════
 
 @Composable
-private fun ActivityList(events: List<ActivityEvent>, members: List<MemberInfo>, myUserId: String?) {
+internal fun ActivityList(events: List<ActivityEvent>, members: List<MemberInfo>, myUserId: String?) {
     if (events.isEmpty()) {
         EmptyBlock(
             title = "Nothing has happened yet",

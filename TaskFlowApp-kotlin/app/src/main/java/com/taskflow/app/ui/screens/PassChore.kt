@@ -80,8 +80,8 @@ object LocalHints {
         /** Whether the notification permission has been asked for on this install. */
         NOTIFICATIONS_ASKED("notification_permission_asked"),
 
-        /** The "New here?" card on Mine. */
-        GUIDE_CARD("guide_card_dismissed"),
+        /** The tour, which starts by itself once. It stays in You after that. */
+        TOUR("tour_seen"),
     }
 
     fun seen(context: Context, hint: Hint): Boolean =

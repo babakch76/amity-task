@@ -2,31 +2,25 @@ package com.taskflow.app.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.taskflow.app.ui.components.GroupedCard
 import com.taskflow.app.ui.components.ScreenTitle
 
-// How TaskFlow works. A page you can go back to rather than a carousel at first
-// launch: slides shown before there is a board teach nothing you can try, and
-// are gone by the time the question comes up. The one-time card on Mine is how
-// somebody finds out it exists.
+// How TaskFlow works. The tour in Tour.kt shows where things are and is gone in a
+// minute. This is the page to come back to when the question comes up, for the
+// rules that take more than a sentence on a spotlight.
 
 internal data class GuideSection(val title: String, val body: String)
 
@@ -47,8 +41,9 @@ internal val GUIDE = listOf(
     ),
     GuideSection(
         "Doing a chore",
-        "Tap it, then I did this. Anyone can tick anything, so if you did " +
-            "someone else's, tap Mark as done. You have ten minutes to undo.",
+        "Tap it, then I did this, or swipe your turn right on House. Anyone can " +
+            "tick anything, so if you did someone else's, tap Mark as done. " +
+            "You have ten minutes to undo.",
     ),
     GuideSection(
         "When someone covers for you",
@@ -57,8 +52,8 @@ internal val GUIDE = listOf(
     ),
     GuideSection(
         "Too busy",
-        "Swipe your turn left, or open it and tap Busy. It goes to the next " +
-            "person and only they are told. The next one comes back to you.",
+        "Swipe your turn left on House, or open it and tap Busy. It goes to the " +
+            "next person and only they are told. The next one comes back to you.",
     ),
     GuideSection(
         "If everyone is busy",
@@ -125,35 +120,3 @@ fun GuideScreen(onBack: () -> Unit) {
     }
 }
 
-/** On Mine until it is opened or dismissed, once. The page stays in You afterwards. */
-@Composable
-internal fun GuideCard(onOpen: () -> Unit, onDismiss: () -> Unit) {
-    GroupedCard {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f).padding(vertical = 8.dp)) {
-                Text("New here?", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = "A quick look at how turns work.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                TextButton(
-                    onClick = onOpen,
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-                ) { Text("Show me") }
-            }
-            IconButton(onClick = onDismiss) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Dismiss",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}

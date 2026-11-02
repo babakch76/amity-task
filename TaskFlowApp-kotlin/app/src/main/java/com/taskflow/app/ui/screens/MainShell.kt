@@ -129,6 +129,14 @@ fun MainShell(
         }
     }
 
+    // The tour opens by itself the first time, before anything else on this phone.
+    LaunchedEffect(Unit) {
+        if (!LocalHints.seen(context, LocalHints.Hint.TOUR)) {
+            LocalHints.markSeen(context, LocalHints.Hint.TOUR)
+            navController.navigate(ROUTE_TOUR)
+        }
+    }
+
     LaunchedEffect(actionMessage) {
         actionMessage?.let {
             val undo = viewModel.undoableDone.value
@@ -187,7 +195,6 @@ fun MainShell(
                         myUserId = myUserId,
                         hasInvites = invites.isNotEmpty(),
                         onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
-                        onOpenGuide = { navController.navigate(ROUTE_GUIDE) },
                     )
                 }
                 composable(ROUTE_HOUSE) {
@@ -235,10 +242,14 @@ fun MainShell(
                         onLogout = onLogout,
                         onBack = { navController.popBackStack() },
                         onOpenGuide = { navController.navigate(ROUTE_GUIDE) },
+                        onStartTour = { navController.navigate(ROUTE_TOUR) },
                     )
                 }
                 composable(ROUTE_GUIDE) {
                     GuideScreen(onBack = { navController.popBackStack() })
+                }
+                composable(ROUTE_TOUR) {
+                    TourScreen(onClose = { navController.popBackStack() })
                 }
             }
 
@@ -271,3 +282,4 @@ private const val ROUTE_FEED = "feed"
 private const val ROUTE_PEOPLE = "people"
 private const val ROUTE_SETTINGS = "settings"
 private const val ROUTE_GUIDE = "guide"
+private const val ROUTE_TOUR = "tour"

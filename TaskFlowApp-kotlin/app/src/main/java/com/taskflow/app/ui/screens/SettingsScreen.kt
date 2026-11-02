@@ -23,6 +23,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.VpnKey
@@ -96,6 +97,7 @@ fun SettingsScreen(
     viewModel: ShellViewModel = viewModel(),
     onBack: () -> Unit = {},
     onOpenGuide: () -> Unit = {},
+    onStartTour: () -> Unit = {},
 ) {
     val me by viewModel.me.collectAsState()
     val invites by viewModel.invites.collectAsState()
@@ -179,6 +181,12 @@ fun SettingsScreen(
                 }
 
                 SettingsGroup("HELP") {
+                    SettingsRow(
+                        icon = Icons.Default.Explore,
+                        label = "Take the tour",
+                        onClick = onStartTour,
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsRow(
                         icon = Icons.AutoMirrored.Filled.HelpOutline,
                         label = "How TaskFlow works",

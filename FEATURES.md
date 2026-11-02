@@ -379,10 +379,28 @@ day has passed stays on Mine rather than on the month.
 
 A page in **You** under Help, with one short card per idea: the three places,
 adding and doing a chore, covers, passing, everyone busy, going away, booking,
-reminders and bringing people in. A card on **Mine** says it exists, once, until
-it is opened or dismissed. There is no carousel at first launch: slides shown
-before there is a board teach nothing you can try. The page's wording has to
-follow sections 4 and 5 of this file.
+reminders and bringing people in. It is for reading when a question comes up, and
+its wording has to follow sections 4 and 5 of this file.
+
+## The tour
+
+*On the branch `household-removal-and-tutorial`.*
+
+A walk through the app in twelve steps, the same for everybody. It opens by itself
+the first time someone signs in on a phone, with or without a household, and
+**Take the tour** in You runs it again. Each step dims the screen, lights one part
+and says what it does, and the tour moves between Mine, House and Feed on its own.
+Back goes back a step, and Skip leaves at any point.
+
+**It shows a sample flat, not your account.** The screens are the app's own, fed
+fixed data: your two turns, one of Maya's and a booking. Nothing behind the overlay
+can be tapped and nothing is sent to the server, so it cannot change anything real.
+The dates are worked out from today, so it never looks stale.
+
+**Swiping gets its own step**, because a gesture cannot be seen on a screen. A
+practice turn slides each way by itself until you touch it, and then you can swipe
+it yourself and be told what that would do. Left passes your turn on and right marks
+it done, on your own chores on House, and both ask first.
 
 ---
 

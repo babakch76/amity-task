@@ -208,6 +208,8 @@ fun FloatingDock(
     onSelect: (DockTab) -> Unit,
     onAdd: () -> Unit,
     modifier: Modifier = Modifier,
+    tabModifier: (DockTab) -> Modifier = { Modifier },
+    addModifier: Modifier = Modifier,
 ) {
     val q = Quiet.colors
     Box(modifier = modifier.fillMaxWidth()) {
@@ -241,7 +243,7 @@ fun FloatingDock(
                 DockTab.entries.forEach { tab ->
                     val selected = tab == current
                     Column(
-                        modifier = Modifier
+                        modifier = tabModifier(tab)
                             .weight(1f)
                             .height(52.dp)
                             .clip(RoundedCornerShape(26.dp))
@@ -259,7 +261,7 @@ fun FloatingDock(
                 }
             }
             Box(
-                modifier = Modifier
+                modifier = addModifier
                     .size(64.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primary)

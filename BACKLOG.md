@@ -17,6 +17,23 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
   interviews run on `main` unchanged. The project owner merges this afterwards,
   and it needs the backend deployed with it: the current server answers the new
   routes with 404 or 405, not a sign-out.
+  - **The tour**, at the project owner's request: an in-app tutorial that highlights
+    each part and says what it does, swiping above all. It replaced the "New here?"
+    card on Mine, which only linked to a page of text.
+    - **A sample flat, not the person's own account.** The first version lit the
+      real screens. It came out at 5, 11 or 12 steps depending on what the account
+      had, and somebody with nothing yet saw the least, so the owner asked for one
+      prepared case. That also removed the need for it to wait for a household, step
+      round the starters, or hold back the notification prompt.
+    - **It opens by itself, once per phone.** This drops the earlier position that
+      nothing should appear at first launch. That was about slides shown before
+      there is anything to try; this is the app itself, and it can be skipped.
+    - **The swipe is practised, not described.** Left passes and right marks done,
+      only on your own turns on House, where nobody would find them unprompted.
+    - **What it does not do.** It points at People and You and does not go inside.
+      Twelve steps was already the limit for something meant to take a minute.
+    - **Known limit:** the sample is drawn separately from the real screens, using
+      the same composables, so a change to their layout has to be copied across.
   - **The month on Mine**, at the project owner's request after users complained
     they could only see a week. A small optional view, not a calendar coming
     back: the Calendar tab decision stands. It gives people some perspective on
