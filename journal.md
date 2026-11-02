@@ -6,6 +6,24 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-02 (late) — News with the app closed
+
+Turns passed to you now reach the phone with the app closed, and housemates' chores
+do too for anyone who switches them on. Both come from a WorkManager poll, so no
+backend change and no Firebase account. Checking first showed the pass confirm had
+been promising something the app could not do.
+
+Testing it took some care. `jobscheduler run -f` does nothing before the fifteen
+minutes are up, because WorkManager declines the job and the only sign is silence. Once
+they are up Android may still hold a ready job back to batch it: one sat ready for five
+minutes on an idle emulator. And the job id goes up after each run. So each check was:
+kill the process, wait out the gate, then force it, with Maya acting from her own
+account. That covered a pass and chores told with the app closed, quiet hours holding
+a pass and then releasing it, no repeats, a chore undone and your own chore left out,
+the switch off fetching no activity at all, and signing out removing the job.
+
+---
+
 ## 2026-11-02 (night) — The tour
 
 An in-app tutorial, with the swipe as the main thing to teach. Built first as a

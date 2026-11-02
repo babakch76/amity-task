@@ -1,5 +1,10 @@
 package com.taskflow.app.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +28,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.Notifications
@@ -38,6 +44,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -61,6 +68,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import com.taskflow.app.TaskFlowApp
+import com.taskflow.app.reminders.HouseNewsStore
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.taskflow.app.ui.components.QuietAlertDialog
@@ -114,6 +124,37 @@ fun SettingsScreen(
 
     val appearance by Appearance.mode.collectAsState()
     val context = LocalContext.current
+
+    // Held on this phone, so it is read here and not from the account.
+    val userId = remember { (context.applicationContext as? TaskFlowApp)?.tokenManager?.getUserId() }
+    val houseNews = remember { HouseNewsStore(context) }
+    var hearChores by remember { mutableStateOf(userId?.let(houseNews::doneOn) == true) }
+
+    fun setHearChores(on: Boolean) {
+        hearChores = on
+        userId?.let { houseNews.setDoneOn(it, on) }
+    }
+
+    val notificationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            setHearChores(true)
+        } else {
+            viewModel.showMessage("Turn on notifications for TaskFlow in your phone's settings first.")
+        }
+    }
+
+    fun toggleHearChores() {
+        val asking = !hearChores && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        if (asking) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            setHearChores(!hearChores)
+        }
+    }
 
     // Close the invites dialog once the last one is dealt with.
     if (invites.isEmpty() && showInvites) showInvites = false
@@ -203,6 +244,15 @@ fun SettingsScreen(
                         onClick = { showQuietHours = true },
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    // All or none. Choosing whose chores to hear about would be
+                    // a way of watching one person.
+                    SettingsRow(
+                        icon = Icons.Default.Groups,
+                        label = "When a housemate does a chore",
+                        switchedOn = hearChores,
+                        onClick = ::toggleHearChores,
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsRow(
                         icon = Icons.Default.DarkMode,
                         label = "Appearance",
@@ -223,7 +273,7 @@ fun SettingsScreen(
                 // keeping one and losing the other.
                 Text(
                     text = "Your name, email and quiet hours follow your account. " +
-                        "Appearance is kept on this phone.",
+                        "Appearance and housemate alerts are kept on this phone.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -413,6 +463,8 @@ private fun SettingsRow(
     label: String,
     value: String? = null,
     enabled: Boolean = true,
+    /** Draws a switch at the end, for a row that is on or off. The row is what is tapped. */
+    switchedOn: Boolean? = null,
     onClick: () -> Unit,
 ) {
     val contentColor =
@@ -453,6 +505,7 @@ private fun SettingsRow(
                 modifier = Modifier.weight(1f),
             )
         }
+        switchedOn?.let { Switch(checked = it, onCheckedChange = null) }
     }
 }
 

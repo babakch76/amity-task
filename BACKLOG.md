@@ -17,6 +17,25 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
   interviews run on `main` unchanged. The project owner merges this afterwards,
   and it needs the backend deployed with it: the current server answers the new
   routes with 404 or 405, not a sign-out.
+  - **News with the app closed**, at the project owner's request: being told when
+    a turn is passed to you, and optionally when a housemate does a chore.
+    - **A poll, not a push.** `HouseNewsWorker` looks about every fifteen minutes.
+      Firebase would be instant, but it needs an outside account and server work,
+      and a late note suits this: nothing can be told before its undo window ends.
+      No backend change was needed, so this part works against the live server.
+    - **This also makes a promise true.** The pass confirm has always said the
+      receiver will be told, and until now nothing could reach them with the app
+      closed. They found out when they next opened it.
+    - **Housemates' chores are all or none, and off by default.** The owner ruled out
+      picking people. It would be a way of watching one person, and leaving it on
+      for everybody would mean several pings a day about other people's chores.
+    - **Kept from the 2026-09-14 rules:** never to the doer, held through the undo
+      window and quiet hours, and nothing about dates or whose turn it was.
+    - **A pass names nobody.** `passed_from` is the first passer, and in a chain the
+      person who actually handed it over may be someone else.
+    - **Known limit:** your own reminders are still armed only when the app syncs, so
+      a turn that starts with the app closed is not announced until it is next opened.
+      Only passes are.
   - **The tour**, at the project owner's request: an in-app tutorial that highlights
     each part and says what it does, swiping above all. It replaced the "New here?"
     card on Mine, which only linked to a page of text.
@@ -203,7 +222,8 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
   quoted it (`MarkDoneSheet`), so both routes to done now end on the agreement.
 
   **Declined in the same review — a completion push to the rest of the
-  household.** Completions already write `occurrence_done` to the Activity
+  household.** *Since built, as an opt-in poll: see the v2 progress entry of
+  2026-11-02.* Completions already write `occurrence_done` to the Activity
   feed, and the board polls it while open. A notification to people who are
   not looking would close the "re-cleaned a room that was already done" gap
   from the interviews, but it needs either a background poller or FCM, and the

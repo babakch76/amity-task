@@ -78,8 +78,8 @@ internal val GUIDE = listOf(
     ),
     GuideSection(
         "Reminders",
-        "Your phone reminds you about your turns. To set quiet hours, tap your " +
-            "face on Mine.",
+        "Your phone reminds you about your turns and tells you when one is passed " +
+            "to you. Quiet hours, and news of housemates' chores, are behind your face on Mine.",
     ),
     GuideSection(
         "Bringing people in",

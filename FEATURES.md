@@ -259,6 +259,28 @@ account, applying to reminders from all of your households, and set from
 **Settings**. Anything due inside the window waits until it is over rather
 than being dropped.
 
+### News from the household
+
+*On the branch `household-removal-and-tutorial`.*
+
+Two things reach your phone with the app closed, from a check that Android runs
+about every fifteen minutes and later on a sleeping phone. There is no push
+service, so neither arrives at once.
+
+- **A turn passed to you.** Always on, since the confirm tells the other person you
+  will be told: *Water the plants was passed to you. Due Thu 5 Nov.* If everybody
+  was busy it says the chore is back with you and you pick the day. It names nobody,
+  because the first person to pass it may not be the last.
+- **A housemate did a chore.** Off unless you turn on **When a housemate does a
+  chore** in You, on this phone. It is all or none, because choosing whose chores to
+  hear about would be a way of watching one person. It makes no sound, several go in
+  one notification, and it says who did what and never whose turn it was. Your own
+  chores are never news to you.
+
+Each waits out its undo window, two minutes for a pass and ten for a chore, so a
+mis-tap taken back is never heard about. Quiet hours hold both until they end. A phone
+whose owner has force-stopped the app runs nothing until it is next opened.
+
 ---
 
 ## 7. The record

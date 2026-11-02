@@ -24,8 +24,8 @@ import java.time.OffsetDateTime
  *    Escalating wording is the nagging the app exists to absorb, and it would
  *    make the app the nag instead of the flatmate.
  *
- * Nothing here can be triggered by another member — there is no path that lets
- * one person cause a notification on another's phone.
+ * Nothing here can be triggered by another member. What other people do reaches
+ * your phone only through [HouseNewsWorker], and only as what happened.
  */
 class ReminderReceiver : BroadcastReceiver() {
 

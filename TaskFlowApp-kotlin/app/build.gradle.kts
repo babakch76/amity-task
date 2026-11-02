@@ -146,6 +146,10 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
+    // HouseNewsWorker, which has to run with the app closed. Not 2.10, which
+    // needs compileSdk 35.
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
+
     // EncryptedSharedPreferences
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 

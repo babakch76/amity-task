@@ -31,6 +31,7 @@ import androidx.navigation.compose.rememberNavController
 import com.taskflow.app.TaskFlowApp
 import com.taskflow.app.data.local.KnownHouseholds
 import com.taskflow.app.data.local.LastHousehold
+import com.taskflow.app.reminders.HouseNewsWorker
 import com.taskflow.app.reminders.ReminderScheduler
 import com.taskflow.app.ui.components.DockTab
 import com.taskflow.app.ui.components.FloatingDock
@@ -127,6 +128,10 @@ fun MainShell(
         if (gone.isNotEmpty()) {
             viewModel.showMessage("You're no longer in ${gone.joinToString(" or ")}.")
         }
+    }
+
+    LaunchedEffect(myUserId) {
+        myUserId?.let { HouseNewsWorker.start(context.applicationContext, it) }
     }
 
     // The tour opens by itself the first time, before anything else on this phone.

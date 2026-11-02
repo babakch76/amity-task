@@ -155,6 +155,7 @@ answers `401`.
 | `FirstRunStarters` | Five starter chores offered to a brand-new household. |
 | `BookIt.kt` | **Book it up**: the section at the top of the board, the sheet and the cancel confirm. Its state is hoisted into `GroupDetailScreen`, because the section moves when the board goes from empty to not and a housemate's new chore must not close the sheet. |
 | `MonthView.kt` | The month popup behind the week strip on Mine. Its pure half (`comingDates`, `nextHolder`, `myTurnDays`) mirrors `nextDueDate` and `nextInRotation` in `chores.go`, so **change them together**. Anything past the open turn is `likely`, and must stay visibly so. |
+| `reminders/HouseNews.kt`, `HouseNewsWorker.kt` | What reaches the phone with the app closed: turns passed to you, and housemates' chores if switched on. A poll through WorkManager, not a push. The hold times mirror `undoWindow` and `passUndoWindow` in `chores.go`, so **change them together**. |
 | `Guide.kt` | **How TaskFlow works**: the page and its text (`GUIDE`). The text must follow `FEATURES.md` sections 4 and 5. |
 | `Tour.kt` | **The tour**: the fixed steps (`TOUR`), the spotlight and the swipe practice. Parts are marked with `Modifier.tourTarget`. Keep it the same for everybody: see `BACKLOG.md` for why it does not walk the person's own account. |
 | `TourSample.kt` | The sample flat behind the tour: the app's real composables given fixed data, with no ViewModel or network. If `MyChoresScreen` or the board changes shape, change this to match. |

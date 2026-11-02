@@ -5,7 +5,8 @@
 
     <!--
       F3. Reminders are scheduled on the device, so no push service and no
-      network permission beyond the one above.
+      network permission beyond the one above. News of other people's doings is
+      polled by HouseNewsWorker, which needs nothing more either.
 
       POST_NOTIFICATIONS is runtime-requested on Android 13+; refusing it stops
       reminders and nothing else, since the board never depended on them.

@@ -9,6 +9,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.taskflow.app.data.local.KnownHouseholds
 import com.taskflow.app.data.local.LastHousehold
 import com.taskflow.app.data.local.TokenManager
+import com.taskflow.app.reminders.HouseNewsWorker
 import com.taskflow.app.ui.screens.MainShell
 import com.taskflow.app.ui.screens.LoginScreen
 import com.taskflow.app.ui.screens.RegisterScreen
@@ -123,6 +124,7 @@ fun AppNavGraph(
                     // take to be resolved away.
                     LastHousehold.clear(context)
                     KnownHouseholds.clear(context)
+                    HouseNewsWorker.stop(context)
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(0) { inclusive = true }
                     }
