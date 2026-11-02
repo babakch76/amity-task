@@ -115,6 +115,7 @@ func newRouter(db *database.DB) http.Handler {
 	}
 
 	member("GET /groups/{group_id}", groupH.GetGroup)
+	member("DELETE /groups/{group_id}", groupH.DeleteGroup)
 	member("GET /groups/{group_id}/members", groupH.ListMembers)
 	member("DELETE /groups/{group_id}/members/me", groupH.LeaveGroup)
 	member("PUT /groups/{group_id}/members/me/away", groupH.SetAway)

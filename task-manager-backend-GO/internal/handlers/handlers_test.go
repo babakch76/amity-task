@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -198,6 +199,132 @@ func TestInviteExpiryConditionIsFormatSafe(t *testing.T) {
 					tc.expiresAt.Format(time.RFC3339), got, tc.wantRows)
 			}
 		})
+	}
+}
+
+// --- Removing a household --------------------------------------------------
+
+// tableRows counts what a household still owns in one table.
+func tableRows(t *testing.T, db *database.DB, query, id string) int {
+	t.Helper()
+	var n int
+	if err := db.QueryRow(query, id).Scan(&n); err != nil {
+		t.Fatalf("counting %q: %v", query, err)
+	}
+	return n
+}
+
+// The whole household goes, and only that household: the cascade is the point
+// of this endpoint, so every table is checked rather than trusted.
+func TestDeleteGroupRemovesTheHouseholdAndEverythingInIt(t *testing.T) {
+	db := newTestDB(t)
+	h := &GroupHandler{DB: db}
+
+	owner := newUser(t, db, "owner")
+	member := newUser(t, db, "member")
+	outsider := newUser(t, db, "outsider")
+	groupID := newGroup(t, db, owner, "Flat")
+	otherGroup := newGroup(t, db, owner, "Other flat")
+	addMember(t, db, groupID, member, "member")
+
+	chore := createChore(t, db, groupID, owner, fmt.Sprintf(`{
+		"name": "Kitchen", "schedule_type": "interval", "interval_days": 3,
+		"rotation": [%q, %q]
+	}`, owner, member))
+	occ := openOccurrencesFor(t, db, groupID, owner, chore.ID)[0]
+	if rec := patchOccurrence(t, db, groupID, occ.ID, member, "done"); rec.Code != http.StatusOK {
+		t.Fatalf("completing a turn: %d %s", rec.Code, rec.Body.String())
+	}
+	newTask(t, db, groupID, "One-off")
+	setAway(t, db, groupID, member, nil)
+	if _, err := db.Exec(
+		`INSERT INTO invites (id, group_id, invited_by, invited_user, status) VALUES ('i1', ?, ?, ?, 'pending')`,
+		groupID, owner, outsider,
+	); err != nil {
+		t.Fatalf("seeding an invite: %v", err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO occurrence_also_by (occurrence_id, user_id, added_at) VALUES (?, ?, CURRENT_TIMESTAMP)`, occ.ID, owner,
+	); err != nil {
+		t.Fatalf("seeding an also-by: %v", err)
+	}
+	survivor := createChore(t, db, otherGroup, owner, fmt.Sprintf(`{
+		"name": "Bins", "schedule_type": "as_needed", "rotation": [%q]
+	}`, owner))
+
+	rec := httptest.NewRecorder()
+	h.DeleteGroup(rec, request(
+		http.MethodDelete, "/groups/x", "", owner,
+		map[string]string{"group_id": groupID},
+	))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	for name, query := range map[string]string{
+		"groups":          `SELECT COUNT(*) FROM groups WHERE id = ?`,
+		"group_members":   `SELECT COUNT(*) FROM group_members WHERE group_id = ?`,
+		"chores":          `SELECT COUNT(*) FROM chores WHERE group_id = ?`,
+		"occurrences":     `SELECT COUNT(*) FROM occurrences WHERE group_id = ?`,
+		"tasks":           `SELECT COUNT(*) FROM tasks WHERE group_id = ?`,
+		"invites":         `SELECT COUNT(*) FROM invites WHERE group_id = ?`,
+		"away_periods":    `SELECT COUNT(*) FROM away_periods WHERE group_id = ?`,
+		"activity_events": `SELECT COUNT(*) FROM activity_events WHERE group_id = ?`,
+	} {
+		if n := tableRows(t, db, query, groupID); n != 0 {
+			t.Errorf("%s still holds %d row(s) for the removed household", name, n)
+		}
+	}
+	if n := tableRows(t, db, `SELECT COUNT(*) FROM chore_rotation WHERE chore_id = ?`, chore.ID); n != 0 {
+		t.Errorf("chore_rotation still holds %d row(s)", n)
+	}
+	if n := tableRows(t, db, `SELECT COUNT(*) FROM occurrence_also_by WHERE occurrence_id = ?`, occ.ID); n != 0 {
+		t.Errorf("occurrence_also_by still holds %d row(s)", n)
+	}
+
+	// The owner's other household is untouched.
+	if isMember, _ := db.IsMember(otherGroup, owner); !isMember {
+		t.Error("the owner lost their other household")
+	}
+	if n := len(openOccurrencesFor(t, db, otherGroup, owner, survivor.ID)); n != 1 {
+		t.Errorf("the other household has %d open occurrences, want 1", n)
+	}
+	// And so are the people: an account outlives a household.
+	if n := tableRows(t, db, `SELECT COUNT(*) FROM users WHERE id = ?`, member); n != 1 {
+		t.Error("removing a household deleted a member's account")
+	}
+}
+
+// It takes everybody's record with it, so it is not any member's to decide.
+func TestDeleteGroupIsRefusedToAnyoneButTheOwner(t *testing.T) {
+	db := newTestDB(t)
+	h := &GroupHandler{DB: db}
+
+	owner := newUser(t, db, "owner")
+	member := newUser(t, db, "member")
+	outsider := newUser(t, db, "outsider")
+	groupID := newGroup(t, db, owner, "Flat")
+	addMember(t, db, groupID, member, "member")
+
+	for name, tc := range map[string]struct {
+		user string
+		want int
+	}{
+		"a member": {member, http.StatusForbidden},
+		"outsider": {outsider, http.StatusNotFound},
+	} {
+		rec := httptest.NewRecorder()
+		h.DeleteGroup(rec, request(
+			http.MethodDelete, "/groups/x", "", tc.user,
+			map[string]string{"group_id": groupID},
+		))
+		if rec.Code != tc.want {
+			t.Errorf("%s: got %d, want %d (%s)", name, rec.Code, tc.want, rec.Body.String())
+		}
+	}
+
+	if n := tableRows(t, db, `SELECT COUNT(*) FROM groups WHERE id = ?`, groupID); n != 1 {
+		t.Fatal("a refused request deleted the household")
 	}
 }
 

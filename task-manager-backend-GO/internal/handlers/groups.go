@@ -399,6 +399,52 @@ func (h *GroupHandler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, http.StatusOK, map[string]string{"message": message})
 }
 
+// DeleteGroup handles DELETE /groups/{group_id}: the owner removes the household
+// for everyone in it. Guarded by RequireMembership, so somebody outside the
+// group gets a 404 before reaching here and cannot learn that it exists.
+//
+// The one thing in the API gated on ownership. Everything else is open to every
+// member, but this takes the whole household's record with it, for people who
+// are not in the room, and there is no way back. ON DELETE CASCADE removes the
+// memberships, chores, rotations, occurrences, tasks, invites, away periods and
+// activity.
+//
+// Nothing is written to the activity feed, because the feed goes too. Each
+// member's phone notices the household has left their list and says so; see
+// KnownHouseholds in the app.
+func (h *GroupHandler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
+	groupID := r.PathValue("group_id")
+	userID := middleware.GetUserID(r)
+
+	role, err := h.DB.GetMemberRole(groupID, userID)
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if role == "" {
+		// Raced with leaving. Same answer the membership guard gives.
+		jsonError(w, "not found", http.StatusNotFound)
+		return
+	}
+	if role != "owner" {
+		jsonError(w, "only the owner can remove a household", http.StatusForbidden)
+		return
+	}
+
+	res, err := h.DB.Exec(`DELETE FROM groups WHERE id = ?`, groupID)
+	if err != nil {
+		log.Printf("DeleteGroup: delete failed for %s: %v", groupID, err)
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if affected, _ := res.RowsAffected(); affected == 0 {
+		jsonError(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	jsonResponse(w, http.StatusOK, map[string]string{"message": "household removed"})
+}
+
 // --- Invite system ---
 
 // InviteByUsername sends a direct invite to a user (Path A from the flow diagram).
