@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import com.taskflow.app.data.local.KnownHouseholds
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -111,6 +112,11 @@ fun HouseholdTab(
             }
 
             if (current == null) {
+                // People has no dock, so with no household left it would be a
+                // dead end. Back to House, which has one.
+                LaunchedEffect(section) {
+                    if (section == HouseSection.PEOPLE) onBack()
+                }
                 NoHouseholdBlock(
                     onCreate = { showCreate = true },
                     onJoin = { showJoin = true },
@@ -125,10 +131,15 @@ fun HouseholdTab(
                     onSelectGroup = onSelectGroup,
                     onCreateHousehold = { showCreate = true },
                     onJoinHousehold = { showJoin = true },
-                    // Leaving may have deleted the household outright. Clearing
-                    // the selection sends the resolution above round again,
-                    // which lands on another household or on the empty state.
-                    onLeft = { viewModel.refresh() },
+                    // Refreshing sends the resolution above round again, which
+                    // lands on another household or on the empty state. Forgotten
+                    // first, so this person is not told what they just did.
+                    onLeft = { removed ->
+                        myUserId?.let { KnownHouseholds.forget(context, it, current.id) }
+                        if (removed) viewModel.showMessage("${current.name} was removed.")
+                        viewModel.refresh()
+                        if (section == HouseSection.PEOPLE) onBack()
+                    },
                     section = section,
                     createRequested = createRequested,
                     onCreateHandled = onCreateHandled,

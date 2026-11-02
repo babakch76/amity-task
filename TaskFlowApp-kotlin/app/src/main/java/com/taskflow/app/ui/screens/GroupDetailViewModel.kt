@@ -94,6 +94,8 @@ data class GroupDetailUiState(
     val inviteCode: String? = null,
     /** Flipped once the user has left the group, so the screen can navigate away. */
     val hasLeft: Boolean = false,
+    /** Set with [hasLeft] when the household was removed rather than left. */
+    val householdRemoved: Boolean = false,
 )
 
 /**
@@ -362,6 +364,26 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
                 val response = api.leaveGroup(groupId)
                 _uiState.value = if (response.isSuccessful) {
                     _uiState.value.copy(isWorking = false, hasLeft = true)
+                } else {
+                    _uiState.value.copy(isWorking = false, message = ApiErrors.messageFor(response))
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isWorking = false, message = networkMessage(e))
+            }
+        }
+    }
+
+    /**
+     * Remove the household for everyone. Only the owner is offered this, and
+     * the server checks again; a refusal is shown rather than swallowed.
+     */
+    fun removeHousehold() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isWorking = true, message = null)
+            try {
+                val response = api.deleteGroup(groupId)
+                _uiState.value = if (response.isSuccessful) {
+                    _uiState.value.copy(isWorking = false, hasLeft = true, householdRemoved = true)
                 } else {
                     _uiState.value.copy(isWorking = false, message = ApiErrors.messageFor(response))
                 }

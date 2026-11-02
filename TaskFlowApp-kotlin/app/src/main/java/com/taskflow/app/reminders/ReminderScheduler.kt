@@ -164,6 +164,23 @@ object ReminderScheduler {
         Log.d(TAG, "armed ${pending.size} reminder(s) for ${mine.size} open occurrence(s) in $groupId")
     }
 
+    /**
+     * Cancels every alarm for a household that is no longer on the list.
+     *
+     * [reschedule] only ever touches the groups it is handed, so a household
+     * you left, or one its owner removed, kept its alarms and went on reminding
+     * you about chores that no longer exist. Dropped from the store as well,
+     * or a reboot would arm them again.
+     */
+    fun keepOnlyHouseholds(context: Context, groupIds: Set<String>) {
+        val store = ReminderStore(context)
+        val orphaned = store.pending().filter { it.groupId !in groupIds }
+        if (orphaned.isEmpty()) return
+        cancelAll(context, orphaned)
+        orphaned.map { it.groupId }.distinct().forEach { store.savePending(it, emptyList()) }
+        Log.d(TAG, "cancelled ${orphaned.size} reminder(s) for households no longer on the list")
+    }
+
     /** Re-arms whatever was already stored. Used after a reboot. */
     fun rearmStored(context: Context) {
         ensureChannel(context)

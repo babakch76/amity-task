@@ -29,6 +29,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.taskflow.app.TaskFlowApp
+import com.taskflow.app.data.local.KnownHouseholds
 import com.taskflow.app.data.local.LastHousehold
 import com.taskflow.app.reminders.ReminderScheduler
 import com.taskflow.app.ui.components.DockTab
@@ -110,6 +111,22 @@ fun MainShell(
 
     PollWhileResumed(intervalMillis = INVITE_POLL_MILLIS) {
         viewModel.fetchInvites()
+        viewModel.pollHouseholds()
+    }
+
+    // A household that has left the list, however it went. Its alarms stop here,
+    // because nothing else would stop them: the rescheduling above only touches
+    // households that are still on the list. And if this person did not leave it
+    // themselves, they are told, since its feed went with it.
+    val shellState by viewModel.uiState.collectAsState()
+    LaunchedEffect(shellState) {
+        val groups = (shellState as? ShellUiState.Success)?.groups ?: return@LaunchedEffect
+        ReminderScheduler.keepOnlyHouseholds(context.applicationContext, groups.map { it.id }.toSet())
+        val userId = myUserId ?: return@LaunchedEffect
+        val gone = KnownHouseholds.reconcile(context, userId, groups)
+        if (gone.isNotEmpty()) {
+            viewModel.showMessage("You're no longer in ${gone.joinToString(" or ")}.")
+        }
     }
 
     LaunchedEffect(actionMessage) {

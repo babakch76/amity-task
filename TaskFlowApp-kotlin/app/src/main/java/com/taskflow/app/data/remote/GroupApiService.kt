@@ -51,6 +51,13 @@ interface GroupApiService {
     suspend fun leaveGroup(@Path("group_id") groupId: String): Response<MessageResponse>
 
     /**
+     * Remove a household for everyone in it. Owner only (403 otherwise), and it
+     * cannot be undone: chores, turns, history and activity all go with it.
+     */
+    @DELETE("groups/{group_id}")
+    suspend fun deleteGroup(@Path("group_id") groupId: String): Response<MessageResponse>
+
+    /**
      * Group audit trail, newest first — the polling target for the shared
      * awareness / feedback loop.
      *

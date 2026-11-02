@@ -6,6 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.ui.platform.LocalContext
+import com.taskflow.app.data.local.KnownHouseholds
 import com.taskflow.app.data.local.LastHousehold
 import com.taskflow.app.data.local.TokenManager
 import com.taskflow.app.ui.screens.MainShell
@@ -121,6 +122,7 @@ fun AppNavGraph(
                     // person does not open on it, even for the moment it would
                     // take to be resolved away.
                     LastHousehold.clear(context)
+                    KnownHouseholds.clear(context)
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(0) { inclusive = true }
                     }

@@ -136,6 +136,26 @@ class ShellViewModel : ViewModel() {
     }
 
     /**
+     * Quietly checks the list of households, so one removed by its owner leaves
+     * this phone without anybody having to restart the app.
+     *
+     * Separate from [fetchGroups], which turns a failed request into an error
+     * screen. A dropped poll must not do that, so anything but a clean answer
+     * is ignored and the next tick tries again.
+     */
+    fun pollHouseholds() {
+        viewModelScope.launch {
+            val current = (_uiState.value as? ShellUiState.Success)?.groups ?: return@launch
+            val groups = runCatching { api.listMyGroups() }.getOrNull()
+                ?.takeIf { it.isSuccessful }?.body() ?: return@launch
+            if (groups.map { it.id }.toSet() != current.map { it.id }.toSet()) {
+                _uiState.value = ShellUiState.Success(groups)
+                loadReminderData(groups)
+            }
+        }
+    }
+
+    /**
      * Everything one group needs for its reminders to be scheduled (F3, B-8).
      */
     data class GroupReminderData(

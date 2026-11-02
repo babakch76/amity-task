@@ -163,7 +163,7 @@ fun GroupDetailScreen(
     onSelectGroup: (String) -> Unit,
     onCreateHousehold: () -> Unit,
     onJoinHousehold: () -> Unit,
-    onLeft: () -> Unit,
+    onLeft: (removed: Boolean) -> Unit,
     /** Which part of the household this destination shows (House, Feed or People). */
     section: HouseSection = HouseSection.BOARD,
     /** Add on the dock was pressed: open the create flow once, then say so. */
@@ -200,6 +200,7 @@ fun GroupDetailScreen(
     var createError by remember { mutableStateOf<String?>(null) }
     var showInvite by remember { mutableStateOf(false) }
     var confirmLeave by remember { mutableStateOf(false) }
+    var confirmRemove by remember { mutableStateOf(false) }
     // Task pending deletion — deleting is irreversible, so it goes via a confirm.
     var taskToDelete by remember { mutableStateOf<Task?>(null) }
     // Detail sheet holds an *id*, not a Task. The Task is looked up from state
@@ -231,9 +232,9 @@ fun GroupDetailScreen(
         viewModel.pollActivity()
     }
 
-    // Leaving may have deleted the household, so stop showing it.
+    // Leaving or removing it, the household is over for this person.
     LaunchedEffect(state.hasLeft) {
-        if (state.hasLeft) onLeft()
+        if (state.hasLeft) onLeft(state.householdRemoved)
     }
 
     // F3 — ask once for permission to notify. Refusing costs only reminders:
@@ -488,6 +489,7 @@ fun GroupDetailScreen(
                                 if (iAmAway) viewModel.setAway(false, null) else showAway = true
                             },
                             onLeave = { confirmLeave = true },
+                            onRemove = { confirmRemove = true },
                             householdName = currentGroup?.name.orEmpty(),
                         )
                     }
@@ -632,10 +634,7 @@ fun GroupDetailScreen(
             onDismissRequest = { confirmLeave = false },
             title = { Text("Leave household?", fontWeight = FontWeight.Bold) },
             text = {
-                Text(
-                    "You'll lose access to its board. If you're the last member, " +
-                        "the household and everything in it is deleted."
-                )
+                Text("You'll lose access to its board.")
             },
             confirmButton = {
                 TextButton(onClick = { confirmLeave = false; viewModel.leaveGroup() }) {
@@ -644,6 +643,38 @@ fun GroupDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { confirmLeave = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    // It takes other people's record with it, and there is no undelete, so the
+    // confirm says exactly that. It uses the same red button as deleting a chore.
+    if (confirmRemove) {
+        val others = (state.members.size - 1).coerceAtLeast(0)
+        QuietAlertDialog(
+            onDismissRequest = { confirmRemove = false },
+            title = { Text("Remove ${currentGroup?.name.orEmpty()}?") },
+            text = {
+                Text(
+                    when (others) {
+                        0 -> "Its board, chores and history will be deleted. This can't be undone."
+                        1 -> "You and 1 housemate will lose its board, chores and history. " +
+                            "This can't be undone."
+                        else -> "You and $others housemates will lose its board, chores and " +
+                            "history. This can't be undone."
+                    },
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { confirmRemove = false; viewModel.removeHousehold() },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) { Text("Remove household") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmRemove = false }) { Text("Keep it") }
             },
         )
     }
@@ -2284,6 +2315,7 @@ private fun MemberList(
     onInviteByName: () -> Unit,
     onAway: () -> Unit,
     onLeave: () -> Unit,
+    onRemove: () -> Unit,
     householdName: String,
 ) {
     val me = members.firstOrNull { it.id == myUserId }
@@ -2404,8 +2436,17 @@ private fun MemberList(
             }
         }
 
-        TextButton(onClick = onLeave, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-            Text("Leave $householdName", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        // One or the other. An owner cannot leave a household with people in it
+        // (the server refuses), so offering Leave there would only earn an error.
+        val owner = me?.role == "owner"
+        TextButton(
+            onClick = if (owner) onRemove else onLeave,
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+        ) {
+            Text(
+                if (owner) "Remove $householdName" else "Leave $householdName",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
