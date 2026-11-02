@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.filled.Badge
@@ -94,6 +95,7 @@ fun SettingsScreen(
     onLogout: () -> Unit,
     viewModel: ShellViewModel = viewModel(),
     onBack: () -> Unit = {},
+    onOpenGuide: () -> Unit = {},
 ) {
     val me by viewModel.me.collectAsState()
     val invites by viewModel.invites.collectAsState()
@@ -173,6 +175,14 @@ fun SettingsScreen(
                         icon = Icons.Default.VpnKey,
                         label = "Join with a code",
                         onClick = { showJoinByCode = true },
+                    )
+                }
+
+                SettingsGroup("HELP") {
+                    SettingsRow(
+                        icon = Icons.AutoMirrored.Filled.HelpOutline,
+                        label = "How TaskFlow works",
+                        onClick = onOpenGuide,
                     )
                 }
 

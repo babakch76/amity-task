@@ -38,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -87,7 +88,17 @@ fun MyChoresScreen(
     viewModel: ShellViewModel = viewModel(),
     hasInvites: Boolean = false,
     onOpenSettings: () -> Unit = {},
+    onOpenGuide: () -> Unit = {},
 ) {
+    val context = LocalContext.current
+    var showGuideCard by remember {
+        mutableStateOf(!LocalHints.seen(context, LocalHints.Hint.GUIDE_CARD))
+    }
+    fun guideCardDone() {
+        showGuideCard = false
+        LocalHints.markSeen(context, LocalHints.Hint.GUIDE_CARD)
+    }
+
     val uiState by viewModel.uiState.collectAsState()
     val reminderData by viewModel.reminderData.collectAsState()
     val me by viewModel.me.collectAsState()
@@ -155,6 +166,16 @@ fun MyChoresScreen(
                         )
                     }
                 }
+            }
+
+            if (showGuideCard) {
+                GuideCard(
+                    onOpen = {
+                        guideCardDone()
+                        onOpenGuide()
+                    },
+                    onDismiss = { guideCardDone() },
+                )
             }
 
             NextSevenDays(today = today, days = open.mapNotNull { it.date }.toSet())

@@ -226,7 +226,7 @@ fun GroupDetailScreen(
     // Shown once, under the first row you can actually swipe, and never again
     // on this device. Whether somebody has found a gesture is not household
     // data, so it stays local.
-    var showSwipeHint by remember { mutableStateOf(!LocalHints.swipeHintDismissed(context)) }
+    var showSwipeHint by remember { mutableStateOf(!LocalHints.seen(context, LocalHints.Hint.SWIPE)) }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -253,11 +253,11 @@ fun GroupDetailScreen(
     // (House, Feed, People), so "on entry" meant the prompt reappeared every
     // time someone who had said no changed tab.
     LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !LocalHints.notificationsAsked(context)) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !LocalHints.seen(context, LocalHints.Hint.NOTIFICATIONS_ASKED)) {
             val granted = ContextCompat.checkSelfPermission(
                 context, Manifest.permission.POST_NOTIFICATIONS,
             ) == PackageManager.PERMISSION_GRANTED
-            LocalHints.markNotificationsAsked(context)
+            LocalHints.markSeen(context, LocalHints.Hint.NOTIFICATIONS_ASKED)
             if (!granted) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
@@ -464,7 +464,7 @@ fun GroupDetailScreen(
                                 onSwiped = {
                                     if (showSwipeHint) {
                                         showSwipeHint = false
-                                        LocalHints.dismissSwipeHint(context)
+                                        LocalHints.markSeen(context, LocalHints.Hint.SWIPE)
                                     }
                                 },
                                 onCreate = { showCreate = true },

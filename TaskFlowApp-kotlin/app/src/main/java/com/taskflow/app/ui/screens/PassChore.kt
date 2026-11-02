@@ -62,35 +62,35 @@ fun tomorrowLabel(): String =
 /**
  * One-off local flags that are nobody's business but this device's.
  *
- * The swipe hint is shown once and then never again, which needs a memory that
- * survives the process but has no place on the server: whether this person has
- * discovered a gesture is not part of the household's data, and syncing it
- * would mean a new device re-teaching someone who already knows.
+ * Each is shown once and then never again, which needs a memory that survives
+ * the process but has no place on the server: whether this person has discovered
+ * a gesture is not part of the household's data, and syncing it would mean a new
+ * device re-teaching someone who already knows.
+ *
+ * Add a new one to [Hint]. The keys are the ones already on people's phones, so
+ * nobody is shown a hint twice.
  */
 object LocalHints {
     private const val FILE = "taskflow_hints"
-    private const val SWIPE_SEEN = "swipe_hint_dismissed"
 
-    fun swipeHintDismissed(context: Context): Boolean =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(SWIPE_SEEN, false)
+    enum class Hint(val key: String) {
+        /** "Swipe a row for actions" on the board. */
+        SWIPE("swipe_hint_dismissed"),
 
-    fun dismissSwipeHint(context: Context) {
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(SWIPE_SEEN, true)
-            .apply()
+        /** Whether the notification permission has been asked for on this install. */
+        NOTIFICATIONS_ASKED("notification_permission_asked"),
+
+        /** The "New here?" card on Mine. */
+        GUIDE_CARD("guide_card_dismissed"),
     }
 
-    private const val NOTIFY_ASKED = "notification_permission_asked"
+    fun seen(context: Context, hint: Hint): Boolean =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(hint.key, false)
 
-    /** Whether the notification permission has been asked for on this install. */
-    fun notificationsAsked(context: Context): Boolean =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(NOTIFY_ASKED, false)
-
-    fun markNotificationsAsked(context: Context) {
+    fun markSeen(context: Context, hint: Hint) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .edit()
-            .putBoolean(NOTIFY_ASKED, true)
+            .putBoolean(hint.key, true)
             .apply()
     }
 }

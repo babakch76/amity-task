@@ -187,6 +187,7 @@ fun MainShell(
                         myUserId = myUserId,
                         hasInvites = invites.isNotEmpty(),
                         onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
+                        onOpenGuide = { navController.navigate(ROUTE_GUIDE) },
                     )
                 }
                 composable(ROUTE_HOUSE) {
@@ -233,7 +234,11 @@ fun MainShell(
                         viewModel = viewModel,
                         onLogout = onLogout,
                         onBack = { navController.popBackStack() },
+                        onOpenGuide = { navController.navigate(ROUTE_GUIDE) },
                     )
+                }
+                composable(ROUTE_GUIDE) {
+                    GuideScreen(onBack = { navController.popBackStack() })
                 }
             }
 
@@ -265,3 +270,4 @@ private const val ROUTE_HOUSE = "house"
 private const val ROUTE_FEED = "feed"
 private const val ROUTE_PEOPLE = "people"
 private const val ROUTE_SETTINGS = "settings"
+private const val ROUTE_GUIDE = "guide"
