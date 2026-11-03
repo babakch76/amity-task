@@ -33,7 +33,7 @@ BIN="${BIN:-}"
 SERVICE="taskflow"
 # Every table, so "nothing was disturbed" means all of it rather than the two
 # tables somebody happened to think of.
-TABLES="users groups group_members invites tasks chores chore_rotation occurrences away_periods activity_events"
+TABLES="users groups group_members invites tasks chores chore_rotation occurrences away_periods activity_events bookings"
 
 say() { printf '\n\033[1m%s\033[0m\n' "$*"; }
 ssh_() { ssh -i "$KEY" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 "$USER_AT@$HOST" "$@"; }
@@ -142,6 +142,9 @@ echo "   unchanged across the restart"
 
 say "7. New columns present"
 ssh_ "sudo sqlite3 '$REMOTE_DB' \"select name from pragma_table_info('occurrences') where name in ('covered_by','due_before_pass','passed_chain','pending_debts');\"" | sed 's/^/   /'
+# The household pause (pause.go) is the newest column; it only exists once the
+# new binary has run its migrations.
+ssh_ "sudo sqlite3 '$REMOTE_DB' \"select 'groups.' || name from pragma_table_info('groups') where name = 'paused_since';\"" | sed 's/^/   /'
 
 say "8. Smoke test through Caddy"
 for path in /auth/login /groups /health; do
