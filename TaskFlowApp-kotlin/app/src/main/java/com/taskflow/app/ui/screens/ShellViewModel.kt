@@ -18,6 +18,7 @@ import com.taskflow.app.data.remote.RetrofitClient
 import com.taskflow.app.reminders.QuietHours
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -153,6 +154,36 @@ class ShellViewModel : ViewModel() {
                 _uiState.value = ShellUiState.Success(groups)
                 loadReminderData(groups)
             }
+        }
+    }
+
+    private var choresPoll: Job? = null
+
+    /**
+     * Quietly checks every household's turns and chores, so Mine shows a
+     * housemate's change while it is open, not only when the tab is reopened.
+     *
+     * Reads the turns themselves rather than the feed, because a turn passed to
+     * you makes no feed entry. Only reloads when something actually differs,
+     * and a household still being loaded is left to that load. A check still
+     * waiting on a slow network is not stacked on.
+     */
+    fun pollChores() {
+        if (choresPoll?.isActive == true) return
+        choresPoll = viewModelScope.launch {
+            val groups = (_uiState.value as? ShellUiState.Success)?.groups ?: return@launch
+            val held = _reminderData.value.associateBy { it.groupId }
+            val changed = groups.map { group ->
+                async {
+                    val mine = held[group.id] ?: return@async false
+                    val occurrences = runCatching { api.listOccurrences(group.id) }
+                        .getOrNull()?.takeIf { it.isSuccessful }?.body() ?: return@async false
+                    val chores = runCatching { api.listChores(group.id) }
+                        .getOrNull()?.takeIf { it.isSuccessful }?.body() ?: return@async false
+                    occurrences.toSet() != mine.occurrences.toSet() || chores.toSet() != mine.chores.toSet()
+                }
+            }.awaitAll().any { it }
+            if (changed) loadReminderData(groups)
         }
     }
 

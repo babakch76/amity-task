@@ -47,6 +47,12 @@ more than four rows, so a small household never meets this. Your choice is kept
 on this phone, per household, and wins from then on. A section holding the chore
 you just added opens anyway, so its highlight has somewhere to land.
 
+**It keeps itself current.** While the board, the feed or Mine is open, the app
+checks about every five seconds, so a chore a housemate adds, a turn passed to
+you, or one somebody did shows up on its own, usually within ten seconds. Pulling
+down still refreshes at once. Nothing is checked while the app is in the
+background; the news that reaches you then is in section 6.
+
 Each row is three lines: **what it is**, **how it recurs and when it is wanted**,
 and **whose turn it is**. For example:
 

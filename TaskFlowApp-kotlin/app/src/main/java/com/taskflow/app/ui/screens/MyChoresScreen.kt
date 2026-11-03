@@ -63,6 +63,9 @@ import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
+/** How often Mine checks for a housemate's change while open. Same as House. */
+private const val MINE_POLL_MILLIS = 5_000L
+
 /**
  * **Mine** — your turns, across every household. The first place in the dock,
  * and the screen the app opens on.
@@ -120,6 +123,10 @@ fun MyChoresScreen(
     // through its own household ViewModel, so a turn completed or passed
     // there left this list showing the old state until refresh was tapped.
     LaunchedEffect(Unit) { viewModel.refresh() }
+
+    // And kept fresh while you look at it: a chore a housemate adds for you, or a
+    // turn passed to you, shows up within a few seconds, as on House.
+    PollWhileResumed(intervalMillis = MINE_POLL_MILLIS) { viewModel.pollChores() }
 
     Column(modifier = Modifier.fillMaxSize()) {
         if (isWorking) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())

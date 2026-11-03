@@ -38,6 +38,17 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
     - **Known limit:** your own reminders are still armed only when the app syncs, so
       a turn that starts with the app closed is not announced until it is next opened.
       Only passes are.
+  - **Live updates on Mine and House**, after the project owner saw a chore added
+    on one phone take a manual refresh to reach a housemate's.
+    - **Two gaps, both reproduced first.** Mine reloaded only when its tab was
+      opened. House reloaded only when the feed had something new, and a passed
+      turn writes nothing to the feed, by design, so it sat on the receiver's
+      board as somebody else's.
+    - **Now both read the turns themselves every five seconds while open**, and
+      reload only when something differs. House also rereads the people, for
+      joins, leaves and going away. Stops in the background, as before.
+    - **Still a poll, not a push.** A shared channel is the right shape long term,
+      as `PollWhileResumed` already says; three pollers is where it said to look again.
   - **Folding sections on the board**, at the project owner's request, so a long
     list of other people's chores stops taking the screen. PROPOSALS item 1.
     - **Everyone else and Recently done fold; Yours does not.** Yours is what the

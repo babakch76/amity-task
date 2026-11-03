@@ -6,6 +6,22 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-03 (later) — Changes reaching the other phone
+
+The owner added a chore and a housemate's phone did not show it until a refresh.
+Reproduced against a local server with Maya acting from her own account: on Mine her
+new chore for me was still missing after 45 seconds, and on House a turn she passed me
+was still under Everyone else after 45. Mine reloaded only when its tab was opened.
+House waited for a feed entry, and passing writes none.
+
+Both now read the turns every five seconds while open and reload only on a difference.
+After: Mine showed the new chore in 8s and the passed turn in 3s; House 5s and 7s;
+Feed 5s. Those include about two seconds per screen read by the watcher. Idle, House
+makes two small requests per tick and Mine two per household, with no reloads, and
+nothing at all in the background. Not checked against AWS or between two real phones.
+
+---
+
 ## 2026-11-03 — Folding sections on the board
 
 Everyone else and Recently done now fold under their heading, which keeps a count

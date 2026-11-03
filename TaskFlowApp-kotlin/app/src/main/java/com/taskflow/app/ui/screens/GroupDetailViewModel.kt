@@ -202,21 +202,29 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
      * change shows up here within one poll interval without re-fetching the
      * whole feed. Failures are swallowed: a dropped poll is not worth an error
      * banner, and the next tick retries.
+     *
+     * The turns are read on every tick as well, because not every change makes
+     * a feed entry. A turn passed to you writes none, by design, and neither do
+     * turns moved round someone who went away. Waiting for the feed left a pass
+     * sitting on the receiver's board as somebody else's until they refreshed.
      */
     fun pollActivity() {
         viewModelScope.launch {
-            val response = runCatching { api.listActivity(groupId, activityCursor) }.getOrNull() ?: return@launch
-            if (!response.isSuccessful) return@launch
-            val fresh = response.body().orEmpty()
-            if (fresh.isEmpty()) return@launch
+            val activityRes = async { runCatching { api.listActivity(groupId, activityCursor) }.getOrNull() }
+            val occurrencesRes = async { runCatching { api.listOccurrences(groupId) }.getOrNull() }
+            val fresh = activityRes.await()?.takeIf { it.isSuccessful }?.body().orEmpty()
+            val occurrences = occurrencesRes.await()?.takeIf { it.isSuccessful }?.body()
 
-            activityCursor = fresh.first().createdAt?.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
-                ?: activityCursor
-            _uiState.value = _uiState.value.copy(activity = fresh + _uiState.value.activity)
+            if (fresh.isNotEmpty()) {
+                activityCursor = fresh.first().createdAt?.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+                    ?: activityCursor
+                _uiState.value = _uiState.value.copy(activity = fresh + _uiState.value.activity)
+            }
 
-            // Someone changed something — the task list and progress are now
-            // stale, so pull them again.
-            refreshTasksAndProgress()
+            // Someone changed something — the board is now stale, so pull it
+            // again. Compared as sets, so rows sent in another order are not news.
+            val turnsMoved = occurrences != null && occurrences.toSet() != _uiState.value.occurrences.toSet()
+            if (fresh.isNotEmpty() || turnsMoved) refreshTasksAndProgress()
         }
     }
 
@@ -238,6 +246,8 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
         runCatching { api.getGroup(groupId) }.getOrNull()
             ?.takeIf { it.isSuccessful }?.body()
             ?.let { _uiState.value = _uiState.value.copy(group = it) }
+        // Joins, leaves and going away change the people as well as the turns.
+        refreshMembers()
     }
 
     // ─── Bookings ───────────────────────────────────────────────
