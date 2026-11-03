@@ -6,6 +6,21 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-03 (late) — Deployed the final branch
+
+Deployed `household-removal-and-tutorial` to the EC2 box with `tools-deploy.sh`, after
+the owner opened port 22 to this machine's new address (SSH had timed out; HTTPS was
+fine). Backup `taskmanager-20261103T202401Z.db` and the old binary are in `~/backups`
+on the box. Every table's row count was unchanged; the script stopped on `bookings`
+going from NA to 0, which is the new server creating that table for the first time
+(Book a space had never been deployed), so it was a false alarm and nothing was rolled
+back. `groups.paused_since` and the occurrence columns are present, the service is
+active and listening, and every route answers 401 through Caddy. The final APK, built
+clean against AWS, is `AmityTask-aws-20261103.apk` in the workspace. Not done here:
+signing in to the live app, which is the owner's step.
+
+---
+
 ## 2026-11-04 — A design pass, one change at a time
 
 The owner asked for other oddities like the old settings card. Went through every
