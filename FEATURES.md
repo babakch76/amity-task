@@ -48,9 +48,9 @@ more than four rows, so a small household never meets this. Your choice is kept
 on this phone, per household, and wins from then on. A section holding the chore
 you just added opens anyway, so its highlight has somewhere to land.
 
-**People and you, top right.** A people button opens a short menu: *See
-everyone* (the People page, where you also say you are away), *Invite with a
-code* and *Invite by username*. Beside it is your own face, which goes to You
+**People and you, top right.** A people button pops out three buttons, the same
+way the gear does: *See everyone* (the People page, where you also say you are
+away), *Invite with a code* and *Invite by username*. Beside it is your own face, which goes to You
 and settings, as it does on Mine, with a dot when an invitation is waiting. It
 used to be every housemate's face in a row: that grew with the household and did
 not say what tapping it did. Who is away is still on the board, in the banner.

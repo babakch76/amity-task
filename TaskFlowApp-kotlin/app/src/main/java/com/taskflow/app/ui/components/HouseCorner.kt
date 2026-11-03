@@ -5,23 +5,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,7 +36,8 @@ import androidx.compose.ui.unit.dp
  *
  * It used to be every housemate's face in a row. That said who lives here but
  * not what tapping it did, and grew with the household. Now the people button
- * opens a short menu (see everyone, invite with a code, invite by username),
+ * pops out three buttons, as the gear does (see everyone, invite with a code,
+ * invite by username),
  * and your face goes to You and settings, as it does on Mine, with the same dot
  * when an invitation is waiting. Who is away is still said on the board itself,
  * in the banner over it.
@@ -69,6 +64,7 @@ fun HouseCorner(
 ) {
     var open by remember { mutableStateOf(false) }
     var gearCentre by remember { mutableStateOf(Offset.Zero) }
+    var peopleCentre by remember { mutableStateOf(Offset.Zero) }
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         IconButton(
             onClick = { onHouseholdSettings(gearCentre) },
@@ -84,7 +80,12 @@ fun HouseCorner(
             )
         }
         Box(modifier = peopleModifier) {
-            IconButton(onClick = { open = true }) {
+            IconButton(
+                onClick = { open = true },
+                modifier = Modifier.onGloballyPositioned {
+                    peopleCentre = it.positionOnScreen() + Offset(it.size.width / 2f, it.size.height / 2f)
+                },
+            ) {
                 Icon(
                     Icons.Outlined.Group,
                     contentDescription = "People in this household",
@@ -92,20 +93,20 @@ fun HouseCorner(
                     modifier = Modifier.size(26.dp),
                 )
             }
-            DropdownMenu(
-                expanded = open,
-                onDismissRequest = { open = false },
-                shape = RoundedCornerShape(20.dp),
-                containerColor = MaterialTheme.colorScheme.surface,
-                shadowElevation = 6.dp,
-                modifier = Modifier.widthIn(min = 220.dp),
-            ) {
-                Spacer(Modifier.height(6.dp))
-                CornerItem("See everyone", { Icon(Icons.Outlined.Group, null) }) { open = false; onSeeEveryone() }
-                CornerItem("Invite with a code", { Icon(Icons.Default.Share, null) }) { open = false; onShareCode() }
-                CornerItem("Invite by username", { Icon(Icons.Default.PersonAdd, null) }) { open = false; onInviteByName() }
-                Spacer(Modifier.height(6.dp))
-            }
+        }
+        // The same pop-out as the gear's, so the two corner icons open alike.
+        if (open) {
+            PopMenu(
+                anchor = peopleCentre,
+                anchorIcon = Icons.Outlined.Group,
+                closeLabel = "Close",
+                choices = listOf(
+                    PopChoice("See everyone", Icons.Outlined.Group) { open = false; onSeeEveryone() },
+                    PopChoice("Invite with a code", Icons.Default.Share) { open = false; onShareCode() },
+                    PopChoice("Invite by username", Icons.Default.PersonAdd) { open = false; onInviteByName() },
+                ),
+                onDismiss = { open = false },
+            )
         }
         Spacer(Modifier.width(6.dp))
         Box(
@@ -128,11 +129,3 @@ fun HouseCorner(
     }
 }
 
-@Composable
-private fun CornerItem(label: String, icon: @Composable () -> Unit, onClick: () -> Unit) {
-    DropdownMenuItem(
-        text = { Text(label, style = MaterialTheme.typography.titleSmall) },
-        leadingIcon = icon,
-        onClick = onClick,
-    )
-}

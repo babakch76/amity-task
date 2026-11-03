@@ -69,6 +69,8 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import com.taskflow.app.data.model.MemberInfo
 import com.taskflow.app.ui.components.Avatar
+import com.taskflow.app.ui.components.PopChoice
+import com.taskflow.app.ui.components.PopMenu
 import com.taskflow.app.ui.components.QuietAlertDialog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -82,20 +84,12 @@ internal fun nameLength(name: String) = name.trim().let { it.codePointCount(0, i
 
 private enum class Step { MENU, RENAME, HAND_OVER, HAND_OVER_AND_LEAVE, OWNER_LEAVING }
 
-/** One of the buttons that pop out of the gear. */
-private data class Choice(
-    val label: String,
-    val icon: ImageVector,
-    val danger: Boolean = false,
-    val onPick: () -> Unit,
-)
-
 /**
  * A household's own settings: rename it, hand it over, leave it, remove it.
  *
- * Tapping the gear pops a few round buttons out around it, each with its name
- * under it, and the gear turns. Nothing else on the screen moves. Whatever
- * needs more than a tap opens a small dialog.
+ * Tapping the gear pops a few round buttons out of it ([PopMenu]), each with
+ * its name beside it, and the gear turns. Nothing else on the screen moves.
+ * Whatever needs more than a tap opens a small dialog.
  *
  * Leaving and removing always ask first. Plain leaving and removing go through
  * the screen's own confirm dialogs ([onLeave], [onRemove]), so there is one
@@ -137,15 +131,18 @@ fun HouseholdSettings(
     when (step) {
         Step.MENU -> PopMenu(
             anchor = anchor ?: Offset.Zero,
+            anchorIcon = Icons.Outlined.Settings,
+            closeLabel = "Close household settings",
+            turn = 90f,
             choices = buildList {
-                add(Choice("Rename", Icons.Outlined.Edit) { step = Step.RENAME })
-                if (ownerLeaving) add(Choice("Hand over", Icons.Outlined.Key) { step = Step.HAND_OVER })
+                add(PopChoice("Rename", Icons.Outlined.Edit) { step = Step.RENAME })
+                if (ownerLeaving) add(PopChoice("Hand over", Icons.Outlined.Key) { step = Step.HAND_OVER })
                 add(
-                    Choice("Leave", Icons.AutoMirrored.Outlined.Logout) {
+                    PopChoice("Leave", Icons.AutoMirrored.Outlined.Logout) {
                         if (ownerLeaving) step = Step.OWNER_LEAVING else { onDismiss(); onLeave() }
                     },
                 )
-                if (iOwn) add(Choice("Remove", Icons.Outlined.DeleteOutline, danger = true) { onDismiss(); onRemove() })
+                if (iOwn) add(PopChoice("Remove", Icons.Outlined.DeleteOutline, danger = true) { onDismiss(); onRemove() })
             },
             onDismiss = onDismiss,
         )
@@ -209,177 +206,6 @@ fun HouseholdSettings(
             },
             confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
         )
-    }
-}
-
-/**
- * The gear's buttons, popping out of it one a moment after another, with a
- * spring, down a gentle curve that leans away from the screen's edge. Each name
- * sits in a pill to the left of its button. (A tight arc round the corner was
- * tried first: four named buttons do not fit on it without overlapping.)
- * They fold back into the gear on the way out, and only then is the choice
- * acted on, so a dialog never opens under buttons still moving.
- */
-@Composable
-private fun PopMenu(anchor: Offset, choices: List<Choice>, onDismiss: () -> Unit) {
-    val scope = rememberCoroutineScope()
-    val shown = remember { Animatable(0f) }
-    val pops = remember(choices.size) { List(choices.size) { Animatable(0f) } }
-    var closing by remember { mutableStateOf(false) }
-    // Where this window sits on screen, so the gear's position can be used in it.
-    var origin by remember { mutableStateOf<Offset?>(null) }
-
-    LaunchedEffect(Unit) {
-        launch { shown.animateTo(1f, tween(180)) }
-        pops.forEachIndexed { i, a ->
-            launch {
-                delay(i * 45L)
-                a.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = 420f))
-            }
-        }
-    }
-
-    // Picking something hands over to the next step (a dialog, or the
-    // screen's confirm) rather than closing settings first, or the next step
-    // would have nowhere to open. Tapping away just closes.
-    fun close(picked: (() -> Unit)? = null) {
-        if (closing) return
-        closing = true
-        scope.launch {
-            pops.reversed().forEachIndexed { i, a ->
-                launch {
-                    delay(i * 25L)
-                    a.animateTo(0f, tween(140, easing = FastOutSlowInEasing))
-                }
-            }
-            shown.animateTo(0f, tween(220))
-            if (picked == null) onDismiss() else picked()
-        }
-    }
-
-    Dialog(
-        onDismissRequest = { close() },
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
-    ) {
-        // The window's own dim snaps on at full strength. This one fades.
-        val view = LocalView.current
-        SideEffect { (view.parent as? DialogWindowProvider)?.window?.setDimAmount(0f) }
-
-        val density = LocalDensity.current
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .onGloballyPositioned { origin = it.positionOnScreen() }
-                .background(Color.Black.copy(alpha = 0.28f * shown.value))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = { close() },
-                ),
-        ) {
-            val at = origin ?: return@Box
-            val centre = anchor - at
-            val step = with(density) { 66.dp.toPx() }
-            val lean = with(density) { 16.dp.toPx() }
-            val rowWidth = with(density) { 240.dp.toPx() }
-            val half = with(density) { 26.dp.toPx() }
-
-            choices.forEachIndexed { i, choice ->
-                val p = pops[i].value
-                // Down from the gear, leaning a little further left each time.
-                val x = centre.x - lean * i * p
-                val y = centre.y + step * (i + 1) * p
-                PopButton(
-                    choice = choice,
-                    modifier = Modifier
-                        .offset {
-                            // The button's centre lands on (x, y); its name
-                            // hangs off to the left of it.
-                            IntOffset((x + half - rowWidth).roundToInt(), (y - half).roundToInt())
-                        }
-                        .graphicsLayer {
-                            scaleX = p.coerceAtLeast(0f)
-                            scaleY = p.coerceAtLeast(0f)
-                            alpha = p.coerceIn(0f, 1f)
-                        },
-                    onClick = { close(choice.onPick) },
-                )
-            }
-
-            // The gear itself, lifted above the dim and turning, so it reads as
-            // the thing that opened them. Tapping it closes them again.
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 6.dp,
-                modifier = Modifier
-                    .offset {
-                        val half = with(density) { 24.dp.toPx() }
-                        IntOffset((centre.x - half).roundToInt(), (centre.y - half).roundToInt())
-                    }
-                    .size(48.dp)
-                    .clickable { close() },
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Outlined.Settings,
-                        contentDescription = "Close household settings",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier
-                            .size(24.dp)
-                            .rotate(90f * shown.value),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PopButton(choice: Choice, modifier: Modifier, onClick: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Row(
-        horizontalArrangement = Arrangement.End,
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier.width(240.dp),
-    ) {
-        // The name and the button are one target, so either can be tapped.
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                role = Role.Button,
-                onClick = onClick,
-            ),
-        ) {
-            Surface(
-                shape = RoundedCornerShape(50),
-                color = scheme.surface,
-                shadowElevation = 3.dp,
-            ) {
-                Text(
-                    choice.label,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (choice.danger) scheme.error else scheme.onSurface,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                )
-            }
-            Spacer(Modifier.width(10.dp))
-            Surface(
-                shape = CircleShape,
-                color = if (choice.danger) scheme.errorContainer else scheme.primaryContainer,
-                contentColor = if (choice.danger) scheme.onErrorContainer else scheme.onPrimaryContainer,
-                shadowElevation = 6.dp,
-                modifier = Modifier.size(52.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(choice.icon, contentDescription = null, modifier = Modifier.size(24.dp))
-                }
-            }
-        }
     }
 }
 

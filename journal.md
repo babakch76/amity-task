@@ -17,6 +17,11 @@ step could open; fixed so picking hands over to the next step. Checked: Leave as
 (and the owner's hand-over asks again, "Leave Flat 3B?"), Remove asks, Cancel sends
 nothing, rename opens as a dialog, and Leave on People opens the owner's question.
 
+Then the owner asked for the people button to open the same way. The pop-out moved to
+`ui/components/PopMenu.kt` and both icons use it; the people dropdown is gone. Checked:
+See everyone opens People, Invite by username opens its dialog, Invite with a code
+makes a code (201) and shows it, and the gear menu still opens and closes with Back.
+
 ---
 
 ## 2026-11-03 (night) — Away, and the paused household
