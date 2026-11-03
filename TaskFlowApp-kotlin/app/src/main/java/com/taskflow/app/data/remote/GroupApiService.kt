@@ -315,5 +315,5 @@ interface GroupApiService {
     suspend fun setAway(
         @Path("group_id") groupId: String,
         @Body request: SetAwayRequest,
-    ): Response<Unit>
+    ): Response<AwayResponse>
 }

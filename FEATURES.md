@@ -268,6 +268,30 @@ home* / *I'm away*, or *Away until Fri 6 Nov* / *I'm back*. Everyone else sees
 an **Away** badge on your row, with *Back Fri 6 Nov* under your name. Your own
 board shows a quiet banner while you are away, with a way back.
 
+**A turn already yours when you go away moves on.** It goes to the next person
+in that chore's rotation who is home, as a pass would, and comes back to you
+when you return, because it was yours before you left. If nobody in its rotation
+is home it stays where it is. The message after going away says which happened,
+from the server's answer. **You get no reminders** from a household while you
+are away from it.
+
+Nobody away is ever handed a chore or offered as a taker: the pass button only
+appears when someone in the rotation is home.
+
+**When everyone is away, the household is paused.** House says *Everyone's
+away, so the household is paused.* Nothing can be passed (there is nobody to
+pass to), nothing goes late, and the dates on the board are the ones people will
+come back to. When the first person is back, every open chore's date moves on by
+the days the household was empty, to the nearest day, so a chore needed by 20:00
+is still needed by 20:00 and an evening with everyone out moves nothing.
+Fixed-day chores keep their day: they already roll on to the next one. Marking
+something done still works, for whoever comes home early. A planned return date
+passing ends the pause on time, and changing your return date while away does
+not count as coming home. See `handlers/pause.go`.
+
+The banner over the board also follows who is away within a few seconds now,
+and names three or more people properly (*maya, sam and lena are away*).
+
 ---
 
 ## 6. Reminders

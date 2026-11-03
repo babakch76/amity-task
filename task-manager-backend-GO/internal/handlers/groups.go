@@ -285,6 +285,7 @@ func (h *GroupHandler) GetGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	g.MyRole = role
+	g.Paused = settlePauseQuietly(h.DB, groupID) != nil
 
 	jsonResponse(w, http.StatusOK, g)
 }
@@ -417,6 +418,8 @@ func (h *GroupHandler) SetAway(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, "internal error", http.StatusInternalServerError)
 			return
 		}
+		// Somebody is home again, so a paused household moves its dates on now.
+		settlePauseQuietly(h.DB, groupID)
 		jsonResponse(w, http.StatusOK, map[string]any{"away": false})
 		return
 	}
@@ -460,7 +463,19 @@ func (h *GroupHandler) SetAway(w http.ResponseWriter, r *http.Request) {
 	// No activity event, and no notification. Away is a state the household
 	// reads off the member list, not an announcement — the same posture the
 	// spec takes for passes.
-	response := map[string]any{"away": true}
+	// A turn already yours goes to the next person at home, and comes back to
+	// you when you return: it was yours before you left. Unless nobody is home
+	// now, in which case the household is paused and everything stays put.
+	paused := settlePauseQuietly(h.DB, groupID) != nil
+	handedOn := 0
+	if !paused {
+		n, err := handOnWhileAway(h.DB, groupID, userID)
+		if err != nil {
+			log.Printf("SetAway: handing on turns failed for %s in %s: %v", userID, groupID, err)
+		}
+		handedOn = n
+	}
+	response := map[string]any{"away": true, "paused": paused, "handed_on": handedOn}
 	if until != nil {
 		response["away_until"] = until
 	}

@@ -6,6 +6,31 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-03 (night) — Away, and the paused household
+
+The owner asked what happens with more than two away, and with everyone away. Played
+through the real handlers with five people first. More than two away was fine. Three
+things were not: a turn already on your row when you went away stayed there, overdue,
+with reminders still going to you; a pass with everyone away went to another absent
+person, who then did two in a row while the passer's debt was quietly cleared; and the
+banner said "maya and sam and lena".
+
+The owner chose: freeze the household when everyone is away (no passing, no
+reminders, nothing late, dates moved on by the days away when someone is back), move a
+turn on when its holder goes away and have them owe it back, and fix the two small
+ones. Built in `pause.go`, with `groups.paused_since`. On the emulator it turned up two
+more: the message after going away guessed what had moved (the server now says), and
+the pass button offered an away person when a chore's whole rotation was away (nobody
+away is offered or handed a chore now). House also polls who is away, so banners
+follow within a few seconds.
+
+Checked on the emulator against the local server: the names banner, a turn handed to
+Theo with "comes back to you next time", the paused banner, a refused pass, dates shown
+four days on during a backdated four-day pause and stored that way after Theo came
+back, and 0 reminder alarms while away against 8 after coming back.
+
+---
+
 ## 2026-11-03 (evening) — Household settings
 
 After the interviews the owner asked for settings per household. Long names were cut to

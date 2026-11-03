@@ -512,4 +512,7 @@ type GroupWithProgress struct {
 	// "member". Returned so a client can gate its UI without having to fetch
 	// the member list and work out which row is itself.
 	MyRole string `json:"my_role"`
+	// Paused is true while everyone in the household is away: nothing can be
+	// passed and nothing goes late. See handlers/pause.go.
+	Paused bool `json:"paused"`
 }

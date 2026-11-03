@@ -106,6 +106,13 @@ Violating one of these is a bug, no matter how good the feature is.
   position** — reordering a rotation does not move it; leaving voids it.
 - **Everyone busy** → the chore returns to whoever asked first, dated no later
   than its natural next date, and that person may pull the date earlier only.
+- **Going away moves your current turn on** to the next person in its rotation
+  who is home, as a pass (you owe it back). Nobody away is ever handed or
+  offered a chore. No reminders while you are away.
+- **Everyone away → the household is paused** (`pause.go`, `groups.paused_since`):
+  no passing, nothing late, and when someone is back every open non-fixed-day
+  date moves on by the whole days it lasted. Settled lazily on reads and
+  writes, like `rollForwardFixedDates`; there is no scheduler.
 
 ## 5. Stack and commands
 

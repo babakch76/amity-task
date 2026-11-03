@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.taskflow.app.data.model.ActivityEvent
+import com.taskflow.app.data.model.AwayResponse
 import com.taskflow.app.data.model.Booking
 import com.taskflow.app.data.model.CreateBookingRequest
 import com.taskflow.app.data.model.Chore
@@ -214,8 +215,13 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
         viewModelScope.launch {
             val activityRes = async { runCatching { api.listActivity(groupId, activityCursor) }.getOrNull() }
             val occurrencesRes = async { runCatching { api.listOccurrences(groupId) }.getOrNull() }
+            // Going away or coming back writes nothing to the feed and moves no
+            // turn when nobody can take it, so who is away is checked as well:
+            // the away banners and the paused household follow it.
+            val membersRes = async { runCatching { api.listMembers(groupId) }.getOrNull() }
             val fresh = activityRes.await()?.takeIf { it.isSuccessful }?.body().orEmpty()
             val occurrences = occurrencesRes.await()?.takeIf { it.isSuccessful }?.body()
+            val members = membersRes.await()?.takeIf { it.isSuccessful }?.body()
 
             if (fresh.isNotEmpty()) {
                 activityCursor = fresh.first().createdAt?.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
@@ -226,7 +232,8 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
             // Someone changed something — the board is now stale, so pull it
             // again. Compared as sets, so rows sent in another order are not news.
             val turnsMoved = occurrences != null && occurrences.toSet() != _uiState.value.occurrences.toSet()
-            if (fresh.isNotEmpty() || turnsMoved) refreshTasksAndProgress()
+            val peopleMoved = members != null && members.toSet() != _uiState.value.members.toSet()
+            if (fresh.isNotEmpty() || turnsMoved || peopleMoved) refreshTasksAndProgress()
         }
     }
 
@@ -722,20 +729,32 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
      * and runAction refreshes the board but not the member list.
      */
     fun setAway(away: Boolean, until: String?) {
+        // Going away hands on whatever is already yours, if somebody in its
+        // rotation is home to take it, and pauses the household if you were
+        // the last one home (pause.go). The server says which happened.
+        var result: AwayResponse? = null
         runAction(
-            successMessage = if (away) "You're marked away" else "Welcome back",
             // Reloaded *after* the write lands, not alongside it — firing both
             // at once would race, and the loser would paint the old state back.
             onResult = { failure ->
                 if (failure == null) {
+                    _uiState.value = _uiState.value.copy(message = awayMessage(away, result))
                     viewModelScope.launch { refreshMembers() }
                 } else {
                     _uiState.value = _uiState.value.copy(message = failure)
                 }
             },
         ) {
-            api.setAway(groupId, SetAwayRequest(away = away, until = until))
+            api.setAway(groupId, SetAwayRequest(away = away, until = until)).also { result = it.body() }
         }
+    }
+
+    private fun awayMessage(away: Boolean, result: AwayResponse?): String = when {
+        !away -> "Welcome back"
+        result?.paused == true -> "You're marked away. Everyone's away now, so the household is paused."
+        (result?.handedOn ?: 0) > 0 ->
+            "You're marked away. Your turns went to the next person and come back to you when you're back."
+        else -> "You're marked away"
     }
 
     /**

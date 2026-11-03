@@ -562,6 +562,8 @@ func (h *ChoreHandler) ListOccurrences(w http.ResponseWriter, r *http.Request) {
 	if err := h.rollForwardFixedDates(groupID); err != nil {
 		log.Printf("ListOccurrences: fixed-date roll-forward failed for group %s: %v", groupID, err)
 	}
+	// Likewise the pause: started, kept, or ended with the dates moved on.
+	pausedSince := settlePauseQuietly(h.DB, groupID)
 
 	rows, err := h.DB.Query(`
 		SELECT `+occurrenceColumns+`
@@ -612,6 +614,9 @@ func (h *ChoreHandler) ListOccurrences(w http.ResponseWriter, r *http.Request) {
 	// out from under.
 	markChoresNeedingADate(h, groupID, middleware.GetUserID(r), occurrences)
 	markPassTargets(h, groupID, middleware.GetUserID(r), occurrences)
+	if pausedSince != nil {
+		showPaused(h.DB, groupID, *pausedSince, occurrences)
+	}
 
 	jsonResponse(w, http.StatusOK, occurrences)
 }
@@ -642,6 +647,9 @@ func (h *ChoreHandler) UpdateOccurrence(w http.ResponseWriter, r *http.Request) 
 		jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
+	// A pause that has just ended moves the other open dates before this
+	// write, not after it.
+	settlePauseQuietly(h.DB, groupID)
 	if req.Status != models.OccurrenceOpen && req.Status != models.OccurrenceDone {
 		jsonError(w, "status must be open or done", http.StatusBadRequest)
 		return
@@ -891,6 +899,13 @@ func (h *ChoreHandler) PassOccurrence(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "only the person it is assigned to can pass it", http.StatusForbidden)
 		return
 	}
+	// With everyone away the household is paused, and a pass would only hand
+	// the chore to somebody else who is not there either. See pause.go.
+	if settlePauseQuietly(h.DB, groupID) != nil {
+		jsonError(w, "everyone's away, so the household is paused. Nothing can be passed until someone's back.",
+			http.StatusConflict)
+		return
+	}
 
 	chore, err := h.loadChore(current.ChoreID)
 	if err != nil {
@@ -927,24 +942,18 @@ func (h *ChoreHandler) PassOccurrence(w http.ResponseWriter, r *http.Request) {
 	}
 
 	receiver := nextCoverer(chore.Rotation, current, userID, away)
-	if receiver == current.AssignedTo || receiver == userID {
+	if receiver == current.AssignedTo || receiver == userID || away[receiver] {
 		// Either a rotation of one, or everyone else is away. Both mean there
 		// is nobody to hand it to, and saying so is better than silently doing
-		// nothing and looking broken.
+		// nothing and looking broken. (The last case is somebody away passing
+		// a chore whose whole rotation is away: nextCoverer's fallback would
+		// name another absent person.)
 		jsonError(w, "there is nobody else available in this chore's rotation", http.StatusConflict)
 		return
 	}
 
-	// "If it was already due, the new assignee's due date becomes tomorrow
-	// (earliest convenience); otherwise it keeps its date." Receiving something
-	// that is already late with today's deadline attached would make a favour
-	// feel like a penalty.
 	now := time.Now()
-	dueDate := current.DueDate
-	if dueDate != nil && dueDate.Before(now) {
-		tomorrow := atClockTime(now.AddDate(0, 0, 1), chore.NeededByTime)
-		dueDate = &tomorrow
-	}
+	dueDate := passDueDate(chore, current, now)
 
 	// Every passer owes a turn, and they are repaid in the order they passed.
 	//
@@ -957,24 +966,7 @@ func (h *ChoreHandler) PassOccurrence(w http.ResponseWriter, r *http.Request) {
 	// it has come round to them, and that is allowed, but it does not buy them
 	// a second debt. Recording every pass event would also be a skip counter,
 	// which Part 0 forbids outright.
-	passedFrom := &chain[0]
-
-	// due_before_pass remembers the date this pass is about to overwrite, so
-	// UndoPass can put it back exactly.
-	//
-	// Without it an undo would be a way to launder lateness: pass an overdue
-	// chore, take it straight back, and the rule above has quietly moved its
-	// deadline to tomorrow. COALESCE so a chain of passes keeps the *first*
-	// original rather than each pass overwriting the last, since the debt and
-	// therefore the right to undo belong to whoever passed it first.
-	if _, err := h.DB.Exec(
-		`UPDATE occurrences
-		 SET assigned_to = ?, due_date = ?, passed_from = ?, passed_at = ?,
-		     passed_chain = ?, due_before_pass = COALESCE(due_before_pass, ?)
-		 WHERE id = ?`,
-		receiver, dueDate, passedFrom, now.UTC(), encodeIDs(chain),
-		current.DueDate, occurrenceID,
-	); err != nil {
+	if err := writePass(h.DB, current, receiver, dueDate, chain, now); err != nil {
 		log.Printf("PassOccurrence: update failed for %s: %v", occurrenceID, err)
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
@@ -986,6 +978,44 @@ func (h *ChoreHandler) PassOccurrence(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonResponse(w, http.StatusOK, updated)
+}
+
+// passDueDate is the date a passed chore carries to its new holder.
+//
+// "If it was already due, the new assignee's due date becomes tomorrow
+// (earliest convenience); otherwise it keeps its date." Receiving something
+// that is already late with today's deadline attached would make a favour
+// feel like a penalty.
+func passDueDate(chore *models.Chore, current *models.Occurrence, now time.Time) *time.Time {
+	dueDate := current.DueDate
+	if dueDate != nil && dueDate.Before(now) {
+		tomorrow := atClockTime(now.AddDate(0, 0, 1), chore.NeededByTime)
+		dueDate = &tomorrow
+	}
+	return dueDate
+}
+
+// writePass hands an occurrence to receiver. The chain's first name is who
+// passed it first, which is who UndoPass answers to.
+//
+// due_before_pass remembers the date this pass is about to overwrite, so
+// UndoPass can put it back exactly.
+//
+// Without it an undo would be a way to launder lateness: pass an overdue
+// chore, take it straight back, and the rule above has quietly moved its
+// deadline to tomorrow. COALESCE so a chain of passes keeps the *first*
+// original rather than each pass overwriting the last, since the debt and
+// therefore the right to undo belong to whoever passed it first.
+func writePass(ex execer, current *models.Occurrence, receiver string, dueDate *time.Time, chain []string, now time.Time) error {
+	_, err := ex.Exec(
+		`UPDATE occurrences
+		 SET assigned_to = ?, due_date = ?, passed_from = ?, passed_at = ?,
+		     passed_chain = ?, due_before_pass = COALESCE(due_before_pass, ?)
+		 WHERE id = ?`,
+		receiver, dueDate, chain[0], now.UTC(), encodeIDs(chain),
+		current.DueDate, current.ID,
+	)
+	return err
 }
 
 // closeTheRound hands a chore nobody can take back to whoever asked first.
@@ -1549,7 +1579,9 @@ func markPassTargets(h *ChoreHandler, groupID, userID string, occurrences []mode
 			continue
 		}
 		receiver := nextCoverer(rotation, o, userID, away)
-		if receiver != "" && receiver != userID {
+		// When everyone else in the rotation is away, nextCoverer's last
+		// resort names one of them anyway. Nobody away is offered as a taker.
+		if receiver != "" && receiver != userID && !away[receiver] {
 			o.PassTo = &receiver
 		}
 	}

@@ -106,6 +106,7 @@ fun MainShell(
                 chores = group.chores,
                 myUserId = myUserId,
                 quiet = quietHours,
+                away = group.members.any { it.id == myUserId && it.away },
             )
         }
     }

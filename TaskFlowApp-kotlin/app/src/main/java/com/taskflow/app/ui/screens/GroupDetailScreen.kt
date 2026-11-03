@@ -75,6 +75,7 @@ import com.taskflow.app.data.model.ChoreHistoryEntry
 import com.taskflow.app.data.model.Group
 import com.taskflow.app.data.model.GroupHistory
 import com.taskflow.app.data.model.MemberInfo
+import com.taskflow.app.data.model.namesTogether
 import com.taskflow.app.data.model.Occurrence
 import com.taskflow.app.data.model.neededByWording
 import com.taskflow.app.data.model.scheduleWording
@@ -278,7 +279,7 @@ fun GroupDetailScreen(
     // Rescheduling is a full replacement and skips anything already delivered,
     // so running it on every board change is safe and keeps the alarms in step
     // with a rotation that may have moved while we were away.
-    LaunchedEffect(state.occurrences, state.chores, state.quietFrom, state.quietTo, myUserId) {
+    LaunchedEffect(state.occurrences, state.chores, state.quietFrom, state.quietTo, myUserId, iAmAway) {
         ReminderScheduler.reschedule(
             context = context.applicationContext,
             groupId = groupId,
@@ -286,6 +287,7 @@ fun GroupDetailScreen(
             chores = state.chores,
             myUserId = myUserId,
             quiet = QuietHours.parse(state.quietFrom, state.quietTo),
+            away = iAmAway,
         )
     }
 
@@ -442,7 +444,14 @@ fun GroupDetailScreen(
                         HouseSection.BOARD -> Column(modifier = Modifier.fillMaxSize()) {
                             // Away is meant to be visible — it is what explains
                             // why the rotation is stepping over someone.
-                            if (iAmAway) {
+                            // Everyone away is its own state: the household is
+                            // paused (see pause.go), and that is the news.
+                            if (state.group?.paused == true) {
+                                AwayBanner(
+                                    text = "Everyone's away, so the household is paused. Nothing goes late until someone's back.",
+                                    onBack = { viewModel.setAway(false, null) },
+                                )
+                            } else if (iAmAway) {
                                 AwayBanner(onBack = { viewModel.setAway(false, null) })
                             } else if (othersAway.isNotEmpty()) {
                                 OthersAwayNote(othersAway)
@@ -929,7 +938,10 @@ internal sealed interface BoardRow {
  * a rule worth reading first; coming back has nothing to explain.
  */
 @Composable
-private fun AwayBanner(onBack: () -> Unit) {
+private fun AwayBanner(
+    text: String = "You're away. Your turns are skipped.",
+    onBack: () -> Unit,
+) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
         modifier = Modifier.fillMaxWidth(),
@@ -939,7 +951,7 @@ private fun AwayBanner(onBack: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "You're away. Your turns are skipped.",
+                text = text,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
@@ -2599,7 +2611,7 @@ private fun OthersAwayNote(away: List<MemberInfo>) {
         m.awayUntil?.let { "${m.username} is away until ${formatDueDate(it)}. Their turns are skipped." }
             ?: "${m.username} is away. Their turns are skipped."
     } else {
-        away.joinToString(" and ") { it.username } + " are away. Their turns are skipped."
+        namesTogether(away.map { it.username }) + " are away. Their turns are skipped."
     }
     Surface(
         color = q.awaySoft,
@@ -2907,7 +2919,8 @@ private fun AwayDialog(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
                     "You'll be taken out of every rotation here until you're back, and you'll " +
-                        "come back in the same place. No turns are owed.",
+                        "come back in the same place. A turn that's already yours goes to the " +
+                        "next person, and comes back to you when you return.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(

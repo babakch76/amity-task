@@ -58,6 +58,8 @@ data class GroupWithProgress(
      */
     @SerializedName("my_role")
     val myRole: String = "member",
+    /** Everyone is away: nothing can be passed and nothing goes late. */
+    val paused: Boolean = false,
 )
 
 data class Task(
@@ -258,14 +260,17 @@ data class AlsoBy(
     val addedAt: OffsetDateTime,
 )
 
+/** "Sara", "Sara and Tom", "Sara, Tom and Ali". */
+fun namesTogether(names: List<String>): String = when (names.size) {
+    0 -> ""
+    1 -> names[0]
+    else -> names.dropLast(1).joinToString(", ") + " and " + names.last()
+}
+
 /** "Sara", "Sara and Tom", "Sara, Tom and Ali" — or null when there is nobody. */
 fun List<AlsoBy>?.joinedNames(myUserId: String? = null): String? {
     val names = this.orEmpty().map { if (myUserId != null && it.userId == myUserId) "you" else it.username }
-    return when (names.size) {
-        0 -> null
-        1 -> names[0]
-        else -> names.dropLast(1).joinToString(", ") + " and " + names.last()
-    }
+    return names.takeIf { it.isNotEmpty() }?.let(::namesTogether)
 }
 
 /**
@@ -629,6 +634,16 @@ data class UpdateMeRequest(
 data class SetAwayRequest(
     val away: Boolean,
     val until: String? = null,   // RFC 3339
+)
+
+/** What going away (or coming back) did. */
+data class AwayResponse(
+    val away: Boolean,
+    /** You were the last one home, so the household is now paused. */
+    val paused: Boolean = false,
+    /** How many of your turns went to the next person. */
+    @SerializedName("handed_on")
+    val handedOn: Int = 0,
 )
 
 data class InviteByUsernameRequest(

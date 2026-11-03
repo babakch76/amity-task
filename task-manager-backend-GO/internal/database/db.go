@@ -439,6 +439,9 @@ func addMissingColumns(db *sql.DB) error {
 		// forward with the debts, and like them a list, because credits can
 		// stand for several cycles. Replaces resume_after (BACKLOG B-19).
 		{table: "occurrences", name: "skip_credits", ddl: `ALTER TABLE occurrences ADD COLUMN skip_credits TEXT`},
+		// When everyone in the household went away, while they still are; see
+		// pause.go. NULL whenever somebody is home.
+		{table: "groups", name: "paused_since", ddl: `ALTER TABLE groups ADD COLUMN paused_since DATETIME`},
 		{table: "users", name: "quiet_from", ddl: `ALTER TABLE users ADD COLUMN quiet_from TEXT NOT NULL DEFAULT '21:00'`},
 		{table: "users", name: "quiet_to", ddl: `ALTER TABLE users ADD COLUMN quiet_to TEXT NOT NULL DEFAULT '09:00'`},
 	}

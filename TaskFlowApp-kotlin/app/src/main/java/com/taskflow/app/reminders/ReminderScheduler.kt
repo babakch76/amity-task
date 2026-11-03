@@ -74,6 +74,10 @@ object ReminderScheduler {
      * Called after every board load, so it has to be idempotent: anything
      * already delivered is skipped, and anything still pending is simply
      * re-armed at the same time.
+     *
+     * @param away You are away from this household, so it sends you nothing.
+     *   Your turns there are skipped, and a turn still on your row when you
+     *   left is either with someone else now or waiting out a pause.
      */
     fun reschedule(
         context: Context,
@@ -83,6 +87,7 @@ object ReminderScheduler {
         myUserId: String?,
         quiet: QuietHours,
         now: OffsetDateTime = OffsetDateTime.now(),
+        away: Boolean = false,
     ) {
         if (myUserId == null) return
         ensureChannel(context)
@@ -94,7 +99,7 @@ object ReminderScheduler {
         // Only my own open occurrences. A reminder about someone else's chore
         // is exactly what constraint 2 forbids, so it is filtered here rather
         // than relied upon further down.
-        val mine = occurrences.filter { it.isOpen && it.assignedTo == myUserId }
+        val mine = if (away) emptyList() else occurrences.filter { it.isOpen && it.assignedTo == myUserId }
 
         for (occurrence in mine) {
             val chore = choresById[occurrence.choreId]

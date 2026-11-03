@@ -64,7 +64,8 @@ internal val GUIDE = listOf(
     GuideSection(
         "Going away",
         "Tap the people button on House, then See everyone, and say you're away. " +
-            "Turns skip you and you owe nothing for that time. Everyone can see you're away.",
+            "Turns skip you, everyone can see it, and you owe nothing. " +
+            "If everyone's away, the household is paused.",
     ),
     GuideSection(
         "Book a space",

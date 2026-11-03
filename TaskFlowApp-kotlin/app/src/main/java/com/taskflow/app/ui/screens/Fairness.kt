@@ -88,8 +88,15 @@ internal val FAIR_CASES = listOf(
     FairCase(
         title = "Going away",
         body = "Say you're away on People. Your turns skip you until you're back, and you " +
-            "owe nothing for that time. You come back in the same place in the order. " +
+            "owe nothing for that time. A turn that's already yours goes to the next person " +
+            "and comes back to you when you return. You come back in the same place in the order. " +
             "Turns you already owed wait for you.",
+    ),
+    FairCase(
+        title = "Everyone is away",
+        body = "Then the household is paused. Nothing can be passed and nothing goes late. " +
+            "When someone's back, every date moves on by the days you were all away. " +
+            "Chores on a fixed day keep their day.",
     ),
     FairCase(
         title = "Helping with someone's turn",
