@@ -6,6 +6,21 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-03 (late night) — The four-houses intro
+
+The owner's idea, tried first as a browser prototype: four houses in the icon's roof
+colours slide together, walls into the white square, roofs into the pinwheel. The
+owner asked for it only after signing in, not at every start. Built in `WelcomeIntro.kt`
+on the icon's own geometry.
+
+On the emulator: frames caught during the play show the row, the turn and the final
+mark with the name; the first frames had dark status-bar icons on the purple and the
+middle roofs touching, so the bar now goes light while it plays and the row is wider.
+A signed-in cold start shows only Android's launch screen and then Mine. A tap at 0.6s
+skips to Mine, and with animations off the sign-in goes straight to Mine.
+
+---
+
 ## 2026-11-03 (night) — Wording, one change at a time
 
 The owner asked for phrasing people know from other apps, starting from *I did this*,

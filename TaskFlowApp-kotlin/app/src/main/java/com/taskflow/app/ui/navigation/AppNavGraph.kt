@@ -13,6 +13,7 @@ import com.taskflow.app.reminders.HouseNewsWorker
 import com.taskflow.app.ui.screens.MainShell
 import com.taskflow.app.ui.screens.LoginScreen
 import com.taskflow.app.ui.screens.RegisterScreen
+import com.taskflow.app.ui.screens.WelcomeIntro
 
 /**
  * Route constants for type-safe navigation.
@@ -31,6 +32,9 @@ object Routes {
      * each keeps its own state.
      */
     const val SHELL = "shell"
+
+    /** The four-houses intro, played once on the way in from Login or Register. */
+    const val WELCOME = "welcome"
 }
 
 /**
@@ -43,7 +47,8 @@ object Routes {
  * Login and Register toggle between each other with a text button; both land on
  * the shell on success.
  *
- * Three routes, and that is the whole graph: the board is the shell's first
+ * Four routes, the intro between sign-in and the shell being the fourth.
+ * Otherwise that is the whole graph: the board is the shell's first
  * tab, and the create-chore flow that used to need a route of its own is a
  * full-screen `Dialog` drawn over everything, bottom bar included.
  *
@@ -73,6 +78,16 @@ fun AppNavGraph(
         }
     }
 
+    /**
+     * Signing in or up goes through the intro first. A signed-in launch starts
+     * on the shell and never sees it: people open the app to get on with it.
+     */
+    fun welcomeIn() {
+        navController.navigate(Routes.WELCOME) {
+            popUpTo(0) { inclusive = true }
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = startDestination,
@@ -81,7 +96,7 @@ fun AppNavGraph(
         composable(Routes.LOGIN) {
             LoginScreen(
                 tokenManager = tokenManager,
-                onLoginSuccess = { goToShell() },
+                onLoginSuccess = { welcomeIn() },
                 onNavigateToRegister = {
                     navController.navigate(Routes.REGISTER) {
                         // Only ever one auth screen on the stack.
@@ -103,13 +118,18 @@ fun AppNavGraph(
             }
             RegisterScreen(
                 tokenManager = tokenManager,
-                onRegisterSuccess = { goToShell() },
+                onRegisterSuccess = { welcomeIn() },
                 onNavigateToLogin = {
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(Routes.REGISTER) { inclusive = true }
                     }
                 },
             )
+        }
+
+        // ─── The intro, once, between signing in and the shell ───
+        composable(Routes.WELCOME) {
+            WelcomeIntro(onDone = { goToShell() })
         }
 
         // ─── Shell (My groups · My chores · Settings) ───

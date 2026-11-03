@@ -425,6 +425,17 @@ adding and doing a chore, covers, passing, everyone busy, going away, booking,
 reminders and bringing people in. It is for reading when a question comes up, and
 its wording has to follow sections 4 and 5 of this file.
 
+## The intro
+
+*On the branch `household-removal-and-tutorial`.*
+
+Straight after signing in or creating an account, four houses with the icon's four
+roof colours slide together: their walls become one white square and their roofs
+turn into the pinwheel, and the name fades in under it. About two and a half
+seconds, once per sign-in. Opening the app while signed in goes straight to Mine,
+because people open it to get something done. A tap skips it, and with the phone's
+animations turned off it does not play at all.
+
 ## The tour
 
 *On the branch `household-removal-and-tutorial`.*

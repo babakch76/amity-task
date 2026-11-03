@@ -164,6 +164,7 @@ answers `401`.
 | `reminders/HouseNews.kt`, `HouseNewsWorker.kt` | What reaches the phone with the app closed: turns passed to you, and housemates' chores if switched on. A poll through WorkManager, not a push. The hold times mirror `undoWindow` and `passUndoWindow` in `chores.go`, so **change them together**. |
 | `Guide.kt` | **How TaskFlow works**: the page and its text (`GUIDE`). The text must follow `FEATURES.md` sections 4 and 5. |
 | `Tour.kt` | **The tour**: the fixed steps (`TOUR`), the spotlight and the swipe practice. Parts are marked with `Modifier.tourTarget`. Keep it the same for everybody: see `BACKLOG.md` for why it does not walk the person's own account. |
+| `WelcomeIntro.kt` | The four-houses intro: houses with the icon's four roof colours slide together and become the pinwheel. Plays **once after signing in or up, never on a signed-in launch**, at the owner's request ("people want to get running fast"). About 2.5s, a tap or Back skips it, and it does not play with system animations off. Its geometry is the launcher icon's, so change them together. |
 | `TourSample.kt` | The sample flat behind the tour: the app's real composables given fixed data, with no ViewModel or network. If `MyChoresScreen` or the board changes shape, change this to match. |
 
 Navigation is **three outer routes**: `login`, `register`, `shell`, plus a

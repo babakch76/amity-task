@@ -38,6 +38,11 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
     - **Known limit:** your own reminders are still armed only when the app syncs, so
       a turn that starts with the app closed is not announced until it is next opened.
       Only passes are.
+  - **The intro**, the owner's idea: four houses, roofs in the icon's colours, merge
+    into the pinwheel. A browser prototype was agreed first. **Only after signing
+    in or up**, the owner's call, so a normal launch is not slowed down. Not on
+    Android's own launch screen, which since Android 12 only animates inside the
+    icon's circle. The owner kept *so nobody has to nag* in the sign-in line.
   - **Wording pass**, the project owner going through each change one at a time
     after asking for phrasing people know from other apps. Kept: *Busy? Pass it on*,
     *Done means*, *Past its day* and the small casual lines, which have a voice and
