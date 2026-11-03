@@ -29,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -76,6 +77,17 @@ fun HouseholdSwitcher(
     // control in both states, so it turns rather than swapping to a second
     // icon.
     val chevron by animateFloatAsState(if (open) 180f else 0f, label = "chevron")
+    // A name that doesn't fit at full size steps down a size at a time, on up
+    // to two lines, so it is read whole rather than cut to "Flat on Via…".
+    // Names are capped at 40 characters; the last step holds that beside the
+    // buttons on a narrow phone, and "…" is only for a font enlarged past it.
+    val sizes = listOf(
+        MaterialTheme.typography.headlineLarge,
+        MaterialTheme.typography.headlineSmall,
+        MaterialTheme.typography.titleLarge,
+        MaterialTheme.typography.titleMedium,
+    )
+    var step by remember(current?.name) { mutableIntStateOf(0) }
 
     Box(modifier = modifier) {
         Row(
@@ -87,9 +99,10 @@ fun HouseholdSwitcher(
         ) {
             Text(
                 text = current?.name ?: "No household",
-                style = MaterialTheme.typography.headlineLarge,
-                maxLines = 1,
+                style = sizes[step],
+                maxLines = if (step == 0) 1 else 2,
                 overflow = TextOverflow.Ellipsis,
+                onTextLayout = { if (it.hasVisualOverflow && step < sizes.lastIndex) step++ },
                 modifier = Modifier.weight(1f, fill = false),
             )
             Icon(

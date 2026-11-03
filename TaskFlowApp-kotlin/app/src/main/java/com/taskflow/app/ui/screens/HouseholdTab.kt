@@ -149,6 +149,8 @@ fun HouseholdTab(
                     onOpenSettings = onOpenSettings,
                     hasInvites = hasInvites,
                     onBack = onBack,
+                    // The switcher's list carries the name too.
+                    onHouseholdChanged = { viewModel.refresh() },
                     viewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                         viewModelStoreOwner = vmOwner,
                         key = current.id,

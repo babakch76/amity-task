@@ -148,7 +148,8 @@ class ShellViewModel : ViewModel() {
             val current = (_uiState.value as? ShellUiState.Success)?.groups ?: return@launch
             val groups = runCatching { api.listMyGroups() }.getOrNull()
                 ?.takeIf { it.isSuccessful }?.body() ?: return@launch
-            if (groups.map { it.id }.toSet() != current.map { it.id }.toSet()) {
+            // Names too, so a housemate's rename reaches the title and the switcher.
+            if (groups.map { it.id to it.name }.toSet() != current.map { it.id to it.name }.toSet()) {
                 _uiState.value = ShellUiState.Success(groups)
                 loadReminderData(groups)
             }

@@ -202,6 +202,7 @@ private fun SampleHouse(flat: SampleFlat) {
                 onSeeEveryone = {},
                 onShareCode = {},
                 onInviteByName = {},
+                onHouseholdSettings = {},
                 peopleModifier = Modifier.tourTarget(TourTarget.FACES),
             )
         }

@@ -6,6 +6,28 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-03 (evening) — Household settings
+
+After the interviews the owner asked for settings per household. Long names were cut to
+"…" on House; the owner asked for a smaller font, two lines if the layout holds, and a
+character limit. If the owner leaves, they choose between removing the household and
+handing it to someone staying. Google sign-in was set aside for now.
+
+Built: a gear beside the people button that opens a card growing out of it (rename for
+anyone; hand over and remove for the owner; leave for everyone, with the owner's choice).
+Server: `PATCH /groups/{id}` to rename, `POST /groups/{id}/owner` to hand over, and
+`?hand_to=` on leaving so handing over and leaving happen together. Names are capped at 40
+characters on create and rename. The title steps down through four sizes, up to two lines.
+
+On the emulator against the local server: a 36-character name and Maya's 40-character
+rename both fit whole beside the buttons, and Maya's rename reached the phone in about 8
+seconds. The owner's leave, hand-over, Remove confirm, the member's view and the feed
+lines all checked, with the request bodies read in Logcat. Restoring the local test
+database from a copy taken without its WAL file emptied it; the local demo fixture was
+reseeded (`seed.py` in the scratchpad). Nothing outside the local test server was touched.
+
+---
+
 ## 2026-11-03 (after midnight) — How turns stay fair
 
 The owner asked what makes it fair when someone forgets their turn and a housemate does

@@ -86,6 +86,11 @@ internal val GUIDE = listOf(
         "Bringing people in",
         "Tap the people button on House, then invite with a code or a username.",
     ),
+    GuideSection(
+        "Your household",
+        "Tap the gear on House to rename it or leave it. Whoever owns it can hand " +
+            "it to someone else or remove it. An owner who leaves hands it over first.",
+    ),
 )
 
 @Composable

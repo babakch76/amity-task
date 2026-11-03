@@ -387,6 +387,15 @@ type CreateGroupRequest struct {
 	Description string `json:"description"`
 }
 
+type RenameGroupRequest struct {
+	Name string `json:"name"`
+}
+
+// HandOverRequest names who becomes the owner.
+type HandOverRequest struct {
+	UserID string `json:"user_id"`
+}
+
 type InviteByUsernameRequest struct {
 	Username string `json:"username"`
 }

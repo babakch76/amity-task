@@ -373,11 +373,30 @@ chores before the create flow ever asks about them. Each can be renamed, because
 removed. "Something else" adds a blank row, and Skip leaves the board empty
 with a line saying what to do next.
 
-Leaving is available to any member; the owner cannot leave while others remain,
-and the last member leaving deletes the household.
+Leaving is available to any member, from the foot of People or from household
+settings. The last member leaving deletes the household.
 
-**The owner can remove a household for everyone**, from the foot of People,
-where they see *Remove* in place of a *Leave* that could only fail. The
+**Household settings** are behind the gear on House, beside the people button. A
+card grows out of the gear, its rows coming in one after another:
+
+- **Rename**, for anyone in the household, up to 40 characters. The feed says
+  who renamed it and what it is called now, and housemates' phones pick up the
+  new name within a few seconds.
+- **Hand over to someone**, for the owner. The other person becomes the owner
+  and the old one an ordinary member. Owning means one thing, being able to
+  remove the household, so there is always exactly one person who can.
+- **Leave household.** An owner leaving while others stay is asked first:
+  *Hand it over, then leave*, or *Remove it for everyone*. The hand-over and the
+  leave are one request (`?hand_to=` on leaving), so it all happens or none of
+  it does.
+- **Remove household**, for the owner.
+
+The title on House steps down a size at a time, up to two lines, until the
+name fits beside the buttons. A 40-character name fits on a narrow phone, and
+only a font enlarged past that is cut with "…". Creating a household has the
+same 40-character limit, counted in characters as people count them.
+
+**The owner can remove a household for everyone**, from household settings. The
 confirmation counts who else is affected and says it can't be undone. The board,
 chores, history and bookings all go. Accounts do not. Nothing can be written to
 the feed, because the feed goes too, so each housemate's phone notices the

@@ -177,6 +177,8 @@ fun GroupDetailScreen(
     onOpenSettings: () -> Unit = {},
     hasInvites: Boolean = false,
     onBack: () -> Unit = {},
+    /** The household's name changed here, so the list it came from is stale. */
+    onHouseholdChanged: () -> Unit = {},
     viewModel: GroupDetailViewModel = viewModel(
         key = groupId,
         factory = GroupDetailViewModel.Factory(groupId),
@@ -207,6 +209,10 @@ fun GroupDetailScreen(
     var showInvite by remember { mutableStateOf(false) }
     var confirmLeave by remember { mutableStateOf(false) }
     var confirmRemove by remember { mutableStateOf(false) }
+    // Household settings, when open: where the gear is across the screen, so
+    // the card grows out of it. Leave on People opens it at the owner's choice.
+    var houseSettingsAt by remember { mutableStateOf<Float?>(null) }
+    var houseSettingsLeaving by remember { mutableStateOf(false) }
     // Up here rather than in the section: the section moves when the board goes
     // from empty to not, and a housemate's new chore must not close the sheet.
     var showBookIt by remember { mutableStateOf(false) }
@@ -323,8 +329,15 @@ fun GroupDetailScreen(
     }
 
     val othersAway = state.members.filter { it.away && it.id != myUserId }
-    val currentGroup = state.group?.let { loaded -> groups.firstOrNull { it.id == loaded.id } }
-        ?: groups.firstOrNull { it.id == groupId }
+    // The name from this household's own load where there is one: it is polled
+    // every few seconds, so a housemate's rename shows here before the list of
+    // households catches up.
+    val currentGroup = (
+        state.group?.let { loaded -> groups.firstOrNull { it.id == loaded.id } }
+            ?: groups.firstOrNull { it.id == groupId }
+        )?.let { listed -> state.group?.takeIf { it.id == listed.id }?.let { listed.copy(name = it.name) } ?: listed }
+    val iOwnIt = state.members.firstOrNull { it.id == myUserId }?.role == ROLE_OWNER
+    val othersHere = state.members.any { it.id != myUserId }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -367,6 +380,10 @@ fun GroupDetailScreen(
                         onSeeEveryone = onOpenPeople,
                         onShareCode = { viewModel.generateInviteCode() },
                         onInviteByName = { showInvite = true },
+                        onHouseholdSettings = { x ->
+                            houseSettingsLeaving = false
+                            houseSettingsAt = x
+                        },
                     )
                 }
 
@@ -509,8 +526,16 @@ fun GroupDetailScreen(
                             onAway = {
                                 if (iAmAway) viewModel.setAway(false, null) else showAway = true
                             },
-                            onLeave = { confirmLeave = true },
-                            onRemove = { confirmRemove = true },
+                            // An owner with people staying has a choice to make
+                            // first; anyone else goes straight to the confirm.
+                            onLeave = {
+                                if (iOwnIt && othersHere) {
+                                    houseSettingsLeaving = true
+                                    houseSettingsAt = 0.5f
+                                } else {
+                                    confirmLeave = true
+                                }
+                            },
                             householdName = currentGroup?.name.orEmpty(),
                         )
                     }
@@ -655,7 +680,11 @@ fun GroupDetailScreen(
             onDismissRequest = { confirmLeave = false },
             title = { Text("Leave household?", fontWeight = FontWeight.Bold) },
             text = {
-                Text("You'll lose access to its board.")
+                Text(
+                    if (othersHere) "You'll lose access to its board."
+                    else "You're the only one in it, so its board, chores and history will be " +
+                        "deleted. This can't be undone.",
+                )
             },
             confirmButton = {
                 TextButton(onClick = { confirmLeave = false; viewModel.leaveGroup() }) {
@@ -665,6 +694,27 @@ fun GroupDetailScreen(
             dismissButton = {
                 TextButton(onClick = { confirmLeave = false }) { Text("Cancel") }
             },
+        )
+    }
+
+    houseSettingsAt?.let { originX ->
+        HouseholdSettings(
+            householdName = currentGroup?.name.orEmpty(),
+            members = state.members,
+            myUserId = myUserId,
+            originX = originX,
+            startLeaving = houseSettingsLeaving,
+            onDismiss = { houseSettingsAt = null },
+            onRename = { name, onResult ->
+                viewModel.renameHousehold(name) { problem ->
+                    if (problem == null) onHouseholdChanged()
+                    onResult(problem)
+                }
+            },
+            onHandOver = { viewModel.handOver(it) },
+            onHandOverAndLeave = { viewModel.leaveGroup(handTo = it.id) },
+            onLeave = { confirmLeave = true },
+            onRemove = { confirmRemove = true },
         )
     }
 
@@ -2301,6 +2351,9 @@ private fun describeEvent(e: ActivityEvent): String = when (e.eventType) {
     "member_left" -> "${e.actorUsername} left the household"
     "invite_accepted" -> "${e.actorUsername} accepted an invite"
     "member_role_changed" -> "${e.actorUsername} changed a member's role"
+    // The detail line underneath is the new name, or the new owner.
+    "group_renamed" -> "${e.actorUsername} renamed the household"
+    "owner_changed" -> "${e.actorUsername} handed the household over"
     else -> "${e.actorUsername} made a change"
 }
 
@@ -2329,6 +2382,8 @@ private fun humaniseDetail(e: ActivityEvent): String? {
         "member_role_changed" -> detail
             .replace(" → admin", " is now a manager")
             .replace(" → member", " is now a member")
+
+        "owner_changed" -> "$detail owns it now"
 
         "task_updated" -> detail
             .split(",")
@@ -2396,7 +2451,6 @@ private fun MemberList(
     onInviteByName: () -> Unit,
     onAway: () -> Unit,
     onLeave: () -> Unit,
-    onRemove: () -> Unit,
     householdName: String,
 ) {
     val me = members.firstOrNull { it.id == myUserId }
@@ -2517,17 +2571,14 @@ private fun MemberList(
             }
         }
 
-        // One or the other. An owner cannot leave a household with people in it
-        // (the server refuses), so offering Leave there would only earn an error.
-        val owner = me?.role == "owner"
+        // Everyone can leave. An owner with people staying is asked first
+        // whether to hand it over or remove it; see HouseholdSettings, which
+        // is also where removing it lives now.
         TextButton(
-            onClick = if (owner) onRemove else onLeave,
+            onClick = onLeave,
             modifier = Modifier.align(Alignment.CenterHorizontally),
         ) {
-            Text(
-                if (owner) "Remove $householdName" else "Leave $householdName",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Text("Leave $householdName", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

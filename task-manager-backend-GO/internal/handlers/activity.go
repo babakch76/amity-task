@@ -45,6 +45,11 @@ const (
 	EventMemberJoined   = "member_joined"
 	EventMemberLeft     = "member_left"
 	EventInviteAccepted = "invite_accepted"
+
+	// The household's name changed; detail is the new name. Ownership moved;
+	// detail is the new owner's username, and the actor is the one before.
+	EventGroupRenamed = "group_renamed"
+	EventOwnerChanged = "owner_changed"
 	// No longer emitted — the manager role was removed. Kept because rows
 	// written before that still carry this value.
 	EventMemberRoleChanged = "member_role_changed"

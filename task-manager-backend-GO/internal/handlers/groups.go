@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"task-manager-backend/internal/database"
 	"task-manager-backend/internal/middleware"
@@ -29,14 +31,15 @@ func (h *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-	if req.Name == "" {
-		jsonError(w, "group name is required", http.StatusBadRequest)
+	name, problem := cleanHouseholdName(req.Name)
+	if problem != "" {
+		jsonError(w, problem, http.StatusBadRequest)
 		return
 	}
 
 	group := models.Group{
 		ID:          uuid.New().String(),
-		Name:        req.Name,
+		Name:        name,
 		Description: req.Description,
 		CreatedBy:   userID,
 		CreatedAt:   time.Now(),
@@ -74,6 +77,166 @@ func (h *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonResponse(w, http.StatusCreated, group)
+}
+
+// householdNameMax keeps a name to what the House title can show: two lines at
+// its smaller size on a narrow phone. Counted in characters, not bytes.
+const householdNameMax = 40
+
+// cleanHouseholdName trims a proposed household name and, when it can't be
+// used, says why in words the app shows as they are.
+func cleanHouseholdName(raw string) (name, problem string) {
+	name = strings.TrimSpace(raw)
+	switch {
+	case name == "":
+		return "", "give the household a name"
+	case utf8.RuneCountInString(name) > householdNameMax:
+		return "", fmt.Sprintf("keep the name to %d characters or fewer", householdNameMax)
+	}
+	return name, ""
+}
+
+// RenameGroup handles PATCH /groups/{group_id}: anyone in the household can
+// change its name. Like editing a chore it is open to every member, and the
+// feed says who did it and what it is called now.
+func (h *GroupHandler) RenameGroup(w http.ResponseWriter, r *http.Request) {
+	groupID := r.PathValue("group_id")
+	userID := middleware.GetUserID(r)
+
+	var req models.RenameGroupRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	name, problem := cleanHouseholdName(req.Name)
+	if problem != "" {
+		jsonError(w, problem, http.StatusBadRequest)
+		return
+	}
+
+	tx, err := h.DB.Begin()
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	var old string
+	if err := tx.QueryRow(`SELECT name FROM groups WHERE id = ?`, groupID).Scan(&old); err != nil {
+		if err == sql.ErrNoRows {
+			jsonError(w, "group not found", http.StatusNotFound)
+			return
+		}
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	// Saving the same name is not news, so it writes nothing to the feed.
+	if name != old {
+		if _, err := tx.Exec(`UPDATE groups SET name = ? WHERE id = ?`, name, groupID); err != nil {
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		if err := recordActivity(tx, groupID, userID, EventGroupRenamed, nil, name); err != nil {
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	var g models.Group
+	if err := h.DB.QueryRow(
+		`SELECT id, name, description, created_by, created_at FROM groups WHERE id = ?`, groupID,
+	).Scan(&g.ID, &g.Name, &g.Description, &g.CreatedBy, &g.CreatedAt); err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	jsonResponse(w, http.StatusOK, g)
+}
+
+// HandOverGroup handles POST /groups/{group_id}/owner: the owner makes
+// somebody else in the household the owner, and becomes a member like
+// everyone else. Owning means one thing, being able to remove the household,
+// so there is always exactly one person who can.
+func (h *GroupHandler) HandOverGroup(w http.ResponseWriter, r *http.Request) {
+	groupID := r.PathValue("group_id")
+	userID := middleware.GetUserID(r)
+
+	var req models.HandOverRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	tx, err := h.DB.Begin()
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	if status, msg := handOver(tx, groupID, userID, req.UserID); status != 0 {
+		jsonError(w, msg, status)
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	jsonResponse(w, http.StatusOK, map[string]string{"message": "handed over"})
+}
+
+// handOver moves ownership from `from` to `to` inside the caller's
+// transaction, and says so in the feed. It returns a status and message when
+// it refuses, or 0 when it went through. LeaveGroup uses it too, so an owner
+// can hand over and leave in one step that either all happens or none of it.
+func handOver(tx *sql.Tx, groupID, from, to string) (int, string) {
+	var role string
+	if err := tx.QueryRow(
+		`SELECT role FROM group_members WHERE group_id = ? AND user_id = ?`, groupID, from,
+	).Scan(&role); err != nil {
+		if err == sql.ErrNoRows {
+			return http.StatusNotFound, "not found"
+		}
+		return http.StatusInternalServerError, "internal error"
+	}
+	if role != "owner" {
+		return http.StatusForbidden, "only the owner can hand the household over"
+	}
+	if to == "" {
+		return http.StatusBadRequest, "choose who to hand it to"
+	}
+	if to == from {
+		return http.StatusBadRequest, "you already own it"
+	}
+
+	var toName string
+	if err := tx.QueryRow(
+		`SELECT u.username FROM group_members gm JOIN users u ON u.id = gm.user_id
+		 WHERE gm.group_id = ? AND gm.user_id = ?`, groupID, to,
+	).Scan(&toName); err != nil {
+		if err == sql.ErrNoRows {
+			return http.StatusNotFound, "they're not in this household any more"
+		}
+		return http.StatusInternalServerError, "internal error"
+	}
+
+	if _, err := tx.Exec(
+		`UPDATE group_members SET role = 'member' WHERE group_id = ? AND user_id = ?`, groupID, from,
+	); err != nil {
+		return http.StatusInternalServerError, "internal error"
+	}
+	if _, err := tx.Exec(
+		`UPDATE group_members SET role = 'owner' WHERE group_id = ? AND user_id = ?`, groupID, to,
+	); err != nil {
+		return http.StatusInternalServerError, "internal error"
+	}
+	if err := recordActivity(tx, groupID, from, EventOwnerChanged, nil, toName); err != nil {
+		return http.StatusInternalServerError, "internal error"
+	}
+	return 0, ""
 }
 
 // GetGroup returns group info with task progress (guarded by membership middleware).
@@ -311,9 +474,10 @@ func (h *GroupHandler) SetAway(w http.ResponseWriter, r *http.Request) {
 // Three outcomes:
 //   - last member leaving  → the group is deleted, and ON DELETE CASCADE takes
 //     its tasks, invites and activity with it
-//   - owner leaving with others still in the group → 409; transferring
-//     ownership is out of scope, and orphaning a group with no owner would
-//     leave it in a state nothing else in the API can repair
+//   - owner leaving with others still in the group → 409, unless the request
+//     names who takes over (?hand_to=<user_id>). Then ownership moves and the
+//     owner leaves in the same transaction, so the household is never left
+//     with nobody able to remove it
 //   - anyone else → membership row removed
 func (h *GroupHandler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
 	groupID := r.PathValue("group_id")
@@ -350,12 +514,19 @@ func (h *GroupHandler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
 
 	lastMember := memberCount == 1
 	if role == "owner" && !lastMember {
-		jsonError(
-			w,
-			"the group owner cannot leave while other members remain; transfer ownership or remove the other members first",
-			http.StatusConflict,
-		)
-		return
+		handTo := r.URL.Query().Get("hand_to")
+		if handTo == "" {
+			jsonError(
+				w,
+				"hand the household to someone else or remove it before you leave",
+				http.StatusConflict,
+			)
+			return
+		}
+		if status, msg := handOver(tx, groupID, userID, handTo); status != 0 {
+			jsonError(w, msg, status)
+			return
+		}
 	}
 
 	// Record before the delete: activity_events.group_id cascades from groups,

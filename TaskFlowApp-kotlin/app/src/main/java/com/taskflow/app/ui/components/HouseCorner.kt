@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Group
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -29,12 +30,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 
 /**
- * The top right of House: a people button and your own face.
+ * The top right of House: household settings, a people button and your own face.
  *
  * It used to be every housemate's face in a row. That said who lives here but
  * not what tapping it did, and grew with the household. Now the people button
@@ -43,6 +48,11 @@ import androidx.compose.ui.unit.dp
  * when an invitation is waiting. Who is away is still said on the board itself,
  * in the banner over it.
  *
+ * The gear opens the household's own settings (rename, hand over, leave). It is
+ * the household's, not yours, so it sits apart from your face.
+ *
+ * @param onHouseholdSettings Gets where the gear is across the screen, from 0
+ *   at the left edge to 1 at the right, so the card can grow out of it.
  * @param peopleModifier Lets the tour light the people button on its own.
  */
 @Composable
@@ -54,11 +64,27 @@ fun HouseCorner(
     onSeeEveryone: () -> Unit,
     onShareCode: () -> Unit,
     onInviteByName: () -> Unit,
+    onHouseholdSettings: (originX: Float) -> Unit,
     modifier: Modifier = Modifier,
     peopleModifier: Modifier = Modifier,
 ) {
     var open by remember { mutableStateOf(false) }
+    var gearX by remember { mutableStateOf(1f) }
+    val screenWidth = with(LocalDensity.current) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        IconButton(
+            onClick = { onHouseholdSettings(gearX) },
+            modifier = Modifier.onGloballyPositioned {
+                gearX = (it.boundsInWindow().center.x / screenWidth).coerceIn(0f, 1f)
+            },
+        ) {
+            Icon(
+                Icons.Outlined.Settings,
+                contentDescription = "Household settings",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp),
+            )
+        }
         Box(modifier = peopleModifier) {
             IconButton(onClick = { open = true }) {
                 Icon(

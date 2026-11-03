@@ -12,6 +12,8 @@ import com.taskflow.app.data.model.CreateChoreRequest
 import com.taskflow.app.data.model.GroupHistory
 import com.taskflow.app.data.model.CreateTaskRequest
 import com.taskflow.app.data.model.GroupWithProgress
+import com.taskflow.app.data.model.HandOverRequest
+import com.taskflow.app.data.model.RenameGroupRequest
 import com.taskflow.app.data.model.InviteByUsernameRequest
 import com.taskflow.app.data.model.MemberInfo
 import com.taskflow.app.data.model.Occurrence
@@ -405,12 +407,15 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
      * a normal leave, 200 with a different message when the caller was the last
      * member (the group is deleted), and 409 when the owner tries to leave while
      * others remain — that one is not a failure to retry, it's a rule.
+     *
+     * @param handTo An owner leaving a household with people in it names who
+     *   takes over. The server hands it over and lets them go in one step.
      */
-    fun leaveGroup() {
+    fun leaveGroup(handTo: String? = null) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isWorking = true, message = null)
             try {
-                val response = api.leaveGroup(groupId)
+                val response = api.leaveGroup(groupId, handTo)
                 _uiState.value = if (response.isSuccessful) {
                     _uiState.value.copy(isWorking = false, hasLeft = true)
                 } else {
@@ -435,6 +440,50 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
                     _uiState.value.copy(isWorking = false, hasLeft = true, householdRemoved = true)
                 } else {
                     _uiState.value.copy(isWorking = false, message = ApiErrors.messageFor(response))
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isWorking = false, message = networkMessage(e))
+            }
+        }
+    }
+
+    /**
+     * Rename the household. Anyone in it can.
+     *
+     * [onResult] gets null once it went through, or what to say under the name
+     * field, so a refusal is shown where the person is typing rather than in a
+     * snackbar behind the settings card.
+     */
+    fun renameHousehold(name: String, onResult: (String?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val response = api.renameGroup(groupId, RenameGroupRequest(name.trim()))
+                if (response.isSuccessful) {
+                    refreshTasksAndProgress()
+                    onResult(null)
+                } else {
+                    onResult(ApiErrors.messageFor(response))
+                }
+            } catch (e: Exception) {
+                onResult(networkMessage(e))
+            }
+        }
+    }
+
+    /** Make [member] the owner. Only the owner is offered this; the server checks again. */
+    fun handOver(member: MemberInfo) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isWorking = true, message = null)
+            try {
+                val response = api.handOver(groupId, HandOverRequest(member.id))
+                if (response.isSuccessful) {
+                    refreshTasksAndProgress()
+                    _uiState.value = _uiState.value.copy(
+                        isWorking = false,
+                        message = "${member.username} owns the household now.",
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(isWorking = false, message = ApiErrors.messageFor(response))
                 }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(isWorking = false, message = networkMessage(e))

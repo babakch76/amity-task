@@ -491,6 +491,14 @@ data class CreateGroupRequest(
     val description: String = "",
 )
 
+data class RenameGroupRequest(val name: String)
+
+/** Who becomes the owner. */
+data class HandOverRequest(
+    @SerializedName("user_id")
+    val userId: String,
+)
+
 data class CreateTaskRequest(
     val title: String,
     val description: String = "",

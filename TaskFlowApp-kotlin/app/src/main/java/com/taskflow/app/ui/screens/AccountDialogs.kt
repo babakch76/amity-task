@@ -163,8 +163,15 @@ internal fun CreateGroupDialog(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = name,
-                    onValueChange = { name = it; error = null },
+                    // Stops at the limit, as renaming does.
+                    onValueChange = {
+                        if (it.codePointCount(0, it.length) <= HOUSEHOLD_NAME_MAX) {
+                            name = it
+                            error = null
+                        }
+                    },
                     label = { Text("Household name") },
+                    supportingText = { Text("${nameLength(name)}/$HOUSEHOLD_NAME_MAX") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,

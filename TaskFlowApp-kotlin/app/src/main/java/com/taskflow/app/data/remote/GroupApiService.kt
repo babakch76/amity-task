@@ -63,8 +63,29 @@ interface GroupApiService {
         @Path("booking_id") bookingId: String,
     ): Response<MessageResponse>
 
+    /**
+     * Leave the household. An owner leaving while others stay must name who
+     * takes over in [handTo]; the hand-over and the leave happen together.
+     */
     @DELETE("groups/{group_id}/members/me")
-    suspend fun leaveGroup(@Path("group_id") groupId: String): Response<MessageResponse>
+    suspend fun leaveGroup(
+        @Path("group_id") groupId: String,
+        @Query("hand_to") handTo: String? = null,
+    ): Response<MessageResponse>
+
+    /** Anyone in the household can rename it. At most 40 characters. */
+    @PATCH("groups/{group_id}")
+    suspend fun renameGroup(
+        @Path("group_id") groupId: String,
+        @Body request: RenameGroupRequest,
+    ): Response<Group>
+
+    /** The owner makes someone else the owner (403 for anyone else). */
+    @POST("groups/{group_id}/owner")
+    suspend fun handOver(
+        @Path("group_id") groupId: String,
+        @Body request: HandOverRequest,
+    ): Response<MessageResponse>
 
     /**
      * Remove a household for everyone in it. Owner only (403 otherwise), and it
