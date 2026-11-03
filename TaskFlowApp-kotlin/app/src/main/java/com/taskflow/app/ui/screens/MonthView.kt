@@ -338,7 +338,7 @@ private fun DayTurns(day: LocalDate, turns: List<TurnDay>) {
         Text(formatMonthDay(day), style = MaterialTheme.typography.titleSmall)
         if (turns.isEmpty()) {
             Text(
-                text = "Nothing on you.",
+                text = "No chores this day.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

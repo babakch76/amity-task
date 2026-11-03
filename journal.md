@@ -6,6 +6,22 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-03 (night) — Wording, one change at a time
+
+The owner asked for phrasing people know from other apps, starting from *I did this*,
+and then went through thirteen changes one by one. All but one went as proposed; *Book
+it up* became *Book a space* rather than *Bookings*. One of the thirteen was not a
+wording change at all: *Protected household synchronization* sat in a footer the sign-in
+screen imports but never draws, so the dead code went instead. The list in BACKLOG says
+what changed and what was kept on purpose.
+
+Checked on the emulator against a local server: Mark as done on Mine and in a chore's
+details; Recently done and As needed on Mine; the away banner saying turns are skipped;
+Book a space; the new pass confirm with "will be told"; and, with the server stopped,
+"Can't reach the server. Check your connection and try again." on a failed Mark as done.
+
+---
+
 ## 2026-11-03 (evening) — Amity Task, and the board's top right
 
 The app is now called Amity Task wherever a person reads it, with the owner's new

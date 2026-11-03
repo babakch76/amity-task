@@ -56,7 +56,7 @@ import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-// Book it up: saying when you want the washing machine or the kitchen, so the
+// Book a space: saying when you want the washing machine or the kitchen, so the
 // rest of the house can see it coming. It is a notice, not a lock. Nobody
 // approves it, a clash is pointed out and then left to the people involved, and
 // there are no reminders, because a booking is not a chore and nothing is owed.
@@ -136,7 +136,7 @@ internal fun BookItSection(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
-        SectionLabel("Book it up", Modifier.padding(top = 14.dp, bottom = 8.dp))
+        SectionLabel("Book a space", Modifier.padding(top = 14.dp, bottom = 8.dp))
         GroupedCard {
             bookings.forEachIndexed { index, booking ->
                 BookingRow(
@@ -273,7 +273,7 @@ internal fun BookItSheet(
         ) {
             Column {
                 Text(
-                    text = "Book it up",
+                    text = "Book a space",
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                 )
                 Text(

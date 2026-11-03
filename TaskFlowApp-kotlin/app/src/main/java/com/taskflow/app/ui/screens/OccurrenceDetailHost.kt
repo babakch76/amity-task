@@ -256,8 +256,8 @@ internal fun OccurrenceDetailHost(
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
-                            "Next time it's yours again. ${receiver.username}'s cover " +
-                                "counts as ${receiver.username}'s turn.",
+                            "${receiver.username} does this one, and it counts as " +
+                                "${receiver.username}'s turn. It comes back to you next time.",
                         )
                         Text(passNoticeLine(occ, chore, receiver.username))
                     }
@@ -266,7 +266,7 @@ internal fun OccurrenceDetailHost(
                     Button(onClick = {
                         controller.passCandidate = null
                         viewModel.passOccurrence(occ, receiver.username)
-                    }) { Text("Pass it to ${receiver.username}") }
+                    }) { Text("Pass to ${receiver.username}") }
                 },
                 dismissButton = {
                     TextButton(onClick = { controller.passCandidate = null }) { Text("Keep it") }

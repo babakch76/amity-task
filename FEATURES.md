@@ -90,9 +90,8 @@ The sheet reads: the chore and when it is wanted, a violet callout when there is
 something to explain (a cover, a pass, an everybody-busy return), then whose
 turn, how often, due, needed by, and *History* / *Edit chore*. Below a rule,
 **WHAT DONE MEANS** — *"Sink, loo and shower screen, and the bin out"* — sits
-directly on top of the action: **I did this** (*Mark as done* on somebody else's
-turn — anyone may tick anything), with **Busy — pass it on** under it on your
-own turn.
+directly on top of the action: **Mark as done** (on anybody's turn: anyone may
+tick anything), with **Busy? Pass to Maya** under it on your own turn.
 
 Putting the two together is the point. The done-line is the household's single
 setup conversation about standards (F4); it was readable only by opening a sheet
@@ -121,7 +120,7 @@ turn depends on covers and passes the app deliberately does not show anyone.
 [`calendar_decision_record.md`](calendar_decision_record.md) for why it was
 removed rather than fixed. Your own turns have a month view on Mine.
 
-### Book it up
+### Book a space
 
 *On the branch `household-removal-and-tutorial`, not yet on the live server.*
 
@@ -350,7 +349,7 @@ know it was a decision.
 - **No household calendar.** Under completion-anchored rotation a chore has one
   live occurrence, so a month grid of the household's chores has almost nothing
   true to draw. The month on Mine shows only your own turns and marks anything
-  further out as likely. Book it up is a list of notices on the board, not a
+  further out as likely. Book a space is a list of notices on the board, not a
   calendar, and it never refuses a booking.
 - **No multi-select or bulk actions.**
 

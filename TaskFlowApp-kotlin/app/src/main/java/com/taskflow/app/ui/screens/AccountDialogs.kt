@@ -190,7 +190,7 @@ internal fun CreateGroupDialog(
             Button(
                 onClick = {
                     if (name.isBlank()) {
-                        error = "Group name is required"
+                        error = "Household name is required"
                         return@Button
                     }
                     isLoading = true
@@ -209,7 +209,7 @@ internal fun CreateGroupDialog(
                                 error = ApiErrors.messageFor(response)
                             }
                         } catch (e: Exception) {
-                            error = "Network error: ${e.localizedMessage}"
+                            error = ApiErrors.forFailure(e)
                         } finally {
                             isLoading = false
                         }

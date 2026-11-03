@@ -39,13 +39,13 @@ fun passNoticeLine(occurrence: Occurrence, chore: Chore?, receiver: String): Str
     val due = occurrence.dueDate
     return when {
         chore?.scheduleType == ScheduleType.AS_NEEDED || due == null ->
-            "$receiver'll be told it's their turn. Nobody else is notified."
+            "$receiver will be told it's their turn. Nobody else is notified."
 
         due.isBefore(OffsetDateTime.now()) ->
-            "$receiver'll be told it's due tomorrow. Nobody else is notified."
+            "$receiver will be told it's due tomorrow. Nobody else is notified."
 
         else ->
-            "$receiver'll be told it's due ${formatDueDate(due)}. Nobody else is notified."
+            "$receiver will be told it's due ${formatDueDate(due)}. Nobody else is notified."
     }
 }
 

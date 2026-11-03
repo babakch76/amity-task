@@ -38,6 +38,19 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
     - **Known limit:** your own reminders are still armed only when the app syncs, so
       a turn that starts with the app closed is not announced until it is next opened.
       Only passes are.
+  - **Wording pass**, the project owner going through each change one at a time
+    after asking for phrasing people know from other apps. Kept: *Busy? Pass it on*,
+    *Done means*, *Past its day* and the small casual lines, which have a voice and
+    cannot be misread. Changed:
+    - *I did this* → **Mark as done**, the label it already had on others' turns;
+      *Undo, I didn't do this* → **Mark as not done**, and *Completion undone* to match.
+    - Turns *pass over* someone away → **are skipped**, since "pass" means handing
+      a turn on. Reminders no longer say *on your row*. *cycle* → this/next time.
+    - *Book it up* → **Book a space**. *group* → **household** everywhere.
+    - Raw system errors → one plain message, keeping the error number for testers.
+    - The pass confirm now says who does it and that it comes back to you. *Nothing
+      on you* → **No chores for you**. Mine says *Recently done* and *As needed*, as
+      House does. *Say how you know it's time to do it* → **Choose how often**.
   - **Renamed Amity Task, with a new icon**, the project owner's choice. Every name
     a person sees: launcher, sign-in screens (now with the name beside the mark),
     tour, guide, settings, invite text. The package, code and server keep TaskFlow,

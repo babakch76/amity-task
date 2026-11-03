@@ -128,9 +128,7 @@ class ShellViewModel : ViewModel() {
                     _uiState.value = ShellUiState.Error(ApiErrors.messageFor(response))
                 }
             } catch (e: Exception) {
-                _uiState.value = ShellUiState.Error(
-                    "Network error: ${e.localizedMessage ?: "Could not reach server"}"
-                )
+                _uiState.value = ShellUiState.Error(ApiErrors.forFailure(e))
             } finally {
                 _isRefreshing.value = false
             }
@@ -287,7 +285,7 @@ class ShellViewModel : ViewModel() {
                 if (response.isSuccessful) {
                     _undoableDone.value = if (done) groupId to occurrenceId else null
                     _actionMessage.value = when {
-                        !done -> "Completion undone"
+                        !done -> "Marked as not done"
                         name != null -> "$name done."
                         else -> "Marked done"
                     }
@@ -472,7 +470,7 @@ class ShellViewModel : ViewModel() {
             try {
                 val response = api.redeemInviteCode(RedeemInviteRequest(code.trim()))
                 if (response.isSuccessful) {
-                    _actionMessage.value = response.body()?.message ?: "Joined group"
+                    _actionMessage.value = response.body()?.message ?: "Joined the household"
                     fetchGroups()
                     fetchInvites()
                 } else {
@@ -530,6 +528,5 @@ class ShellViewModel : ViewModel() {
         fetchInvites()
     }
 
-    private fun networkMessage(e: Throwable) =
-        "Network error: ${e.localizedMessage ?: "could not reach server"}"
+    private fun networkMessage(e: Throwable) = ApiErrors.forFailure(e)
 }

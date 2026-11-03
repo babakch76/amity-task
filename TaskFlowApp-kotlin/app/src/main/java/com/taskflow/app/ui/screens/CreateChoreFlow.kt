@@ -349,7 +349,7 @@ private fun ChoreDraft.withDefaults(members: List<MemberInfo>, myUserId: String?
 /** What is still missing, phrased for the person rather than for the endpoint. */
 private fun ChoreDraft.problem(members: List<MemberInfo>): String? = when {
     name.isBlank() -> "Give the chore a name"
-    kind == null -> "Say how you know it's time to do it"
+    kind == null -> "Choose how often"
     rotating && rotation.isEmpty() -> "Pick at least one person to take a turn"
     !rotating && assignee == null && members.isNotEmpty() -> "Pick who's doing it"
     else -> null

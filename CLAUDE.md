@@ -66,7 +66,7 @@ Violating one of these is a bug, no matter how good the feature is.
    most. `colorScheme.error` must never appear where overdue is rendered.
 4. No points, streaks, leaderboards, percentages, or gamification.
 5. No calendar integration or free/busy scheduling. **Narrowed by the project
-   owner on 2026-11-02 for Book it up**, a notice saying when somebody wants an
+   owner on 2026-11-02 for Book a space** (first called Book it up), a notice saying when somebody wants an
    appliance or a room. It stays a notice: no refusing a clash, no approvals, no
    reminders, no availability view, no calendar. The month on Mine does not
    change this constraint: like the week strip, it shows only your own turns,
@@ -148,8 +148,8 @@ answers `401`.
 | `MainShell` | The floating dock (**Mine · House · Feed** + **Add**) and the seven destinations behind it. Owns the shared `ShellViewModel`, the open household's `GroupDetailViewModel` store, which household is open, the reminder alarms and the invite poll. Mine and House each also poll the turns every 5s while open; **don't make House wait for the feed**, since a pass writes no feed entry. |
 | `HouseholdTab` | Used by **House**, **Feed** and **People** with a `HouseSection`. Decides *which* household is open, handles having none, carries create + first-run starters. |
 | `GroupDetailScreen` (2.9k lines) | One household, drawn per `HouseSection`: **House** (the board), **Feed** (activity + Who did what), **People** (members, invite, away, leave, or remove for the owner). Every sheet and dialog lives here. |
-| `OccurrenceDetailSheet` (in `GroupDetailScreen.kt`) | Where a turn is **completed**. Built from the Stitch mock *Chore detail — Clean the bathroom*: header + household chip, violet callout, WHAT DONE MEANS, the four-row list, History / Edit chore, then *I did this* (*Mark as done* on someone else's turn) and *Busy — pass it on*. Undo lives here too, within its ten minutes. **Board rows have no checkbox** — a row only opens this. |
-| `MyChoresScreen` — **Mine** | The start screen. Your turns across every household: next 7 days, **Up next** (done-line + *I did this*), also yours, done lately. Your face opens **You**. Opens the board's own detail sheet. |
+| `OccurrenceDetailSheet` (in `GroupDetailScreen.kt`) | Where a turn is **completed**. Built from the Stitch mock *Chore detail — Clean the bathroom*: header + household chip, violet callout, WHAT DONE MEANS, the four-row list, History / Edit chore, then *Mark as done* (the same on anyone's turn) and *Busy? Pass to …*. Undo lives here too, within its ten minutes. **Board rows have no checkbox** — a row only opens this. |
+| `MyChoresScreen` — **Mine** | The start screen. Your turns across every household: next 7 days, **Up next** (done-line + *Mark as done*), also yours, recently done. Your face opens **You**. Opens the board's own detail sheet. |
 | `OccurrenceDetailHost` | The detail sheet and everything behind it — history, edit flow, delete confirm, busy pass. Mounted by **both** the board and My chores; driven by a hoisted `ChoreDetailController`. |
 | `ui/components/Quiet.kt` | The design's shared pieces: `Avatar` (colour per user id), `FloatingDock`, `GroupedCard`, `SectionLabel`, `FoldLabel`, `QuietSnackbar`, `SegmentedPair`. Use these rather than redrawing them. |
 | `SettingsScreen` — **You** | Opened from your face on Mine; has a back arrow, no dock. Name, email, invitations, join with a code, How TaskFlow works, quiet hours, appearance, sign out. |
@@ -159,7 +159,7 @@ answers `401`.
 | `AccountDialogs.kt` | The four dialogs that outlived the group list — invites, join by code, create household, quiet hours. Was `DashboardScreen.kt`. |
 | `CreateChoreFlow` | Add or edit a chore on one full screen: *How often* first, and what it implies appears beneath once answered. Delete lives at the end of edit. Opened by **Add** on the dock. |
 | `FirstRunStarters` | Five starter chores offered to a brand-new household. |
-| `BookIt.kt` | **Book it up**: the section at the top of the board, the sheet and the cancel confirm. Its state is hoisted into `GroupDetailScreen`, because the section moves when the board goes from empty to not and a housemate's new chore must not close the sheet. |
+| `BookIt.kt` | **Book a space**: the section at the top of the board, the sheet and the cancel confirm. Its state is hoisted into `GroupDetailScreen`, because the section moves when the board goes from empty to not and a housemate's new chore must not close the sheet. |
 | `MonthView.kt` | The month popup behind the week strip on Mine. Its pure half (`comingDates`, `nextHolder`, `myTurnDays`) mirrors `nextDueDate` and `nextInRotation` in `chores.go`, so **change them together**. Anything past the open turn is `likely`, and must stay visibly so. |
 | `reminders/HouseNews.kt`, `HouseNewsWorker.kt` | What reaches the phone with the app closed: turns passed to you, and housemates' chores if switched on. A poll through WorkManager, not a push. The hold times mirror `undoWindow` and `passUndoWindow` in `chores.go`, so **change them together**. |
 | `Guide.kt` | **How TaskFlow works**: the page and its text (`GUIDE`). The text must follow `FEATURES.md` sections 4 and 5. |

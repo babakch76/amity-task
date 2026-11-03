@@ -41,8 +41,8 @@ internal val GUIDE = listOf(
     ),
     GuideSection(
         "Doing a chore",
-        "Tap it, then I did this, or swipe your turn right on House. Anyone can " +
-            "tick anything, so if you did someone else's, tap Mark as done. " +
+        "Tap it, then Mark as done, or swipe your turn right on House. Anyone can " +
+            "tick anything, so you can mark someone else's done too. " +
             "You have ten minutes to undo.",
     ),
     GuideSection(
@@ -66,7 +66,7 @@ internal val GUIDE = listOf(
             "Turns skip you and you owe nothing for that time. Everyone can see you're away.",
     ),
     GuideSection(
-        "Book it up",
+        "Book a space",
         "Need the washer or the kitchen? Book it at the top of House and everyone " +
             "can see it. You'll be told about a clash, but it won't stop you, so " +
             "have a word with them.",

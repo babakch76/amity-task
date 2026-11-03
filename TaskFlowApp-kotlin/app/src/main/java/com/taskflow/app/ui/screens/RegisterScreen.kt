@@ -120,14 +120,14 @@ fun RegisterScreen(
                     onRegisterSuccess()
                 } else if (response.isSuccessful) {
                     state = state.copy(
-                        errorMessage = "Server returned an empty response. Please try again."
+                        errorMessage = ApiErrors.SOMETHING_WRONG
                     )
                 } else {
                     state = state.copy(errorMessage = ApiErrors.messageFor(response))
                 }
             } catch (e: Exception) {
                 state = state.copy(
-                    errorMessage = "Network error: ${e.localizedMessage ?: "could not reach server"}"
+                    errorMessage = ApiErrors.forFailure(e)
                 )
             } finally {
                 state = state.copy(isLoading = false)

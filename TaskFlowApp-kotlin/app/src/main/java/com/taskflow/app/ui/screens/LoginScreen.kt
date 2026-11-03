@@ -34,7 +34,6 @@ import com.taskflow.app.ui.components.AuthField
 import com.taskflow.app.ui.components.AuthHeader
 import com.taskflow.app.ui.components.AuthSubmitButton
 import com.taskflow.app.ui.components.NoticeCallout
-import com.taskflow.app.ui.components.QuietFooter
 import com.taskflow.app.ui.components.mutedInk
 import com.taskflow.app.ui.theme.TaskFlowTheme
 import kotlinx.coroutines.launch
@@ -121,14 +120,14 @@ fun LoginScreen(
                     // 2xx with no parseable body — the server answered, but not
                     // with the token we need, so there is nothing to log in with.
                     state = state.copy(
-                        errorMessage = "Server returned an empty response. Please try again."
+                        errorMessage = ApiErrors.SOMETHING_WRONG
                     )
                 } else {
                     state = state.copy(errorMessage = ApiErrors.messageFor(response))
                 }
             } catch (e: Exception) {
                 state = state.copy(
-                    errorMessage = "Network error: ${e.localizedMessage ?: "could not reach server"}"
+                    errorMessage = ApiErrors.forFailure(e)
                 )
             } finally {
                 state = state.copy(isLoading = false)
@@ -368,8 +367,7 @@ private fun LoginNoticePreview() = LoginPreview(
 private fun LoginLongErrorPreview() = LoginPreview(
     initial = LoginUiState(
         email = "maya@flat3b.example",
-        errorMessage = "Network error: failed to connect to /192.168.1.120:8080 " +
-                "(port 8080) after 10000ms",
+        errorMessage = "Can't reach the server. Check your connection and try again.",
     ),
 )
 

@@ -32,7 +32,7 @@ object ApiErrors {
         } catch (e: IOException) {
             null
         }
-        return parse(raw) ?: "Request failed (HTTP ${response.code()})"
+        return parse(raw) ?: "Something went wrong (error ${response.code()}). Try again."
     }
 
     /** Extracts `error` from an `{"error":"..."}` body, or null if it isn't one. */
@@ -49,4 +49,17 @@ object ApiErrors {
             null
         }
     }
+
+    /**
+     * What to say when a request threw instead of answering. The system's own
+     * message ("failed to connect to /192.168.1.120:8080 after 10000ms") is for
+     * a developer, not a housemate. A dropped connection is an IOException;
+     * anything else is our fault, not theirs.
+     */
+    fun forFailure(e: Throwable): String =
+        if (e is IOException) "Can't reach the server. Check your connection and try again."
+        else SOMETHING_WRONG
+
+    /** A 2xx with nothing usable in it, or a failure with nothing more to say. */
+    const val SOMETHING_WRONG = "Something went wrong. Try again."
 }

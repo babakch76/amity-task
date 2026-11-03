@@ -141,7 +141,8 @@ Nothing loops. Nothing pulses for attention.
 ### 2.5 Voice
 
 British English, sentences over labels, lower case for names as people typed
-them. Buttons are verbs in sentence case: *Add chore*, *I did this*, *I'm away*.
+them. Buttons are verbs in sentence case: *Add chore*, *Mark as done*, *I'm away*.
+(*Mark as done* was *I did this* until 2026-11-03: one label for one action, as other apps have it.)
 
 Three copy tests:
 
@@ -401,7 +402,7 @@ Shared by Board and My week — one sheet, one implementation.
 - Quiet detail list, label left / value right: *Whose turn* → **You**;
   *How often* → **weekly**; *Due* → **Thu 10 Sep**; *Needed by* → **before
   7am**.
-- Pinned at the bottom: filled **I did this**; outlined **Busy — pass it on**
+- Pinned at the bottom: filled **Mark as done**; outlined **Busy — pass it on**
   with the muted line *"Goes to the next person in the rotation. It comes back
   to you next time, and only they are told."*
 - Text buttons **History** and **Edit chore**.
@@ -548,8 +549,7 @@ the screen where someone realises they cannot do a thing this week.
 
 **No FAB.** Adding a chore is a household act and belongs to the Board.
 
-**Empty state.** 72dp tinted circle with a calendar icon, *"Nothing on you this
-week"*, one muted line *"Your turns will show up here, from every household
+**Empty state.** 72dp tinted circle with a calendar icon, *"No chores for you"*, one muted line *"Your turns will show up here, from every household
 you're in."*
 
 **What must never appear here.** Another person's turn. A count of how many
@@ -571,7 +571,7 @@ never the default, and it must be honest about what the data can fill.
 - The selected day is a filled violet circle; today is ringed.
 - **Below the grid**, the selected day's rows in the same agenda row as list
   mode, with the day written out: *"Thursday 10 September"*. An empty day says
-  *"Nothing on you."*
+  *"No chores this day."*
 - A permanent footer chip above the bottom bar: **3 with no date ›** — opens
   the NO DATE bucket in list mode. This is how the grid stops lying about
   as-needed chores, which have no date and can never be drawn on it.

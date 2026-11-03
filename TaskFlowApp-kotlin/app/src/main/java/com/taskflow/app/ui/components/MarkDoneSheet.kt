@@ -148,16 +148,15 @@ fun MarkDoneSheet(
                     }
                 }
                 Text(
-                    text = "Done all of that? Ticking it records this cycle as " +
-                        "done for the whole household.",
+                    text = "Done all of that? It'll show as done for the whole household.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
                 Text(
                     text = "No agreed definition of done for this one yet. It's your " +
-                        "call on whether it's finished. Ticking it records this " +
-                        "cycle as done for the whole household.",
+                        "call on whether it's finished. It'll show as done for the " +
+                        "whole household.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

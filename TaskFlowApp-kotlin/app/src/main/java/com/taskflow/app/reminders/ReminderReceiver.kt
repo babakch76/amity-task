@@ -71,12 +71,12 @@ class ReminderReceiver : BroadcastReceiver() {
 
         val (title, body) = when (kind) {
             ReminderSchedule.Kind.TURN_START ->
-                "Your turn: $choreName" to "It's on your row now."
+                "Your turn: $choreName" to "It's yours now."
             ReminderSchedule.Kind.DUE_SOON ->
                 "$choreName is coming up" to "Due today."
             // Deliberately flat. Same words however long it has been.
             ReminderSchedule.Kind.STILL_WAITING ->
-                "$choreName is still on your row" to "Whenever you get to it."
+                "$choreName is still waiting" to "Whenever you get to it."
         }
 
         val open = PendingIntent.getActivity(

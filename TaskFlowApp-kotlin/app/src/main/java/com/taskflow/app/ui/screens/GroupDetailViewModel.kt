@@ -168,7 +168,7 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
                     isLoading = false,
                     error = groupRes.exceptionOrNull()?.let { networkMessage(it) }
                         ?: group?.let { ApiErrors.messageFor(it) }
-                        ?: "Could not load this group",
+                        ?: "Couldn't load this household",
                 )
                 return@launch
             }
@@ -513,7 +513,7 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
      */
     fun toggleOccurrenceDone(occurrence: Occurrence, myUserId: String? = null) {
         if (!occurrence.isOpen) {
-            runAction(successMessage = "Completion undone") {
+            runAction(successMessage = "Marked as not done") {
                 api.updateOccurrence(groupId, occurrence.id, UpdateOccurrenceRequest(status = "open"))
             }
             return
@@ -551,7 +551,7 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
     /** Take back the completion the snackbar is offering to undo. */
     fun undoDone(occurrenceId: String) {
         _uiState.value = _uiState.value.copy(undoableDone = null)
-        runAction(successMessage = "Completion undone") {
+        runAction(successMessage = "Marked as not done") {
             api.updateOccurrence(groupId, occurrenceId, UpdateOccurrenceRequest(status = "open"))
         }
     }
@@ -618,8 +618,8 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
      * from the board a week later.
      */
     fun passOccurrence(occurrence: Occurrence, receiverName: String? = null) {
-        val passed = receiverName?.let { "Passed to $it. It's yours again next cycle." }
-            ?: "Passed on. It comes back to you next cycle."
+        val passed = receiverName?.let { "Passed to $it. It's yours again next time." }
+            ?: "Passed on. It comes back to you next time."
         runAction(
             // The message is written here rather than through successMessage so
             // that it and the Undo offer land in a *single* state write. Two
@@ -823,8 +823,7 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
         else -> status
     }
 
-    private fun networkMessage(e: Throwable) =
-        "Network error: ${e.localizedMessage ?: "could not reach server"}"
+    private fun networkMessage(e: Throwable) = ApiErrors.forFailure(e)
 
     /** Supplies [groupId] to the ViewModel; no DI framework in this project. */
     class Factory(private val groupId: String) : ViewModelProvider.Factory {

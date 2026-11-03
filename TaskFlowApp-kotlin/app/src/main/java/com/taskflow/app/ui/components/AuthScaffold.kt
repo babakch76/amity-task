@@ -8,7 +8,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -255,34 +254,6 @@ fun AuthErrorLine(message: String, modifier: Modifier = Modifier) {
         color = authAmber(),
         modifier = modifier.fillMaxWidth(),
     )
-}
-
-/** The quiet reassurance pill at the foot of the sign-in screen. */
-@Composable
-fun QuietFooter(modifier: Modifier = Modifier) {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = CircleShape,
-        modifier = modifier,
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.VerifiedUser,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(14.dp),
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = "Protected household synchronization",
-                style = MaterialTheme.typography.labelSmall,
-                color = mutedInk(),
-            )
-        }
-    }
 }
 
 /**

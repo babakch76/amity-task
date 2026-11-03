@@ -158,7 +158,7 @@ internal val TOUR = listOf(
     ),
     TourStep(
         title = "Up next",
-        body = "Your next turn, and what done means. Tap I did this when it's done. " +
+        body = "Your next turn, and what done means. Tap Mark as done when it's done. " +
             "Too busy? The arrows pass it on.",
         tab = DockTab.MINE,
         target = TourTarget.UP_NEXT,
@@ -193,7 +193,7 @@ internal val TOUR = listOf(
         target = TourTarget.FACES,
     ),
     TourStep(
-        title = "Book it up",
+        title = "Book a space",
         body = "Need the washer or the kitchen? Book it here so everyone knows.",
         tab = DockTab.HOUSE,
         target = TourTarget.BOOK,

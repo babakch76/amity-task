@@ -79,10 +79,10 @@ private const val MINE_POLL_MILLIS = 5_000L
  *   turn of yours. Never a count, never a colour by how full a day is. Tapping
  *   it opens the month; see MonthView.kt.
  * - **Up next** — the soonest turn that is still ahead of you, with the
- *   household's definition of done on the card and *I did this* under it.
+ *   household's definition of done on the card and *Mark as done* under it.
  * - **Also yours** — everything else on you; a turn whose day has passed is
  *   amber and says the date, never how late (constraint 3).
- * - **Done lately** — what you have already got through this week.
+ * - **Recently done** — what you have already got through this week.
  *
  * Only your own turns. Never another member's name, date, or workload
  * (constraint 4). Tapping any turn opens the board's own detail sheet.
@@ -176,7 +176,7 @@ fun MyChoresScreen(
 
             if (open.isEmpty() && doneLately.isEmpty()) {
                 EmptyBlock(
-                    title = "Nothing on you",
+                    title = "No chores for you",
                     subtitle = "Turns with your name on them show up here, from every household you're in.",
                 )
             }
@@ -206,7 +206,7 @@ fun MyChoresScreen(
 
             if (doneLately.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SectionLabel("Done lately")
+                    SectionLabel("Recently done")
                     GroupedCard {
                         doneLately.forEachIndexed { i, turn ->
                             if (i > 0) RowDivider()
@@ -378,7 +378,7 @@ internal fun UpNextCard(turn: MyTurn, showHousehold: Boolean, onOpen: () -> Unit
                 Button(onClick = onDone, modifier = Modifier.weight(1f).heightIn(min = 50.dp)) {
                     Icon(Icons.Default.Check, null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("I did this", style = MaterialTheme.typography.titleMedium)
+                    Text("Mark as done", style = MaterialTheme.typography.titleMedium)
                 }
                 // Passing is confirmed in the chore's own sheet, which names who
                 // it goes to — so this opens that, rather than passing blind.
@@ -421,7 +421,7 @@ internal fun TurnRow(turn: MyTurn, today: LocalDate, showHousehold: Boolean, onC
             chore?.scheduleWording()?.replaceFirstChar { it.uppercase() },
             formatDueDate(occ.dueDate),
         ).joinToString(" · ")
-        else -> "When it's needed"
+        else -> "As needed"
     } + if (showHousehold) " · ${turn.group.name}" else ""
 
     Row(
@@ -561,7 +561,7 @@ private fun OpenedFromMyChores(
     }
 
     // Closing unmounts this, and with it the listener above. So it waits for
-    // whatever the sheet just started to answer: "I did this" closes the sheet
+    // whatever the sheet just started to answer: "Mark as done" closes the sheet
     // in the same tap that sends the request, and closing on that alone threw
     // the reply away. isWorking is already true by then — the ViewModel sets
     // it before its first suspension, on the main thread.

@@ -631,7 +631,7 @@ fun GroupDetailScreen(
             onDismissRequest = { taskToDelete = null },
             title = { Text("Delete this task?", fontWeight = FontWeight.Bold) },
             text = {
-                Text("\"${task.title}\" will be removed for everyone in the group. This can't be undone.")
+                Text("\"${task.title}\" will be removed for everyone in the household. This can't be undone.")
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -769,7 +769,7 @@ internal fun GroupErrorBlock(message: String, onRetry: () -> Unit) {
             modifier = Modifier.padding(32.dp),
         ) {
             Text(
-                text = "Couldn't load this group",
+                text = "Couldn't load this household",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.error,
             )
@@ -889,7 +889,7 @@ private fun AwayBanner(onBack: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "You're away. Chores are passing over you",
+                text = "You're away. Your turns are skipped.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
@@ -1218,8 +1218,8 @@ internal fun TaskCard(
 
     // Swipe is offered on your own open chore rows and nowhere else.
     //
-    // Not on somebody else's row: the two actions behind it are "I did this"
-    // and "I can't do this", and neither is yours to say about their turn. Not
+    // Not on somebody else's row: the two actions behind it are "I did it"
+    // and "I can't do it", and neither is yours to say about their turn. Not
     // on a one-off either, which has no rotation to pass along. The detail
     // sheet keeps its own button, so the gesture is a shortcut rather than the
     // only way through — some people will never find it, and that is a finding
@@ -1581,7 +1581,7 @@ internal fun OccurrenceDetailSheet(
                     if (occurrence.passedFrom == myUserId) {
                         "You passed this on. It comes back to you next time."
                     } else {
-                        "$passer passed this on, so it's yours this cycle."
+                        "$passer passed this on, so it's yours this time."
                     }
 
                 else -> null
@@ -1757,7 +1757,7 @@ internal fun OccurrenceDetailSheet(
             // ── What done means (F4) ──
             //
             // Directly on top of the button that applies it, as a quote: the
-            // household's own words, the last thing read before "I did this".
+            // household's own words, the last thing read before "Mark as done".
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 val doneLine = occurrence.doneLine.trim()
                 Surface(
@@ -1797,8 +1797,8 @@ internal fun OccurrenceDetailSheet(
             //
             // Anyone may tick anything (F1) — "I just did it myself" is the
             // common reality — so the button is offered on somebody else's row
-            // too. It only changes what it calls itself, because "I did this"
-            // on a turn that is not yours is a sentence about the wrong person.
+            // too, under the same name. It once said "I did this" on your own
+            // turn, which no other app says; one label for one action.
             if (occurrence.isOpen) {
                 Button(
                     onClick = onMarkDone,
@@ -1810,7 +1810,7 @@ internal fun OccurrenceDetailSheet(
                     Icon(Icons.Default.Check, null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = if (mine) "I did this" else "Mark as done",
+                        text = "Mark as done",
                         style = MaterialTheme.typography.titleSmall,
                     )
                 }
@@ -1823,7 +1823,7 @@ internal fun OccurrenceDetailSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 52.dp),
-                ) { Text("Undo, I didn't do this") }
+                ) { Text("Mark as not done") }
             }
 
             // ── "I worked on this too" ──
@@ -2289,7 +2289,7 @@ private fun describeEvent(e: ActivityEvent): String = when (e.eventType) {
     "chore_updated" -> "${e.actorUsername} changed a chore"
     "chore_deleted" -> "${e.actorUsername} deleted a chore"
     "occurrence_done" -> "${e.actorUsername} did a chore"
-    "occurrence_reopened" -> "${e.actorUsername} undid a completion"
+    "occurrence_reopened" -> "${e.actorUsername} marked a chore as not done"
     "occurrence_also" -> "${e.actorUsername} also worked on a chore"
     "occurrence_also_withdrawn" -> "${e.actorUsername} took their name off a chore"
 
@@ -2297,8 +2297,8 @@ private fun describeEvent(e: ActivityEvent): String = when (e.eventType) {
     "booking_added" -> "${e.actorUsername} booked something"
     "booking_cancelled" -> "${e.actorUsername} cancelled a booking"
 
-    "member_joined" -> "${e.actorUsername} joined the group"
-    "member_left" -> "${e.actorUsername} left the group"
+    "member_joined" -> "${e.actorUsername} joined the household"
+    "member_left" -> "${e.actorUsername} left the household"
     "invite_accepted" -> "${e.actorUsername} accepted an invite"
     "member_role_changed" -> "${e.actorUsername} changed a member's role"
     else -> "${e.actorUsername} made a change"
@@ -2507,7 +2507,7 @@ private fun MemberList(
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Text(
-                            "Your turns pass over you and come back when you are. Everyone can see it.",
+                            "Your turns are skipped until you're back. Everyone can see it.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -2545,10 +2545,10 @@ private fun OthersAwayNote(away: List<MemberInfo>) {
     val q = Quiet.colors
     val text = if (away.size == 1) {
         val m = away.first()
-        m.awayUntil?.let { "${m.username} is away until ${formatDueDate(it)}. Turns pass over them." }
-            ?: "${m.username} is away. Turns pass over them."
+        m.awayUntil?.let { "${m.username} is away until ${formatDueDate(it)}. Their turns are skipped." }
+            ?: "${m.username} is away. Their turns are skipped."
     } else {
-        away.joinToString(" and ") { it.username } + " are away. Turns pass over them."
+        away.joinToString(" and ") { it.username } + " are away. Their turns are skipped."
     }
     Surface(
         color = q.awaySoft,
@@ -2964,7 +2964,7 @@ private fun InviteCodeDialog(code: String, onDismiss: () -> Unit) {
         text = {
             Column {
                 Text(
-                    "Anyone with this code can join the group. It expires in 48 hours.",
+                    "Anyone with this code can join the household. It expires in 48 hours.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
