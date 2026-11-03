@@ -53,6 +53,14 @@ func (h *ChoreHandler) AddAlso(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "it isn't done yet, so mark it done instead", http.StatusConflict)
 		return
 	}
+	// Away is not at home, for helping as much as for doing (see UpdateOccurrence).
+	if away, err := h.awayMembers(groupID); err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	} else if away[userID] {
+		jsonError(w, "you're away, so you can't say you worked on this. Say you're back first.", http.StatusConflict)
+		return
+	}
 	if current.DoneBy != nil && *current.DoneBy == userID {
 		jsonError(w, "you are already down as the one who did it", http.StatusConflict)
 		return

@@ -1829,11 +1829,18 @@ func TestEveryoneAwayStillLeavesTheChoreWithSomebody(t *testing.T) {
 		"name": "Kitchen", "schedule_type": "as_needed", "rotation": [%q, %q]
 	}`, ann, bo))
 
+	// Done by somebody at home who is not in the rotation: nobody away can
+	// mark a chore done.
+	cal := newUser(t, db, "cal")
+	addMember(t, db, groupID, cal, "member")
+
 	occ := openOccurrencesFor(t, db, groupID, ann, chore.ID)[0]
 	setAway(t, db, groupID, ann, nil)
 	setAway(t, db, groupID, bo, nil)
 
-	patchOccurrence(t, db, groupID, occ.ID, ann, "done")
+	if rec := patchOccurrence(t, db, groupID, occ.ID, cal, "done"); rec.Code != 200 {
+		t.Fatalf("marking done: %d %s", rec.Code, rec.Body.String())
+	}
 
 	next := openOccurrencesFor(t, db, groupID, ann, chore.ID)
 	if len(next) != 1 {

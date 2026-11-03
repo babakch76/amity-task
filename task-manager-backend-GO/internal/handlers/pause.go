@@ -18,8 +18,8 @@ import (
 // days the household was empty. Something due two days into the holiday is due
 // two days after the return, so nobody comes back to a pile of late chores.
 //
-// Marking something done still works, for whoever comes home early and forgets
-// to say so.
+// Nothing can be marked done either, because nobody away can mark anything done
+// (UpdateOccurrence). Whoever comes home early says they are back first.
 //
 // There is no scheduler, so like rollForwardFixedDates this runs on the board's
 // reads and writes. groups.paused_since records when the pause began; it is set

@@ -39,6 +39,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.taskflow.app.ui.components.FoldLabel
+import com.taskflow.app.data.local.BoardFolds
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -87,6 +90,9 @@ private const val MINE_POLL_MILLIS = 5_000L
  * Only your own turns. Never another member's name, date, or workload
  * (constraint 4). Tapping any turn opens the board's own detail sheet.
  */
+/** Where Mine keeps its folding choice in [BoardFolds], beside the households'. */
+private const val MINE_FOLDS = "mine"
+
 @Composable
 fun MyChoresScreen(
     myUserId: String?,
@@ -185,6 +191,10 @@ fun MyChoresScreen(
                 UpNextCard(
                     turn = turn,
                     showHousehold = true,
+                    // Away from that household: nothing can be marked done there.
+                    away = reminderData.any { d ->
+                        d.groupId == turn.group.id && d.members.any { it.id == myUserId && it.away }
+                    },
                     onOpen = { detailFor = turn.group.id to turn.occurrence.id },
                     onDone = {
                         viewModel.setOccurrenceDone(turn.group.id, turn.occurrence.id, true, turn.occurrence.choreName)
@@ -205,12 +215,27 @@ fun MyChoresScreen(
             }
 
             if (doneLately.isNotEmpty()) {
+                // Folds the way the board's sections do, and the choice is kept
+                // on this phone (BoardFolds, under "mine" rather than a household).
+                val context = LocalContext.current
+                var doneChosen by remember { mutableStateOf(BoardFolds.chosen(context, MINE_FOLDS, "done")) }
+                val doneFolded = BoardFolds.isFolded(doneChosen, doneLately.size)
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SectionLabel("Recently done")
-                    GroupedCard {
-                        doneLately.forEachIndexed { i, turn ->
-                            if (i > 0) RowDivider()
-                            TurnRow(turn, today, manyHouseholds) { detailFor = turn.group.id to turn.occurrence.id }
+                    FoldLabel(
+                        text = "Recently done",
+                        count = doneLately.size,
+                        folded = doneFolded,
+                        onToggle = {
+                            BoardFolds.choose(context, MINE_FOLDS, "done", !doneFolded)
+                            doneChosen = !doneFolded
+                        },
+                    )
+                    if (!doneFolded) {
+                        GroupedCard {
+                            doneLately.forEachIndexed { i, turn ->
+                                if (i > 0) RowDivider()
+                                TurnRow(turn, today, manyHouseholds) { detailFor = turn.group.id to turn.occurrence.id }
+                            }
                         }
                     }
                 }
@@ -331,7 +356,13 @@ private val WEEKDAY_LETTER: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE
 
 /** The one turn to do next, with the agreement on the card and the button under it. */
 @Composable
-internal fun UpNextCard(turn: MyTurn, showHousehold: Boolean, onOpen: () -> Unit, onDone: () -> Unit) {
+internal fun UpNextCard(
+    turn: MyTurn,
+    showHousehold: Boolean,
+    onOpen: () -> Unit,
+    onDone: () -> Unit,
+    away: Boolean = false,
+) {
     val occ = turn.occurrence
     val chore = turn.chores.firstOrNull { it.id == occ.choreId }
     Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(26.dp)) {
@@ -375,10 +406,19 @@ internal fun UpNextCard(turn: MyTurn, showHousehold: Boolean, onOpen: () -> Unit
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Button(onClick = onDone, modifier = Modifier.weight(1f).heightIn(min = 50.dp)) {
-                    Icon(Icons.Default.Check, null, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Mark as done", style = MaterialTheme.typography.titleMedium)
+                if (away) {
+                    Text(
+                        "You're away. Say you're back to mark it done.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                } else {
+                    Button(onClick = onDone, modifier = Modifier.weight(1f).heightIn(min = 50.dp)) {
+                        Icon(Icons.Default.Check, null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Mark as done", style = MaterialTheme.typography.titleMedium)
+                    }
                 }
                 // Passing is confirmed in the chore's own sheet, which names who
                 // it goes to — so this opens that, rather than passing blind.

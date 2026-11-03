@@ -48,6 +48,9 @@ more than four rows, so a small household never meets this. Your choice is kept
 on this phone, per household, and wins from then on. A section holding the chore
 you just added opens anyway, so its highlight has somewhere to land.
 
+**Recently done on Mine folds the same way**, with the same rule (folded at first
+only past four rows) and the choice kept on this phone.
+
 **People and you, top right.** A people button pops out three buttons, the same
 way the gear does: *See everyone* (the People page, where you also say you are
 away), *Invite with a code* and *Invite by username*. Beside it is your own face, which goes to You
@@ -275,6 +278,11 @@ is home it stays where it is. The message after going away says which happened,
 from the server's answer. **You get no reminders** from a household while you
 are away from it.
 
+**Nobody away can mark anything done**, their own turn or anyone else's, or add
+"I worked on this too". They are not home to have done it. The server refuses
+it, and the app shows *You're away. Say you're back to mark it done.* where the
+button was, with no swipe on their rows. Undoing a tick they made is still allowed.
+
 Nobody away is ever handed a chore or offered as a taker: the pass button only
 appears when someone in the rotation is home.
 
@@ -284,8 +292,9 @@ pass to), nothing goes late, and the dates on the board are the ones people will
 come back to. When the first person is back, every open chore's date moves on by
 the days the household was empty, to the nearest day, so a chore needed by 20:00
 is still needed by 20:00 and an evening with everyone out moves nothing.
-Fixed-day chores keep their day: they already roll on to the next one. Marking
-something done still works, for whoever comes home early. A planned return date
+Fixed-day chores keep their day: they already roll on to the next one. Nothing
+can be marked done either (see below), so whoever comes home early says they are
+back first. A planned return date
 passing ends the pause on time, and changing your return date while away does
 not count as coming home. See `handlers/pause.go`.
 

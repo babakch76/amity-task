@@ -109,6 +109,8 @@ Violating one of these is a bug, no matter how good the feature is.
 - **Going away moves your current turn on** to the next person in its rotation
   who is home, as a pass (you owe it back). Nobody away is ever handed or
   offered a chore. No reminders while you are away.
+- **Nobody away can mark anything done** (theirs or anyone's) or add "also";
+  the server refuses with 409 and the app hides the button and the swipe.
 - **Everyone away → the household is paused** (`pause.go`, `groups.paused_since`):
   no passing, nothing late, and when someone is back every open non-fixed-day
   date moves on by the whole days it lasted. Settled lazily on reads and

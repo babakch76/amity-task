@@ -1067,9 +1067,12 @@ private fun TaskList(
                     // one, or a household where everyone else is away, has
                     // nowhere to send it, and offering the gesture there would
                     // promise a hand-off that came straight back.
-                    canPass = (row as? BoardRow.OccurrenceRow)?.let { occRow ->
-                        passReceiver(occRow.occurrence, members) != null
-                    } == true,
+                    // And no swipe at all while you are away: one of its two
+                    // actions is marking it done, which away cannot do.
+                    canPass = members.none { it.id == myUserId && it.away } &&
+                        (row as? BoardRow.OccurrenceRow)?.let { occRow ->
+                            passReceiver(occRow.occurrence, members) != null
+                        } == true,
                     passedByMe = (row as? BoardRow.OccurrenceRow)
                         ?.occurrence?.passedFrom == myUserId && myUserId != null,
                     myUserId = myUserId,
@@ -1081,7 +1084,10 @@ private fun TaskList(
                 // The hint sits under the first row of the first section, which
                 // is a row you can actually swipe. Under a heading it would be
                 // advice about nothing in particular.
-                if (showSwipeHint && label == "Yours" && index == rows.lastIndex) {
+                // Not while you are away: your rows do not swipe then.
+                if (showSwipeHint && label == "Yours" && index == rows.lastIndex &&
+                    members.none { it.id == myUserId && it.away }
+                ) {
                     Text(
                         text = "Swipe a row for actions.",
                         style = MaterialTheme.typography.labelSmall,
@@ -1844,7 +1850,18 @@ internal fun OccurrenceDetailSheet(
             // common reality — so the button is offered on somebody else's row
             // too, under the same name. It once said "I did this" on your own
             // turn, which no other app says; one label for one action.
-            if (occurrence.isOpen) {
+            // Somebody away is not home to have done it (the server refuses
+            // too), so the button gives way to a line saying why.
+            val iAmAway = members.any { it.id == myUserId && it.away }
+            if (occurrence.isOpen && iAmAway) {
+                Text(
+                    "You're away. Say you're back to mark it done.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else if (occurrence.isOpen) {
                 Button(
                     onClick = onMarkDone,
                     modifier = Modifier
@@ -1878,7 +1895,7 @@ internal fun OccurrenceDetailSheet(
             // a name and nothing else: no note, no reason, and the turn is
             // still the doer's. The line under it says so, because the obvious
             // worry is that this is a way to correct somebody (constraint 1).
-            if (canAddAlso) {
+            if (canAddAlso && !iAmAway) {
                 Text("Did you help finish it?", style = MaterialTheme.typography.titleSmall)
                 Button(
                     onClick = onAddAlso,

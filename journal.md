@@ -6,6 +6,25 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-03 (later) — Away means no marking done
+
+The owner said somebody away should not be able to mark anything done. There was no
+record of having said it before (the pause choice earlier had kept marking done, for
+whoever came home early), but the rule is clear: someone away is not home to have done
+it. The server now refuses a tick or an "I worked on this too" from anyone away, with
+409, and the app shows "You're away. Say you're back to mark it done." in place of the
+button on the sheet and on Mine, with no swipe on their rows. Undo is still allowed.
+A paused household therefore has nothing marked done until someone is back. House's
+"Swipe a row for actions" hint is hidden while you are away too, since nothing swipes.
+
+Also, at the owner's request, Recently done on Mine now folds like the board's
+sections (BoardFolds, kept under "mine"). Checked on the emulator: away shows the line
+on Mine and in the sheet, a swipe does nothing, the server answers 409; back home,
+Mark as done returns; Recently done folds to "Recently done 1", stays folded after a
+restart, and opens again.
+
+---
+
 ## 2026-11-03 (late) — Deployed the final branch
 
 Deployed `household-removal-and-tutorial` to the EC2 box with `tools-deploy.sh`, after

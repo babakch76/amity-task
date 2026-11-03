@@ -654,6 +654,21 @@ func (h *ChoreHandler) UpdateOccurrence(w http.ResponseWriter, r *http.Request) 
 		jsonError(w, "status must be open or done", http.StatusBadRequest)
 		return
 	}
+	// Somebody away is not at home to have done anything, so they cannot tick
+	// a chore off, theirs or anyone's, until they say they are back. Undoing
+	// a tick is still theirs to do. (This also means a paused household, with
+	// everyone away, has nothing done until somebody is back.)
+	if req.Status == models.OccurrenceDone {
+		away, err := h.awayMembers(groupID)
+		if err != nil {
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		if away[userID] {
+			jsonError(w, "you're away, so you can't mark chores as done. Say you're back first.", http.StatusConflict)
+			return
+		}
+	}
 
 	current, err := h.loadOccurrence(occurrenceID)
 	if err == sql.ErrNoRows || (current != nil && current.GroupID != groupID) {

@@ -109,8 +109,37 @@ func TestNothingCanBePassedWhileEveryoneIsAway(t *testing.T) {
 	if rec := passOccurrence(t, db, g, occ.ID, a); rec.Code != http.StatusConflict {
 		t.Fatalf("passing while paused: expected 409, got %d %s", rec.Code, rec.Body.String())
 	}
-	// Doing it still works, for whoever is home early.
+	// Nor can anything be marked done: nobody is home to have done it.
+	if rec := patchOccurrence(t, db, g, occ.ID, a, "done"); rec.Code != http.StatusConflict {
+		t.Fatalf("marking done while paused: expected 409, got %d", rec.Code)
+	}
+}
+
+// Somebody away cannot tick anything off, theirs or anyone else's, nor say
+// they helped. Once they are back they can.
+func TestNobodyAwayCanMarkAChoreDone(t *testing.T) {
+	db, g, a, b, _, chore, _ := threePersonChore(t, "interval")
+	occ := theOpenOcc(t, db, g, a, chore.ID) // A's turn
+
+	goAway(t, db, g, b, true)
+	if rec := patchOccurrence(t, db, g, occ.ID, b, "done"); rec.Code != http.StatusConflict {
+		t.Fatalf("B away marking A's turn done: expected 409, got %d %s", rec.Code, rec.Body.String())
+	}
+
+	// A does it; B, still away, cannot add their name to it.
 	markDone(t, db, g, occ.ID, a)
+	rec := httptest.NewRecorder()
+	(&ChoreHandler{DB: db}).AddAlso(rec, request(http.MethodPost, "/groups/x/occurrences/y/also", "", b,
+		map[string]string{"group_id": g, "occurrence_id": occ.ID}))
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("B away saying they helped: expected 409, got %d %s", rec.Code, rec.Body.String())
+	}
+
+	goAway(t, db, g, b, false)
+	next := theOpenOcc(t, db, g, a, chore.ID)
+	if rec := patchOccurrence(t, db, g, next.ID, b, "done"); rec.Code != http.StatusOK {
+		t.Fatalf("B back marking done: expected 200, got %d %s", rec.Code, rec.Body.String())
+	}
 }
 
 func TestDatesMoveOnByTheDaysEveryoneWasAway(t *testing.T) {
