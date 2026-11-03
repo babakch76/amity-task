@@ -6,6 +6,21 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-03 — Folding sections on the board
+
+Everyone else and Recently done now fold under their heading, which keeps a count
+while folded. Proposed in September as the cheapest item on the list and never built;
+the owner asked for it after noticing a long list of other people's chores takes the
+screen. Yours stays open. A section starts folded only above four rows, and a tap is
+remembered per household on the phone.
+
+Checked on the emulator against a local server: Recently done (10) started folded and
+Everyone else (2) open; folding sent nothing to the server; both choices survived a
+force-stop; the tour's House step lights the heading with Maya's row. Not checked: the
+just-added chore opening a folded section, and TalkBack reading the heading.
+
+---
+
 ## 2026-11-02 (late) — News with the app closed
 
 Turns passed to you now reach the phone with the app closed, and housemates' chores

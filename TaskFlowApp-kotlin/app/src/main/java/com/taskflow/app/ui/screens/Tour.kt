@@ -166,7 +166,7 @@ internal val TOUR = listOf(
     TourStep(
         title = "House",
         body = "Everything that needs doing in the household, and whose turn it is. " +
-            "Tap a chore to open it.",
+            "Tap a chore to open it, or a heading to fold it away.",
         tab = DockTab.HOUSE,
         target = TourTarget.ROW,
         alsoLit = TourTarget.DOCK_HOUSE,

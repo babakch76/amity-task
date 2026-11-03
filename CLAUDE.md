@@ -235,6 +235,7 @@ nobody having chosen it. If you add a role, set it; never let one fall through.
 
 Appearance (System/Light/Dark) is stored in SharedPreferences **on the device**,
 never synced — it is a property of this phone, not of the account or household.
+So is which board sections you folded (`data/local/BoardFolds`, per household).
 
 ## 8. Landmines
 

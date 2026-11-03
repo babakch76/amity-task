@@ -38,6 +38,18 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
     - **Known limit:** your own reminders are still armed only when the app syncs, so
       a turn that starts with the app closed is not announced until it is next opened.
       Only passes are.
+  - **Folding sections on the board**, at the project owner's request, so a long
+    list of other people's chores stops taking the screen. PROPOSALS item 1.
+    - **Everyone else and Recently done fold; Yours does not.** Yours is what the
+      board is for.
+    - **Folded, the heading keeps a count**, so folding never hides work silently.
+    - **Starts folded only above four rows**, so a small household never meets it.
+      Once you tap, your choice wins, kept per household on this phone like
+      Appearance.
+    - **The chore you just added wins over a fold**, or its highlight would land
+      on nothing.
+    - **The tour shows it**: the House step lights the Everyone else heading with
+      the row under it.
   - **The tour**, at the project owner's request: an in-app tutorial that highlights
     each part and says what it does, swiping above all. It replaced the "New here?"
     card on Mine, which only linked to a page of text.

@@ -28,6 +28,7 @@ import com.taskflow.app.ui.components.Avatar
 import com.taskflow.app.ui.components.AvatarStack
 import com.taskflow.app.ui.components.DOCK_CLEARANCE
 import com.taskflow.app.ui.components.DockTab
+import com.taskflow.app.ui.components.FoldLabel
 import com.taskflow.app.ui.components.GroupedCard
 import com.taskflow.app.ui.components.HouseholdSwitcher
 import com.taskflow.app.ui.components.RowDivider
@@ -213,8 +214,11 @@ private fun SampleHouse(flat: SampleFlat) {
             SectionLabel("Yours", Modifier.padding(top = 14.dp, bottom = 8.dp))
             SampleRow(flat, flat.upNext, first = true, last = false, Modifier.tourTarget(TourTarget.SWIPE_ROW))
             SampleRow(flat, flat.alsoYours, first = false, last = true)
-            SectionLabel("Everyone else", Modifier.padding(top = 14.dp, bottom = 8.dp))
-            SampleRow(flat, flat.maya, first = true, last = true, Modifier.tourTarget(TourTarget.ROW))
+            // Lit together, so the House step can say a heading folds.
+            Column(modifier = Modifier.tourTarget(TourTarget.ROW)) {
+                FoldLabel("Everyone else", count = 1, folded = false, onToggle = {}, modifier = Modifier.padding(top = 6.dp))
+                SampleRow(flat, flat.maya, first = true, last = true)
+            }
         }
     }
 }

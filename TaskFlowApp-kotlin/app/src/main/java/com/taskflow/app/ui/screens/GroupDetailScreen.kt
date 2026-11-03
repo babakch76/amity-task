@@ -64,6 +64,7 @@ import com.taskflow.app.reminders.QuietHours
 import com.taskflow.app.reminders.ReminderScheduler
 import com.taskflow.app.ui.components.HouseholdSwitcher
 import com.taskflow.app.ui.components.MarkDoneSheet
+import com.taskflow.app.data.local.BoardFolds
 import com.taskflow.app.data.model.ActivityEvent
 import com.taskflow.app.data.model.Absence
 import com.taskflow.app.data.model.Booking
@@ -109,6 +110,7 @@ import com.taskflow.app.ui.components.showToast
 import com.taskflow.app.ui.components.RowDivider
 import com.taskflow.app.ui.components.ScreenTitle
 import com.taskflow.app.ui.components.SectionLabel
+import com.taskflow.app.ui.components.FoldLabel
 import com.taskflow.app.ui.components.SegmentedPair
 import kotlinx.coroutines.delay
 import java.time.Duration
@@ -429,6 +431,7 @@ fun GroupDetailScreen(
                                 OthersAwayNote(othersAway)
                             }
                             TaskList(
+                                groupId = groupId,
                                 // Chore occurrences first: they are the model the
                                 // app is moving to, and tasks are the legacy
                                 // one-off shape still carried alongside them.
@@ -907,9 +910,14 @@ private fun AwayBanner(onBack: () -> Unit) {
  * Unassigned tasks sit under Others. The chore model has no such thing —
  * "everything on the board always has exactly one name on it" — but tasks
  * created before that rule exists still can, and hiding them would lose them.
+ *
+ * Everyone else and Recently done fold under their heading; see [BoardFolds].
+ * A section holding the chore you just added stays open whatever you chose,
+ * or the highlight would land on nothing.
  */
 @Composable
 private fun TaskList(
+    groupId: String,
     rows: List<BoardRow>,
     chores: List<Chore>,
     justAdded: String?,
@@ -944,10 +952,14 @@ private fun TaskList(
     val sections = remember(rows, myUserId) {
         val open = rows.filter { it.isOpen }
         listOf(
-            "Yours" to open.filter { it.assignedTo != null && it.assignedTo == myUserId },
-            "Everyone else" to open.filter { it.assignedTo == null || it.assignedTo != myUserId },
-            "Recently done" to recentlyDone(rows, OffsetDateTime.now()),
-        ).filter { it.second.isNotEmpty() }
+            BoardSection("Yours", open.filter { it.assignedTo != null && it.assignedTo == myUserId }),
+            BoardSection("Everyone else", open.filter { it.assignedTo == null || it.assignedTo != myUserId }, fold = "others"),
+            BoardSection("Recently done", recentlyDone(rows, OffsetDateTime.now()), fold = "done"),
+        ).filter { it.rows.isNotEmpty() }
+    }
+    val context = LocalContext.current
+    var chosen by remember(groupId) {
+        mutableStateOf(listOf("others", "done").associateWith { BoardFolds.chosen(context, groupId, it) })
     }
 
     LazyColumn(
@@ -955,10 +967,26 @@ private fun TaskList(
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = DOCK_CLEARANCE),
     ) {
         item(key = "book-it") { header(Modifier) }
-        sections.forEach { (label, rows) ->
+        sections.forEach { (label, rows, fold) ->
+            val holdsNew = justAdded != null && rows.any { it.title.equals(justAdded, ignoreCase = true) }
+            val folded = fold != null && !holdsNew && BoardFolds.isFolded(chosen[fold], rows.size)
             item(key = "header-$label") {
-                SectionLabel(label, Modifier.padding(top = 14.dp, bottom = 8.dp))
+                if (fold == null) {
+                    SectionLabel(label, Modifier.padding(top = 14.dp, bottom = 8.dp))
+                } else {
+                    FoldLabel(
+                        text = label,
+                        count = rows.size,
+                        folded = folded,
+                        onToggle = {
+                            BoardFolds.choose(context, groupId, fold, !folded)
+                            chosen = chosen + (fold to !folded)
+                        },
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
             }
+            if (folded) return@forEach
             itemsIndexed(rows, key = { _, row -> row.key }) { index, row ->
                 TaskCard(
                     row = row,
@@ -1000,6 +1028,9 @@ private fun TaskList(
         }
     }
 }
+
+/** One heading on the board and its rows. [fold] names it in [BoardFolds]; null cannot fold. */
+private data class BoardSection(val label: String, val rows: List<BoardRow>, val fold: String? = null)
 
 /**
  * What the board's last section shows: completions from the past

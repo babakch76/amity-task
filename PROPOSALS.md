@@ -1,7 +1,8 @@
 # Proposed changes, and what to know before building them
 
-Raised by Babak on 2026-09-04, on handing the project over. **Nothing here is
-implemented.** This is a brief for whoever picks it up.
+Raised by Babak on 2026-09-04, on handing the project over. **Nothing here was
+implemented then**; item 1 has since been built. This is a brief for whoever
+picks it up.
 
 Each item records what was asked for, **what already exists** (checked in the
 code, not remembered), the design questions that have to be answered before
@@ -25,6 +26,11 @@ Three things to flag before the list:
 ---
 
 ## 1. Collapsible YOURS and OTHERS
+
+> **Built on 2026-11-03** on `household-removal-and-tutorial`, as below:
+> Everyone else and Recently done fold, Yours does not, the folded heading
+> carries the count, and a section starts folded only above four rows. The
+> choice is kept per household on the device (`data/local/BoardFolds`).
 
 **Asked for.** Keep the split, which works, but let either section collapse so
 the board reads shorter.
@@ -338,7 +344,7 @@ list that is a defect rather than an improvement.
 1. **Owner cannot leave** (item 6). A trap, reachable normally, and small.
 2. **The debt hole in item 3.** A rule the app claims to enforce and does not.
 3. **Removing a member** (item 5), which items 3 and 6 both lean on.
-4. **Collapsible sections** (item 1). Cheap, visible, low risk.
+4. **Collapsible sections** (item 1). Cheap, visible, low risk. Built 2026-11-03.
 5. **Tabs and the row swipe** (item 2). Decide the gesture question before
    writing anything.
 6. **The chart** (item 4). Not until a user asks for it, and not as described

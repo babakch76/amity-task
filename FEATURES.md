@@ -39,6 +39,14 @@ Rows are grouped by **whose it is**, not by status:
 | **OTHERS** | Open rows assigned to anybody else |
 | **RECENTLY DONE** | Completions from the last seven days, newest first, with who did it (and who else worked on it) and when. Older ones are in each chore's History and in Activity. |
 
+**Everyone else and Recently done fold.** Tap the heading and its rows fold
+away, leaving the heading with a count ("Everyone else 7") so nothing goes
+missing without a trace. Tap again to open it. Yours never folds; it is what the
+board is for. A section you have not touched starts folded only when it holds
+more than four rows, so a small household never meets this. Your choice is kept
+on this phone, per household, and wins from then on. A section holding the chore
+you just added opens anyway, so its highlight has somewhere to land.
+
 Each row is three lines: **what it is**, **how it recurs and when it is wanted**,
 and **whose turn it is**. For example:
 
