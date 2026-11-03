@@ -390,21 +390,32 @@ fun IconLabel(icon: ImageVector, label: String) {
 /** Two-way segmented control on a soft track: "Everything / Who did what". */
 @Composable
 fun SegmentedPair(first: String, second: String, selected: Int, onSelect: (Int) -> Unit) {
+    Segmented(listOf(first, second), selected, onSelect)
+}
+
+/**
+ * The segmented control on a soft track, for any number of choices. [compact]
+ * is the smaller one that sits under a [SegmentedPair] (the feed's period), so
+ * a page chooses things one way rather than with two different styles stacked.
+ * Labels may take a second line at a large font rather than be clipped.
+ */
+@Composable
+fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, compact: Boolean = false) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(if (compact) 12.dp else 14.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            .padding(4.dp),
+            .padding(if (compact) 3.dp else 4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        listOf(first, second).forEachIndexed { i, label ->
+        options.forEachIndexed { i, label ->
             val on = i == selected
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .heightIn(min = 40.dp)
-                    .clip(RoundedCornerShape(11.dp))
+                    .heightIn(min = if (compact) 34.dp else 40.dp)
+                    .clip(RoundedCornerShape(if (compact) 9.dp else 11.dp))
                     .background(if (on) MaterialTheme.colorScheme.surface else Color.Transparent)
                     .clickable(role = Role.Tab) { onSelect(i) }
                     .semantics { this.selected = on },
@@ -412,8 +423,10 @@ fun SegmentedPair(first: String, second: String, selected: Int, onSelect: (Int) 
             ) {
                 Text(
                     label,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = if (compact) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
                     color = if (on) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                 )
             }
         }

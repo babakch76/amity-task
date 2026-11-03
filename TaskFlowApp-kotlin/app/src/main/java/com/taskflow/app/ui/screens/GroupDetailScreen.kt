@@ -36,6 +36,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.luminance
@@ -113,6 +114,7 @@ import com.taskflow.app.ui.components.RowDivider
 import com.taskflow.app.ui.components.ScreenTitle
 import com.taskflow.app.ui.components.SectionLabel
 import com.taskflow.app.ui.components.FoldLabel
+import com.taskflow.app.ui.components.Segmented
 import com.taskflow.app.ui.components.SegmentedPair
 import kotlinx.coroutines.delay
 import java.time.Duration
@@ -1574,40 +1576,24 @@ internal fun OccurrenceDetailSheet(
                         text = occurrence.choreName,
                         style = MaterialTheme.typography.headlineMedium,
                     )
-                    Spacer(Modifier.height(4.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            text = buildString {
-                                chore?.let { append(it.scheduleWording()) }
-                                occurrence.dueDate?.let {
-                                    if (isNotEmpty()) append(" · ")
-                                    append("Due ${formatDueDate(it)}")
-                                }
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            // The amber follows the date here exactly as it does
-                            // on the row: never red, never a day count.
-                            color = if (overdue) overdueColor()
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        householdName?.let { name ->
-                            Surface(
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                shape = MaterialTheme.shapes.small,
-                            ) {
-                                Text(
-                                    text = name,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier
-                                        .padding(horizontal = 8.dp, vertical = 2.dp),
-                                )
-                            }
+                    // Only where it is. How often and when are the rows just
+                    // below (with the amber on Due when it is late), so this
+                    // line no longer says them a second time.
+                    householdName?.let { name ->
+                        Spacer(Modifier.height(4.dp))
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = MaterialTheme.shapes.small,
+                        ) {
+                            Text(
+                                text = name,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                            )
                         }
                     }
                 }
@@ -1801,13 +1787,9 @@ internal fun OccurrenceDetailSheet(
                     Spacer(Modifier.width(8.dp))
                     Text("History")
                 }
+                // Same colour as History beside it: two equals, both links.
                 chore?.let {
-                    TextButton(
-                        onClick = onEditChore,
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        ),
-                    ) {
+                    TextButton(onClick = onEditChore) {
                         Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text("Edit chore")
@@ -2308,7 +2290,7 @@ internal fun ActivityList(events: List<ActivityEvent>, members: List<MemberInfo>
                                     describeEvent(event).replaceFirst(event.actorUsername, name),
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
-                                humaniseDetail(event)?.let { detail ->
+                                humaniseDetail(event, members.firstOrNull { it.id == myUserId }?.username)?.let { detail ->
                                     Text(
                                         detail,
                                         style = MaterialTheme.typography.bodySmall,
@@ -2383,7 +2365,7 @@ private fun describeEvent(e: ActivityEvent): String = when (e.eventType) {
  *
  * Returns null when there is nothing worth showing on a second line.
  */
-private fun humaniseDetail(e: ActivityEvent): String? {
+private fun humaniseDetail(e: ActivityEvent, myUsername: String? = null): String? {
     val detail = e.detail.trim()
     if (detail.isEmpty()) return null
 
@@ -2396,7 +2378,16 @@ private fun humaniseDetail(e: ActivityEvent): String? {
             .replace(" → admin", " is now a manager")
             .replace(" → member", " is now a member")
 
-        "owner_changed" -> "$detail owns it now"
+        // The server writes "joined via …"; under "theo joined the household"
+        // that said joined twice. Mapped here so old entries read the same.
+        "member_joined" -> when (detail) {
+            "joined via invite code" -> "With an invite code"
+            "joined via direct invite" -> "Invited by username"
+            else -> detail
+        }
+
+        // On the new owner's own phone it is them.
+        "owner_changed" -> if (detail == myUsername) "You own it now" else "$detail owns it now"
 
         "task_updated" -> detail
             .split(",")
@@ -2510,47 +2501,13 @@ private fun MemberList(
             }
         }
 
-        // Bringing somebody in: the dark card, so it is the one thing on the
-        // page that reads as an action.
-        Surface(color = q.dock, contentColor = q.onDock, shape = RoundedCornerShape(24.dp)) {
-            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Invite someone to $householdName", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "Share a code that works for a few days, or invite someone who already has an account.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = q.onDockMuted,
-                )
-                val shareCode: @Composable (Modifier) -> Unit = { modifier ->
-                    Button(
-                        onClick = onShareCode,
-                        modifier = modifier.heightIn(min = 48.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = q.onDock, contentColor = q.dock),
-                    ) { Text("Share code") }
-                }
-                val byUsername: @Composable (Modifier) -> Unit = { modifier ->
-                    OutlinedButton(
-                        onClick = onInviteByName,
-                        modifier = modifier.heightIn(min = 48.dp),
-                        border = BorderStroke(1.5.dp, q.dockActive),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = q.onDock),
-                    ) { Text("By username") }
-                }
-                // Half a card is not enough for these labels once the system
-                // font is enlarged: split evenly they broke mid-word ("By
-                // userna / me"). So each takes the full width then, and the
-                // labels are free to wrap so neither can ever be clipped.
-                if (LocalDensity.current.fontScale > 1.1f) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        shareCode(Modifier.fillMaxWidth())
-                        byUsername(Modifier.fillMaxWidth())
-                    }
-                } else {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        shareCode(Modifier.weight(1f))
-                        byUsername(Modifier.weight(1f))
-                    }
-                }
-            }
+        // Bringing somebody in: two plain rows, named as in the people button
+        // on House. (A large dark card used to sit here, with other names for
+        // the same two things.)
+        GroupedCard {
+            InviteRow(Icons.Default.Share, "Invite with a code", "Anyone with the code can join. It lasts 48 hours.", onShareCode)
+            RowDivider()
+            InviteRow(Icons.Default.PersonAdd, "Invite by username", "For someone who already has an account.", onInviteByName)
         }
 
         if (me != null) {
@@ -2592,6 +2549,24 @@ private fun MemberList(
             modifier = Modifier.align(Alignment.CenterHorizontally),
         ) {
             Text("Leave $householdName", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun InviteRow(icon: ImageVector, title: String, detail: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .heightIn(min = 56.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+        Column(modifier = Modifier.padding(start = 16.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -2825,25 +2800,16 @@ private fun GroupHistoryBody(
             .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = DOCK_CLEARANCE),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        // Wraps rather than squeezes: in a Row the last chip got whatever width
-        // was left, and at a large font that was a tall blank sliver.
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            listOf("week" to "This week", "month" to "This month", "quarter" to "3 months")
-                .forEach { (value, label) ->
-                    val selected = window == value
-                    Surface(
-                        onClick = { if (!selected) onWindowChange(value) },
-                        shape = RoundedCornerShape(18.dp),
-                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-                        contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                    ) {
-                        Text(label, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp))
-                    }
-                }
-        }
+        // The same soft switch as "Everything / Who did what" above it, only
+        // smaller, so the page has one way of choosing. (These were purple
+        // pills, a second style stacked under the first.)
+        val windows = listOf("week" to "This week", "month" to "This month", "quarter" to "3 months")
+        Segmented(
+            options = windows.map { it.second },
+            selected = windows.indexOfFirst { it.first == window }.coerceAtLeast(0),
+            onSelect = { i -> windows[i].first.takeIf { it != window }?.let(onWindowChange) },
+            compact = true,
+        )
 
         if (loading || history == null) {
             Text("Loading…", style = MaterialTheme.typography.bodyMedium)
@@ -2864,7 +2830,14 @@ private fun GroupHistoryBody(
                             )
                             if (person.awayDays > 0) {
                                 Text(
-                                    if (person.awayDays == 1) "Away 1 day of this" else "Away ${person.awayDays} days of this",
+                                    // Said against the period chosen above, which
+                                    // the line used to stop short of ("of this").
+                                    (if (person.awayDays == 1) "Away 1 day " else "Away ${person.awayDays} days ") +
+                                        when (window) {
+                                            "week" -> "this week"
+                                            "quarter" -> "in the last 3 months"
+                                            else -> "this month"
+                                        },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )

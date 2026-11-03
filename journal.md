@@ -6,6 +6,25 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-04 — A design pass, one change at a time
+
+The owner asked for other oddities like the old settings card. Went through every
+screen on the emulator and found 16; each was put to the owner on its own. Changed:
+People's dark invite card became two plain rows named as in the people button ("lasts
+48 hours", which is true; it said "a few days"); You shows only your face at the top,
+not your name and email twice; Sign out has its own card at the end; You's icons are
+all outline; the feed's period is the same soft switch as the one above it, not purple
+pills; the month starts on Monday whatever the phone's language; a chore's sheet no
+longer repeats its schedule and date under the title; History and Edit chore are both
+links in the accent; an untouched New chore form closes without asking; "Away 5 days
+this month" (it was cut off at "of this"); "Nothing this week"; "You own it now" on
+your own handover; "With an invite code" instead of "joined via invite code";
+"Cancel" in Book a space; no "due" on Mine's top card. Left as they were, at the
+owner's choice: New chore's grey system bars, and no close button on the month.
+All checked on the emulator against the local server.
+
+---
+
 ## 2026-11-03 (late night) — Household settings as a pop-out
 
 The owner found the settings card awkward and too big, and asked for the symbols to

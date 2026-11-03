@@ -136,10 +136,10 @@ private val INTERVAL_PRESETS = listOf(1, 2, 3, 4, 5, 6, 7, 14, 30)
  * full-screen surface without teaching the nav graph about a flow that belongs
  * to one screen.
  *
- * The X always asks before discarding, even when nothing has been typed. That
- * looks like a bug until you watch someone lose a half-filled form: an
- * unconditional question is one habit, and a conditional one is a trap that
- * springs on exactly the occasion it matters.
+ * The X asks before discarding once anything has been typed or picked. An
+ * untouched form (or an edit that changed nothing) just closes: the owner found
+ * "Discard this chore?" over an empty form odd. It used to ask every time, on
+ * the reasoning that one unconditional habit is safer than a conditional one.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -163,6 +163,9 @@ fun CreateChoreFlow(
     var draft by remember(initial) { mutableStateOf(initial ?: ChoreDraft()) }
     var confirmDiscard by remember { mutableStateOf(false) }
     var localError by remember { mutableStateOf<String?>(null) }
+    // Nothing to lose: close. Anything entered: ask first.
+    val untouched = draft == (initial ?: ChoreDraft())
+    val requestClose = { if (untouched) onDismiss() else confirmDiscard = true }
 
     // One screen (Quiet House). "How often" is still the first question, and
     // everything that answer implies appears under it once it is answered —
@@ -173,7 +176,7 @@ fun CreateChoreFlow(
     }
 
     Dialog(
-        onDismissRequest = { confirmDiscard = true },
+        onDismissRequest = requestClose,
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
             dismissOnClickOutside = false,
@@ -181,7 +184,7 @@ fun CreateChoreFlow(
     ) {
         // System back gets the same question the X does, rather than throwing
         // the form away silently.
-        BackHandler(enabled = true) { confirmDiscard = true }
+        BackHandler(enabled = true) { requestClose() }
 
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
             Scaffold(
@@ -195,7 +198,7 @@ fun CreateChoreFlow(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         FilledTonalIconButton(
-                            onClick = { confirmDiscard = true },
+                            onClick = requestClose,
                             colors = IconButtonDefaults.filledTonalIconButtonColors(
                                 containerColor = MaterialTheme.colorScheme.background,
                             ),
@@ -293,8 +296,8 @@ fun CreateChoreFlow(
     }
 
     if (confirmDiscard) {
-        // Still asked every time, for the reason above — but it says what is
-        // true. Editing and changing nothing used to be told "Your edits won't
+        // Only asked when something was entered (see above), and it says what
+        // is true. Editing and changing nothing used to be told "Your edits won't
         // be saved", about edits that did not exist (B-24).
         val unchanged = editing && draft == initial
         QuietAlertDialog(

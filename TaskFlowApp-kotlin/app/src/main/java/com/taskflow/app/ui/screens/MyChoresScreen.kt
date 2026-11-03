@@ -269,7 +269,7 @@ internal fun NextSevenDays(today: LocalDate, days: Set<LocalDate>, onExpand: () 
                 Text("Next 7 days", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                 Text(
                     when (inWeek) {
-                        0 -> "Nothing dated"
+                        0 -> "Nothing this week"
                         1 -> "A turn on 1 day"
                         else -> "Turns on $inWeek days"
                     },
@@ -349,7 +349,7 @@ internal fun UpNextCard(turn: MyTurn, showHousehold: Boolean, onOpen: () -> Unit
                 Text(
                     listOfNotNull(
                         chore?.scheduleWording()?.replaceFirstChar { it.uppercase() },
-                        occ.dueDate?.let { "due ${formatDueDate(it)}" },
+                        occ.dueDate?.let { formatDueDate(it) },
                     ).joinToString(" · "),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

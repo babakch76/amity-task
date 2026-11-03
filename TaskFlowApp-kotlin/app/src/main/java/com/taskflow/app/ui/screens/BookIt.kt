@@ -367,7 +367,7 @@ internal fun BookItSheet(
                 enabled = what.isNotBlank() && !passed && !saving,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
             ) { Text(if (clashes.isEmpty()) "Book it" else "Book it anyway") }
-            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Never mind") }
+            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Cancel") }
         }
     }
 

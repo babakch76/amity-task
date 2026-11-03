@@ -195,7 +195,9 @@ internal fun MonthSheet(turns: List<TurnDay>, today: LocalDate, onDismiss: () ->
     var month by remember { mutableStateOf(first) }
     var picked by remember { mutableStateOf<LocalDate?>(null) }
     val byDay = remember(turns) { turns.groupBy { it.date } }
-    val weekStart = remember { WeekFields.of(Locale.getDefault()).firstDayOfWeek }
+    // Monday, as calendars here have it, whatever language the phone is set
+    // to: a phone in US English started the month on Sunday.
+    val weekStart = DayOfWeek.MONDAY
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {

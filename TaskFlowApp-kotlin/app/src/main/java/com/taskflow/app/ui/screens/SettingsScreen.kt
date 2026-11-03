@@ -21,19 +21,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Balance
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
+import androidx.compose.material.icons.outlined.Explore
+import androidx.compose.material.icons.outlined.VpnKey
+import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.AlternateEmail
+import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material3.IconButton
-import androidx.compose.material.icons.filled.AlternateEmail
-import androidx.compose.material.icons.filled.Badge
-import androidx.compose.material.icons.filled.Balance
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.MailOutline
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -59,6 +59,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -190,14 +192,14 @@ fun SettingsScreen(
 
                 SettingsGroup("YOU") {
                     SettingsRow(
-                        icon = Icons.Default.Badge,
+                        icon = Icons.Outlined.Badge,
                         label = "Name",
                         value = me?.username,
                         onClick = { showName = true },
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsRow(
-                        icon = Icons.Default.AlternateEmail,
+                        icon = Icons.Outlined.AlternateEmail,
                         label = "Email",
                         value = me?.email,
                         onClick = { showEmail = true },
@@ -206,7 +208,7 @@ fun SettingsScreen(
 
                 SettingsGroup("HOUSEHOLDS") {
                     SettingsRow(
-                        icon = Icons.Default.MailOutline,
+                        icon = Icons.Outlined.Email,
                         label = "Invitations",
                         // A count, but of things addressed to you rather than
                         // of anybody's work — the one number the never-list
@@ -217,7 +219,7 @@ fun SettingsScreen(
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsRow(
-                        icon = Icons.Default.VpnKey,
+                        icon = Icons.Outlined.VpnKey,
                         label = "Join with a code",
                         onClick = { showJoinByCode = true },
                     )
@@ -225,19 +227,19 @@ fun SettingsScreen(
 
                 SettingsGroup("HELP") {
                     SettingsRow(
-                        icon = Icons.Default.Explore,
+                        icon = Icons.Outlined.Explore,
                         label = "Take the tour",
                         onClick = onStartTour,
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsRow(
-                        icon = Icons.AutoMirrored.Filled.HelpOutline,
+                        icon = Icons.AutoMirrored.Outlined.HelpOutline,
                         label = "How Amity Task works",
                         onClick = onOpenGuide,
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsRow(
-                        icon = Icons.Default.Balance,
+                        icon = Icons.Outlined.Balance,
                         label = "How turns stay fair",
                         onClick = onOpenFairness,
                     )
@@ -245,7 +247,7 @@ fun SettingsScreen(
 
                 SettingsGroup("REMINDERS AND LOOK") {
                     SettingsRow(
-                        icon = Icons.Default.Notifications,
+                        icon = Icons.Outlined.Notifications,
                         label = "Quiet hours",
                         value = "${quietHours.from.format(QUIET_HOURS_FORMAT)}" +
                             " – ${quietHours.to.format(QUIET_HOURS_FORMAT)}",
@@ -255,23 +257,17 @@ fun SettingsScreen(
                     // All or none. Choosing whose chores to hear about would be
                     // a way of watching one person.
                     SettingsRow(
-                        icon = Icons.Default.Groups,
+                        icon = Icons.Outlined.Groups,
                         label = "When a housemate does a chore",
                         switchedOn = hearChores,
                         onClick = ::toggleHearChores,
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsRow(
-                        icon = Icons.Default.DarkMode,
+                        icon = Icons.Outlined.DarkMode,
                         label = "Appearance",
                         value = appearance.label,
                         onClick = { showAppearance = true },
-                    )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    SettingsRow(
-                        icon = Icons.AutoMirrored.Filled.Logout,
-                        label = "Sign out",
-                        onClick = { showSignOut = true },
                     )
                 }
 
@@ -285,6 +281,16 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+
+                // On its own at the end, not filed under reminders and look.
+                Spacer(Modifier.height(24.dp))
+                com.taskflow.app.ui.components.GroupedCard {
+                    SettingsRow(
+                        icon = Icons.AutoMirrored.Outlined.Logout,
+                        label = "Sign out",
+                        onClick = { showSignOut = true },
+                    )
+                }
             }
         }
     }
@@ -423,29 +429,20 @@ fun SettingsScreen(
 private fun ProfileHeader(username: String?, email: String?) {
     val context = LocalContext.current
     val myId = remember { (context.applicationContext as? com.taskflow.app.TaskFlowApp)?.tokenManager?.getUserId() }
+    // Just the face. Your name and email are the first two rows underneath,
+    // where they can be changed, so the header no longer says them again.
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 4.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
     ) {
-        com.taskflow.app.ui.components.Avatar(username ?: "·", myId ?: "", 68.dp)
-        Spacer(Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = username ?: "…",
-                style = MaterialTheme.typography.headlineMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = email.orEmpty(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        com.taskflow.app.ui.components.Avatar(
+            username ?: "·",
+            myId ?: "",
+            68.dp,
+            modifier = Modifier.semantics { contentDescription = listOfNotNull(username, email).joinToString(", ") },
+        )
     }
 }
 
