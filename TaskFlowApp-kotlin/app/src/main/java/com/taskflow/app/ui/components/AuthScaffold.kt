@@ -18,9 +18,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
@@ -57,7 +57,17 @@ fun AuthHeader(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.Start,
     ) {
-        BrandMark()
+        // The name, said once, beside the mark it belongs to.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            BrandMark(label = null)
+            Spacer(modifier = Modifier.width(14.dp))
+            Text(
+                text = "Amity Task",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+        }
         Spacer(modifier = Modifier.height(22.dp))
         Text(
             text = title,
@@ -74,25 +84,27 @@ fun AuthHeader(
 }
 
 /**
- * The mark: the app's own launcher icon — the violet tick — so the first
+ * The mark: the app's own launcher icon, in its own colours, so the first
  * screen and the home screen show the same thing. The foreground drawable is
- * an adaptive-icon layer whose glyph only fills its middle, hence drawn larger
- * than the tile and clipped to it.
+ * an adaptive-icon layer of which a launcher shows the middle two thirds, so it
+ * is drawn half as large again as the tile and clipped to it, showing the same. Not tinted to the theme: the chevrons' four
+ * shades are the mark.
+ *
+ * @param label What a screen reader says; null when the name is written beside it.
  */
 @Composable
-fun BrandMark(size: androidx.compose.ui.unit.Dp = 64.dp) {
+fun BrandMark(size: androidx.compose.ui.unit.Dp = 64.dp, label: String? = "Amity Task") {
     Box(
         modifier = Modifier
             .size(size)
             .clip(RoundedCornerShape(size * 0.3f))
-            .background(MaterialTheme.colorScheme.primary),
+            .background(colorResource(R.color.ic_launcher_background)),
         contentAlignment = Alignment.Center,
     ) {
         Image(
             painter = painterResource(R.drawable.ic_launcher_foreground),
-            contentDescription = "TaskFlow",
-            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onPrimary),
-            modifier = Modifier.requiredSize(size * 1.3f),
+            contentDescription = label,
+            modifier = Modifier.requiredSize(size * 1.5f),
         )
     }
 }

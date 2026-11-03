@@ -17,6 +17,7 @@ Two companion documents, deliberately separate:
 
 ## 1. What it is
 
+**Amity Task** (built as TaskFlow; the name people see changed on 2026-11-03).
 A chore board for a household that shares one. Three or four people, a handful
 of recurring chores, and the question the app exists to answer: **whose turn is
 it, and has it been done?**
@@ -46,6 +47,13 @@ board is for. A section you have not touched starts folded only when it holds
 more than four rows, so a small household never meets this. Your choice is kept
 on this phone, per household, and wins from then on. A section holding the chore
 you just added opens anyway, so its highlight has somewhere to land.
+
+**People and you, top right.** A people button opens a short menu: *See
+everyone* (the People page, where you also say you are away), *Invite with a
+code* and *Invite by username*. Beside it is your own face, which goes to You
+and settings, as it does on Mine, with a dot when an invitation is waiting. It
+used to be every housemate's face in a row: that grew with the household and did
+not say what tapping it did. Who is away is still on the board, in the banner.
 
 **It keeps itself current.** While the board, the feed or Mine is open, the app
 checks about every five seconds, so a chore a housemate adds, a turn passed to

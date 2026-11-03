@@ -2,7 +2,6 @@ package com.taskflow.app.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -129,23 +128,6 @@ fun DoneAvatar(name: String, id: String, size: Dp = 36.dp) {
                 tint = Color.White,
                 modifier = Modifier.size(size * 0.3f),
             )
-        }
-    }
-}
-
-/** Overlapping faces, ringed in the ground colour. Measures as wide as it draws. */
-@Composable
-fun AvatarStack(people: List<Triple<String, String, Boolean>>, size: Dp = 34.dp) {
-    val step = size * 0.72f
-    Box {
-        people.forEachIndexed { i, (name, id, away) ->
-            Box(
-                modifier = Modifier
-                    .padding(start = step * i)
-                    .border(2.5.dp, MaterialTheme.colorScheme.background, CircleShape),
-            ) {
-                Avatar(name, id, size, dimmed = away)
-            }
         }
     }
 }

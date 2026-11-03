@@ -38,6 +38,16 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
     - **Known limit:** your own reminders are still armed only when the app syncs, so
       a turn that starts with the app closed is not announced until it is next opened.
       Only passes are.
+  - **Renamed Amity Task, with a new icon**, the project owner's choice. Every name
+    a person sees: launcher, sign-in screens (now with the name beside the mark),
+    tour, guide, settings, invite text. The package, code and server keep TaskFlow,
+    since a new package would install as a different app. The owner's SVG fills its
+    whole square, so the launcher art is drawn at two thirds to look the same.
+  - **The board's top right: people and you, not every face**, at the owner's
+    request. A people button with *See everyone*, *Invite with a code* and *Invite by
+    username*, and your own face going to settings as on Mine. The owner asked for two
+    options; the code was kept as a third because a username only reaches somebody
+    who already has an account, and a new housemate has none.
   - **Live updates on Mine and House**, after the project owner saw a chore added
     on one phone take a manual refresh to reach a housemate's.
     - **Two gaps, both reproduced first.** Mine reloaded only when its tab was

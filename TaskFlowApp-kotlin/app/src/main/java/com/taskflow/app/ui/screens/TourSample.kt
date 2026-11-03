@@ -25,7 +25,7 @@ import com.taskflow.app.data.model.MemberInfo
 import com.taskflow.app.data.model.Occurrence
 import com.taskflow.app.data.model.ScheduleType
 import com.taskflow.app.ui.components.Avatar
-import com.taskflow.app.ui.components.AvatarStack
+import com.taskflow.app.ui.components.HouseCorner
 import com.taskflow.app.ui.components.DOCK_CLEARANCE
 import com.taskflow.app.ui.components.DockTab
 import com.taskflow.app.ui.components.FoldLabel
@@ -194,9 +194,16 @@ private fun SampleHouse(flat: SampleFlat) {
                 )
             }
             Spacer(Modifier.weight(1f))
-            Box(modifier = Modifier.tourTarget(TourTarget.FACES).padding(5.dp)) {
-                AvatarStack(people = flat.members.map { Triple(it.username, it.id, it.away) })
-            }
+            HouseCorner(
+                myName = "You",
+                myId = ME,
+                hasInvites = false,
+                onOpenSettings = {},
+                onSeeEveryone = {},
+                onShareCode = {},
+                onInviteByName = {},
+                peopleModifier = Modifier.tourTarget(TourTarget.FACES),
+            )
         }
         Column(
             modifier = Modifier

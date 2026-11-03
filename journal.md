@@ -6,6 +6,23 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-03 (evening) — Amity Task, and the board's top right
+
+The app is now called Amity Task wherever a person reads it, with the owner's new
+icon. First install showed the chevrons pressed to the mask: the SVG fills its 108
+square, a launcher shows the middle 72, so the art now sits at two thirds and the
+drawer shows it as the SVG looks. The sign-in mark uses the same art in its own
+colours, with the name written beside it, since that screen never said the name.
+
+House's row of faces became a people button and your own face. The menu has See
+everyone, Invite with a code and Invite by username. Checked on the emulator: the
+code dialog and the shared text ("Join my household on Amity Task with this code"),
+a username invite reaching a fresh local account, See everyone opening People, your
+face opening settings, and the tour's People step lighting the button. The settings
+back arrow said "Back to your turns", wrong from House, so it now says "Back".
+
+---
+
 ## 2026-11-03 (later) — Changes reaching the other phone
 
 The owner added a chore and a housemate's phone did not show it until a refresh.

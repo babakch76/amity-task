@@ -213,6 +213,8 @@ fun MainShell(
                         onCreateHandled = { createRequested = false },
                         onOpenPeople = { navController.navigate(ROUTE_PEOPLE) },
                         onBack = {},
+                        onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
+                        hasInvites = invites.isNotEmpty(),
                     )
                 }
                 composable(ROUTE_FEED) {

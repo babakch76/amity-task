@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The launcher mark in one colour, for themed icons on Android 13 and up,
+    which tint it to match the wallpaper. Keep it in step with
+    ic_launcher_foreground.xml: same shapes, every colour white.
+
+    Drawn at two thirds round the centre, as the foreground is.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- The SVG is drawn edge to edge on 108; a launcher shows only the middle 72. -->
+    <group android:scaleX="0.6667" android:scaleY="0.6667" android:pivotX="54" android:pivotY="54">
+
+    <path
+        android:pathData="M44,40 L60,26 L76,40"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="9"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <group android:rotation="90" android:pivotX="54" android:pivotY="54">
+        <path
+            android:pathData="M44,40 L60,26 L76,40"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="9"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
+    <group android:rotation="180" android:pivotX="54" android:pivotY="54">
+        <path
+            android:pathData="M44,40 L60,26 L76,40"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="9"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
+    <group android:rotation="270" android:pivotX="54" android:pivotY="54">
+        <path
+            android:pathData="M44,40 L60,26 L76,40"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="9"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
+    <!-- The square in the middle: 15 by 17 at (46.5, 45.5), corners 4.5. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M51,45.5 H57 A4.5,4.5 0 0 1 61.5,50 V58 A4.5,4.5 0 0 1 57,62.5 H51 A4.5,4.5 0 0 1 46.5,58 V50 A4.5,4.5 0 0 1 51,45.5 Z" />
+    </group>
+</vector>

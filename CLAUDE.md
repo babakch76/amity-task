@@ -7,6 +7,11 @@ Guidance for Claude Code working in this repository. Written 2026-09-10 against
 
 ## 1. What this is
 
+**People see it as Amity Task** (since 2026-11-03, on `household-removal-and-tutorial`):
+launcher name, icon, sign-in screens, tour, guide and invite text. The repo, the
+package `com.taskflow.app`, class names and the server host stay TaskFlow on
+purpose; changing the package would make Android treat it as another app.
+
 **TaskFlow v2 is a household chore-rotation app.** Three or four people sharing
 a flat, a handful of recurring chores, and one question: *whose turn is it, and
 has it been done?*
@@ -146,9 +151,10 @@ answers `401`.
 | `OccurrenceDetailSheet` (in `GroupDetailScreen.kt`) | Where a turn is **completed**. Built from the Stitch mock *Chore detail — Clean the bathroom*: header + household chip, violet callout, WHAT DONE MEANS, the four-row list, History / Edit chore, then *I did this* (*Mark as done* on someone else's turn) and *Busy — pass it on*. Undo lives here too, within its ten minutes. **Board rows have no checkbox** — a row only opens this. |
 | `MyChoresScreen` — **Mine** | The start screen. Your turns across every household: next 7 days, **Up next** (done-line + *I did this*), also yours, done lately. Your face opens **You**. Opens the board's own detail sheet. |
 | `OccurrenceDetailHost` | The detail sheet and everything behind it — history, edit flow, delete confirm, busy pass. Mounted by **both** the board and My chores; driven by a hoisted `ChoreDetailController`. |
-| `ui/components/Quiet.kt` | The design's shared pieces: `Avatar` (colour per user id), `AvatarStack`, `FloatingDock`, `GroupedCard`, `SectionLabel`, `QuietSnackbar`, `SegmentedPair`. Use these rather than redrawing them. |
+| `ui/components/Quiet.kt` | The design's shared pieces: `Avatar` (colour per user id), `FloatingDock`, `GroupedCard`, `SectionLabel`, `FoldLabel`, `QuietSnackbar`, `SegmentedPair`. Use these rather than redrawing them. |
 | `SettingsScreen` — **You** | Opened from your face on Mine; has a back arrow, no dock. Name, email, invitations, join with a code, How TaskFlow works, quiet hours, appearance, sign out. |
 | `ui/components/HouseholdSwitcher` | The board's title: household name + chevron, dropping a menu of households plus *Create a household* / *Join with a code*. |
+| `ui/components/HouseCorner.kt` | The board's top right: a people button (*See everyone*, *Invite with a code*, *Invite by username*) and your own face, which goes to You and settings as on Mine. Replaced the row of every member's face. The tour's sample flat draws it too. |
 | `ui/components/MarkDoneSheet.kt` | The confirm behind **swipe-right only** — the one way to complete a turn without opening it. Quotes the done-line, then *Mark it done* / *Not yet*. Mounted from inside `TaskCard`. |
 | `AccountDialogs.kt` | The four dialogs that outlived the group list — invites, join by code, create household, quiet hours. Was `DashboardScreen.kt`. |
 | `CreateChoreFlow` | Add or edit a chore on one full screen: *How often* first, and what it implies appears beneath once answered. Delete lives at the end of edit. Opened by **Add** on the dock. |
@@ -190,8 +196,10 @@ says how they differ.
 The two auth screens share their top half — emblem, wordmark, subtitle, field
 shape, pill button, amber error line — through `ui/components/AuthScaffold.kt`.
 Change the shape of an auth field there, not in one screen, or the two drift.
-The mark (`BrandMark`) is drawn in code — a roof over a tick, white on the
-violet — not taken from the launcher foreground.
+The mark (`BrandMark`) is the launcher icon itself, foreground on its own deep
+purple and untinted, with the name beside it. The icon art is
+`ic_launcher_foreground.xml` (plus a one-colour `ic_launcher_monochrome.xml` for
+themed icons), drawn at two thirds because a launcher shows only the middle 72 of 108.
 
 Both screens were ported from Google Stitch mocks (MCP server `stitch`, project
 **Core Design System** `4515006561005969934`, screens *Sign in* and *Create

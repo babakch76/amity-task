@@ -62,6 +62,7 @@ import androidx.core.content.ContextCompat
 import com.taskflow.app.TaskFlowApp
 import com.taskflow.app.reminders.QuietHours
 import com.taskflow.app.reminders.ReminderScheduler
+import com.taskflow.app.ui.components.HouseCorner
 import com.taskflow.app.ui.components.HouseholdSwitcher
 import com.taskflow.app.ui.components.MarkDoneSheet
 import com.taskflow.app.data.local.BoardFolds
@@ -100,7 +101,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.taskflow.app.ui.components.Avatar
-import com.taskflow.app.ui.components.AvatarStack
 import com.taskflow.app.ui.components.DOCK_CLEARANCE
 import com.taskflow.app.ui.components.DoneAvatar
 import com.taskflow.app.ui.components.GroupedCard
@@ -173,6 +173,9 @@ fun GroupDetailScreen(
     createRequested: Boolean = false,
     onCreateHandled: () -> Unit = {},
     onOpenPeople: () -> Unit = {},
+    /** Your face on House goes to You and settings, as on Mine. */
+    onOpenSettings: () -> Unit = {},
+    hasInvites: Boolean = false,
     onBack: () -> Unit = {},
     viewModel: GroupDetailViewModel = viewModel(
         key = groupId,
@@ -355,19 +358,16 @@ fun GroupDetailScreen(
                         onJoin = onJoinHousehold,
                         modifier = Modifier.weight(1f),
                     )
-                    // Who lives here, as faces. Tapping them opens People —
-                    // which is where inviting and saying you're away now live.
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(22.dp))
-                            .clickable(onClick = onOpenPeople)
-                            .semantics { contentDescription = "People in this household" }
-                            .padding(start = 6.dp, top = 5.dp, bottom = 5.dp, end = 2.dp),
-                    ) {
-                        AvatarStack(
-                            people = state.members.take(5).map { Triple(it.username, it.id, it.away) },
-                        )
-                    }
+                    // People, and you. See HouseCorner for why not every face.
+                    HouseCorner(
+                        myName = state.members.firstOrNull { it.id == myUserId }?.username ?: "?",
+                        myId = myUserId.orEmpty(),
+                        hasInvites = hasInvites,
+                        onOpenSettings = onOpenSettings,
+                        onSeeEveryone = onOpenPeople,
+                        onShareCode = { viewModel.generateInviteCode() },
+                        onInviteByName = { showInvite = true },
+                    )
                 }
 
                 HouseSection.FEED -> Column(
@@ -3000,7 +3000,7 @@ private fun InviteCodeDialog(code: String, onDismiss: () -> Unit) {
                             type = "text/plain"
                             putExtra(
                                 Intent.EXTRA_TEXT,
-                                "Join my TaskFlow group with this code: $code",
+                                "Join my household on Amity Task with this code: $code",
                             )
                         }
                         context.startActivity(Intent.createChooser(share, "Share invite code"))

@@ -139,7 +139,7 @@ internal data class TourStep(
 /** The whole walk. It is the same for everybody, every time. */
 internal val TOUR = listOf(
     TourStep(
-        title = "Welcome to TaskFlow",
+        title = "Welcome to Amity Task",
         body = "Here's a sample flat to show you around. It takes about a minute, " +
             "and nothing here touches your real chores.",
         tab = DockTab.MINE,
@@ -187,8 +187,8 @@ internal val TOUR = listOf(
     ),
     TourStep(
         title = "People",
-        body = "Tap the faces to invite housemates, or to say you're going away " +
-            "so turns skip you.",
+        body = "Tap here to see everyone or invite someone. Going away? Say so " +
+            "under See everyone, so turns skip you.",
         tab = DockTab.HOUSE,
         target = TourTarget.FACES,
     ),

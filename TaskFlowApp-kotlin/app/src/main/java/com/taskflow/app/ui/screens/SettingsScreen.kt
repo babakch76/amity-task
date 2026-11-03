@@ -141,7 +141,7 @@ fun SettingsScreen(
         if (granted) {
             setHearChores(true)
         } else {
-            viewModel.showMessage("Turn on notifications for TaskFlow in your phone's settings first.")
+            viewModel.showMessage("Turn on notifications for Amity Task in your phone's settings first.")
         }
     }
 
@@ -170,7 +170,7 @@ fun SettingsScreen(
                 .padding(padding),
         ) {
             IconButton(onClick = onBack, modifier = Modifier.padding(start = 8.dp, top = 8.dp)) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to your turns")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
             }
             if (isWorking) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -230,7 +230,7 @@ fun SettingsScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsRow(
                         icon = Icons.AutoMirrored.Filled.HelpOutline,
-                        label = "How TaskFlow works",
+                        label = "How Amity Task works",
                         onClick = onOpenGuide,
                     )
                 }

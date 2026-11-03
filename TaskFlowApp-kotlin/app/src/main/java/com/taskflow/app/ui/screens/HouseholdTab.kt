@@ -77,6 +77,8 @@ fun HouseholdTab(
     onCreateHandled: () -> Unit,
     onOpenPeople: () -> Unit,
     onBack: () -> Unit,
+    onOpenSettings: () -> Unit = {},
+    hasInvites: Boolean = false,
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isWorking by viewModel.isWorking.collectAsState()
@@ -144,6 +146,8 @@ fun HouseholdTab(
                     createRequested = createRequested,
                     onCreateHandled = onCreateHandled,
                     onOpenPeople = onOpenPeople,
+                    onOpenSettings = onOpenSettings,
+                    hasInvites = hasInvites,
                     onBack = onBack,
                     viewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                         viewModelStoreOwner = vmOwner,

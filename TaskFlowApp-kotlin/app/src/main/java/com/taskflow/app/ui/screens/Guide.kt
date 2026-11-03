@@ -100,7 +100,7 @@ fun GuideScreen(onBack: () -> Unit) {
                 .padding(start = 20.dp, end = 20.dp, bottom = 40.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ScreenTitle("How TaskFlow works", modifier = Modifier.padding(bottom = 8.dp))
+            ScreenTitle("How Amity Task works", modifier = Modifier.padding(bottom = 8.dp))
             GUIDE.forEach { section ->
                 GroupedCard {
                     Column(
