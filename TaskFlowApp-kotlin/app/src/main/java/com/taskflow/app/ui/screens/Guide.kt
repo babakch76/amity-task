@@ -62,8 +62,8 @@ internal val GUIDE = listOf(
     ),
     GuideSection(
         "Going away",
-        "Tap the faces on House and say you're away. Turns skip you and you owe " +
-            "nothing for that time. Everyone can see you're away.",
+        "Tap the people button on House, then See everyone, and say you're away. " +
+            "Turns skip you and you owe nothing for that time. Everyone can see you're away.",
     ),
     GuideSection(
         "Book it up",
@@ -83,7 +83,7 @@ internal val GUIDE = listOf(
     ),
     GuideSection(
         "Bringing people in",
-        "Tap the faces on House, then Share code.",
+        "Tap the people button on House, then invite with a code or a username.",
     ),
 )
 
