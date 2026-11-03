@@ -6,6 +6,19 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-03 (late night) — Household settings as a pop-out
+
+The owner found the settings card awkward and too big, and asked for the symbols to
+pop around the gear, with leaving and removing asking first. Now round buttons spring
+out of the gear and the rest is small dialogs. A tight arc round the corner was tried
+first; four named buttons overlapped on it, so they run down a gentle curve with the
+names beside them. On the emulator, a first build closed settings before Leave's next
+step could open; fixed so picking hands over to the next step. Checked: Leave asks
+(and the owner's hand-over asks again, "Leave Flat 3B?"), Remove asks, Cancel sends
+nothing, rename opens as a dialog, and Leave on People opens the owner's question.
+
+---
+
 ## 2026-11-03 (night) — Away, and the paused household
 
 The owner asked what happens with more than two away, and with everyone away. Played

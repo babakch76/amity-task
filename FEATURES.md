@@ -400,8 +400,11 @@ with a line saying what to do next.
 Leaving is available to any member, from the foot of People or from household
 settings. The last member leaving deletes the household.
 
-**Household settings** are behind the gear on House, beside the people button. A
-card grows out of the gear, its rows coming in one after another:
+**Household settings** are behind the gear on House, beside the people button.
+Tapping it pops round buttons out of the gear, one after another with a spring,
+down a gentle curve with each name in a pill beside it; the gear turns and the
+board stays where it is. Anything that needs more than a tap opens a small
+dialog. (A large card was tried first and took too much room.)
 
 - **Rename**, for anyone in the household, up to 40 characters. The feed says
   who renamed it and what it is called now, and housemates' phones pick up the
@@ -409,11 +412,12 @@ card grows out of the gear, its rows coming in one after another:
 - **Hand over to someone**, for the owner. The other person becomes the owner
   and the old one an ordinary member. Owning means one thing, being able to
   remove the household, so there is always exactly one person who can.
-- **Leave household.** An owner leaving while others stay is asked first:
-  *Hand it over, then leave*, or *Remove it for everyone*. The hand-over and the
-  leave are one request (`?hand_to=` on leaving), so it all happens or none of
-  it does.
-- **Remove household**, for the owner.
+- **Leave household**, which always asks first. An owner leaving while others
+  stay is asked *Hand it over, then leave* or *Remove it for everyone*; handing
+  over then asks *Leave Flat 3B? theo will own it…* before anything happens.
+  The hand-over and the leave are one request (`?hand_to=` on leaving), so it
+  all happens or none of it does.
+- **Remove household**, for the owner, which also asks first.
 
 The title on House steps down a size at a time, up to two lines, until the
 name fits beside the buttons. A 40-character name fits on a narrow phone, and

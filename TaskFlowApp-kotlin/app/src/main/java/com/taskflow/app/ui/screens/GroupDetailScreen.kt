@@ -36,6 +36,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -210,10 +211,10 @@ fun GroupDetailScreen(
     var showInvite by remember { mutableStateOf(false) }
     var confirmLeave by remember { mutableStateOf(false) }
     var confirmRemove by remember { mutableStateOf(false) }
-    // Household settings, when open: where the gear is across the screen, so
-    // the card grows out of it. Leave on People opens it at the owner's choice.
-    var houseSettingsAt by remember { mutableStateOf<Float?>(null) }
-    var houseSettingsLeaving by remember { mutableStateOf(false) }
+    // Household settings, when open, and the gear's centre for its buttons to
+    // pop out of. Leave on People opens it at the owner's choice, with no gear.
+    var houseSettingsOpen by remember { mutableStateOf(false) }
+    var houseSettingsAnchor by remember { mutableStateOf<Offset?>(null) }
     // Up here rather than in the section: the section moves when the board goes
     // from empty to not, and a housemate's new chore must not close the sheet.
     var showBookIt by remember { mutableStateOf(false) }
@@ -382,9 +383,9 @@ fun GroupDetailScreen(
                         onSeeEveryone = onOpenPeople,
                         onShareCode = { viewModel.generateInviteCode() },
                         onInviteByName = { showInvite = true },
-                        onHouseholdSettings = { x ->
-                            houseSettingsLeaving = false
-                            houseSettingsAt = x
+                        onHouseholdSettings = { gear ->
+                            houseSettingsAnchor = gear
+                            houseSettingsOpen = true
                         },
                     )
                 }
@@ -539,8 +540,8 @@ fun GroupDetailScreen(
                             // first; anyone else goes straight to the confirm.
                             onLeave = {
                                 if (iOwnIt && othersHere) {
-                                    houseSettingsLeaving = true
-                                    houseSettingsAt = 0.5f
+                                    houseSettingsAnchor = null
+                                    houseSettingsOpen = true
                                 } else {
                                     confirmLeave = true
                                 }
@@ -706,14 +707,14 @@ fun GroupDetailScreen(
         )
     }
 
-    houseSettingsAt?.let { originX ->
+    if (houseSettingsOpen) {
         HouseholdSettings(
             householdName = currentGroup?.name.orEmpty(),
             members = state.members,
             myUserId = myUserId,
-            originX = originX,
-            startLeaving = houseSettingsLeaving,
-            onDismiss = { houseSettingsAt = null },
+            anchor = houseSettingsAnchor,
+            startLeaving = houseSettingsAnchor == null,
+            onDismiss = { houseSettingsOpen = false },
             onRename = { name, onResult ->
                 viewModel.renameHousehold(name) { problem ->
                     if (problem == null) onHouseholdChanged()

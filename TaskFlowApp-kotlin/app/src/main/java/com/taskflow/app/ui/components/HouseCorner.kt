@@ -30,10 +30,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.positionOnScreen
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -51,8 +50,8 @@ import androidx.compose.ui.unit.dp
  * The gear opens the household's own settings (rename, hand over, leave). It is
  * the household's, not yours, so it sits apart from your face.
  *
- * @param onHouseholdSettings Gets where the gear is across the screen, from 0
- *   at the left edge to 1 at the right, so the card can grow out of it.
+ * @param onHouseholdSettings Gets the gear's centre on screen, for the
+ *   settings buttons to pop out of.
  * @param peopleModifier Lets the tour light the people button on its own.
  */
 @Composable
@@ -64,18 +63,17 @@ fun HouseCorner(
     onSeeEveryone: () -> Unit,
     onShareCode: () -> Unit,
     onInviteByName: () -> Unit,
-    onHouseholdSettings: (originX: Float) -> Unit,
+    onHouseholdSettings: (gearCentre: Offset) -> Unit,
     modifier: Modifier = Modifier,
     peopleModifier: Modifier = Modifier,
 ) {
     var open by remember { mutableStateOf(false) }
-    var gearX by remember { mutableStateOf(1f) }
-    val screenWidth = with(LocalDensity.current) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
+    var gearCentre by remember { mutableStateOf(Offset.Zero) }
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         IconButton(
-            onClick = { onHouseholdSettings(gearX) },
+            onClick = { onHouseholdSettings(gearCentre) },
             modifier = Modifier.onGloballyPositioned {
-                gearX = (it.boundsInWindow().center.x / screenWidth).coerceIn(0f, 1f)
+                gearCentre = it.positionOnScreen() + Offset(it.size.width / 2f, it.size.height / 2f)
             },
         ) {
             Icon(

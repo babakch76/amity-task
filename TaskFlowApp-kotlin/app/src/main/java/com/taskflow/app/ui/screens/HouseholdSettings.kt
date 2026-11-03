@@ -1,17 +1,9 @@
 package com.taskflow.app.ui.screens
 
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -23,27 +15,23 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -60,23 +48,31 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionOnScreen
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import com.taskflow.app.data.model.MemberInfo
 import com.taskflow.app.ui.components.Avatar
-import com.taskflow.app.ui.components.RowDivider
+import com.taskflow.app.ui.components.QuietAlertDialog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /** The longest household name. Mirrors householdNameMax in groups.go. */
 internal const val HOUSEHOLD_NAME_MAX = 40
@@ -84,34 +80,40 @@ internal const val HOUSEHOLD_NAME_MAX = 40
 /** Characters as a person counts them, so an emoji is one, as on the server. */
 internal fun nameLength(name: String) = name.trim().let { it.codePointCount(0, it.length) }
 
-private enum class SettingsPage { MENU, RENAME, HAND_OVER, HAND_OVER_AND_LEAVE, OWNER_LEAVING }
+private enum class Step { MENU, RENAME, HAND_OVER, HAND_OVER_AND_LEAVE, OWNER_LEAVING }
+
+/** One of the buttons that pop out of the gear. */
+private data class Choice(
+    val label: String,
+    val icon: ImageVector,
+    val danger: Boolean = false,
+    val onPick: () -> Unit,
+)
 
 /**
  * A household's own settings: rename it, hand it over, leave it, remove it.
  *
- * A card that grows out of the gear that opened it, with its rows coming in
- * one after another, and that shrinks back into it on the way out. Each choice
- * that needs more than a tap opens in the same card rather than stacking a
- * second dialog on top.
+ * Tapping the gear pops a few round buttons out around it, each with its name
+ * under it, and the gear turns. Nothing else on the screen moves. Whatever
+ * needs more than a tap opens a small dialog.
  *
- * An owner leaving a household with people in it is the one case with a
- * question in it: somebody has to be left able to remove the household, so the
- * card asks whether to hand it over or remove it for everyone.
+ * Leaving and removing always ask first. Plain leaving and removing go through
+ * the screen's own confirm dialogs ([onLeave], [onRemove]), so there is one
+ * place that says what is lost. An owner leaving a household with people in it
+ * is asked whether to hand it over or remove it, and handing over and leaving
+ * asks once more before it happens.
  *
- * Plain leaving and removing still go through the screen's confirm dialogs, so
- * there is one place that says what is lost.
- *
- * @param originX Where the gear is across the screen, 0 to 1.
- * @param startLeaving Open straight onto the owner's choice, for Leave on
- *   People. Only for an owner with people staying; anyone else leaving has
- *   nothing to choose and goes straight to the confirm.
+ * @param anchor The gear's centre on screen, for the buttons to come out of.
+ *   Null opens straight onto [startLeaving]'s question, for Leave on People.
+ * @param startLeaving Open on the owner's choice. Only for an owner with
+ *   people staying; anyone else leaving goes straight to the confirm.
  */
 @Composable
 fun HouseholdSettings(
     householdName: String,
     members: List<MemberInfo>,
     myUserId: String?,
-    originX: Float,
+    anchor: Offset?,
     startLeaving: Boolean,
     onDismiss: () -> Unit,
     onRename: (name: String, onResult: (String?) -> Unit) -> Unit,
@@ -123,31 +125,135 @@ fun HouseholdSettings(
     val me = members.firstOrNull { it.id == myUserId }
     val iOwn = me?.role == ROLE_OWNER
     val others = members.filter { it.id != myUserId }
-    val owner = members.firstOrNull { it.role == ROLE_OWNER }
     // Only an owner with people staying behind has anything to decide.
     val ownerLeaving = iOwn && others.isNotEmpty()
 
+    var step by remember {
+        mutableStateOf(if (startLeaving || anchor == null) Step.OWNER_LEAVING else Step.MENU)
+    }
+    // Who an owner who is leaving chose to hand over to, waiting on "are you sure".
+    var leavingTo by remember { mutableStateOf<MemberInfo?>(null) }
+
+    when (step) {
+        Step.MENU -> PopMenu(
+            anchor = anchor ?: Offset.Zero,
+            choices = buildList {
+                add(Choice("Rename", Icons.Outlined.Edit) { step = Step.RENAME })
+                if (ownerLeaving) add(Choice("Hand over", Icons.Outlined.Key) { step = Step.HAND_OVER })
+                add(
+                    Choice("Leave", Icons.AutoMirrored.Outlined.Logout) {
+                        if (ownerLeaving) step = Step.OWNER_LEAVING else { onDismiss(); onLeave() }
+                    },
+                )
+                if (iOwn) add(Choice("Remove", Icons.Outlined.DeleteOutline, danger = true) { onDismiss(); onRemove() })
+            },
+            onDismiss = onDismiss,
+        )
+
+        Step.RENAME -> RenameDialog(
+            current = householdName,
+            onDismiss = onDismiss,
+            onSave = { name, onResult ->
+                onRename(name) { problem ->
+                    onResult(problem)
+                    if (problem == null) onDismiss()
+                }
+            },
+        )
+
+        Step.HAND_OVER -> HandOverDialog(
+            householdName = householdName,
+            others = others,
+            andLeave = false,
+            onDismiss = onDismiss,
+            onConfirm = { onDismiss(); onHandOver(it) },
+        )
+
+        Step.HAND_OVER_AND_LEAVE -> {
+            val chosen = leavingTo
+            if (chosen == null) {
+                HandOverDialog(
+                    householdName = householdName,
+                    others = others,
+                    andLeave = true,
+                    onDismiss = onDismiss,
+                    onConfirm = { leavingTo = it },
+                )
+            } else {
+                QuietAlertDialog(
+                    onDismissRequest = onDismiss,
+                    title = { Text("Leave $householdName?", fontWeight = FontWeight.Bold) },
+                    text = { Text("${chosen.username} will own it, and you'll lose access to its board.") },
+                    confirmButton = {
+                        TextButton(onClick = { onDismiss(); onHandOverAndLeave(chosen) }) {
+                            Text("Leave", color = MaterialTheme.colorScheme.error)
+                        }
+                    },
+                    dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+                )
+            }
+        }
+
+        Step.OWNER_LEAVING -> QuietAlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Before you go", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("You own $householdName. Hand it to someone who's staying, or remove it for everyone.")
+                    ChoiceRow(Icons.Outlined.Key, "Hand it over, then leave") { step = Step.HAND_OVER_AND_LEAVE }
+                    ChoiceRow(Icons.Outlined.DeleteOutline, "Remove it for everyone", danger = true) {
+                        onDismiss()
+                        onRemove()
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        )
+    }
+}
+
+/**
+ * The gear's buttons, popping out of it one a moment after another, with a
+ * spring, down a gentle curve that leans away from the screen's edge. Each name
+ * sits in a pill to the left of its button. (A tight arc round the corner was
+ * tried first: four named buttons do not fit on it without overlapping.)
+ * They fold back into the gear on the way out, and only then is the choice
+ * acted on, so a dialog never opens under buttons still moving.
+ */
+@Composable
+private fun PopMenu(anchor: Offset, choices: List<Choice>, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     val shown = remember { Animatable(0f) }
+    val pops = remember(choices.size) { List(choices.size) { Animatable(0f) } }
     var closing by remember { mutableStateOf(false) }
-    var page by remember {
-        mutableStateOf(if (startLeaving && ownerLeaving) SettingsPage.OWNER_LEAVING else SettingsPage.MENU)
-    }
+    // Where this window sits on screen, so the gear's position can be used in it.
+    var origin by remember { mutableStateOf<Offset?>(null) }
 
     LaunchedEffect(Unit) {
-        shown.animateTo(1f, spring(dampingRatio = 0.8f, stiffness = 380f))
+        launch { shown.animateTo(1f, tween(180)) }
+        pops.forEachIndexed { i, a ->
+            launch {
+                delay(i * 45L)
+                a.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = 420f))
+            }
+        }
     }
 
-    // Shrinks back to the gear, then does what was chosen, so the next thing
-    // (a confirm dialog, the board changing) never appears under a card that
-    // is still on its way out.
-    fun close(then: () -> Unit = {}) {
+    // Picking something hands over to the next step (a dialog, or the
+    // screen's confirm) rather than closing settings first, or the next step
+    // would have nowhere to open. Tapping away just closes.
+    fun close(picked: (() -> Unit)? = null) {
         if (closing) return
         closing = true
         scope.launch {
-            shown.animateTo(0f, tween(durationMillis = 170, easing = FastOutSlowInEasing))
-            onDismiss()
-            then()
+            pops.reversed().forEachIndexed { i, a ->
+                launch {
+                    delay(i * 25L)
+                    a.animateTo(0f, tween(140, easing = FastOutSlowInEasing))
+                }
+            }
+            shown.animateTo(0f, tween(220))
+            if (picked == null) onDismiss() else picked()
         }
     }
 
@@ -155,118 +261,74 @@ fun HouseholdSettings(
         onDismissRequest = { close() },
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
-        // The window's own dim snaps on at full strength. This one fades with
-        // the card.
+        // The window's own dim snaps on at full strength. This one fades.
         val view = LocalView.current
         SideEffect { (view.parent as? DialogWindowProvider)?.window?.setDimAmount(0f) }
 
-        BackHandler(enabled = page != SettingsPage.MENU && !(startLeaving && page == SettingsPage.OWNER_LEAVING)) {
-            page = if (page == SettingsPage.HAND_OVER_AND_LEAVE) SettingsPage.OWNER_LEAVING else SettingsPage.MENU
-        }
-
-        val progress = shown.value
+        val density = LocalDensity.current
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.36f * progress.coerceIn(0f, 1f)))
+                .onGloballyPositioned { origin = it.positionOnScreen() }
+                .background(Color.Black.copy(alpha = 0.28f * shown.value))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = { close() },
                 ),
         ) {
-            Surface(
-                shape = RoundedCornerShape(28.dp),
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 12.dp,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .statusBarsPadding()
-                    .padding(start = 12.dp, end = 12.dp, top = 64.dp)
-                    .widthIn(max = 440.dp)
-                    .fillMaxWidth()
-                    .graphicsLayer {
-                        val p = progress
-                        scaleX = 0.4f + 0.6f * p
-                        scaleY = 0.2f + 0.8f * p
-                        alpha = p.coerceIn(0f, 1f)
-                        transformOrigin = TransformOrigin(originX, 0f)
-                    }
-                    // A tap on the card is not a tap on the scrim behind it.
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {},
-                    )
-                    .animateContentSize(),
-            ) {
-                AnimatedContent(
-                    targetState = page,
-                    transitionSpec = {
-                        val forward = targetState.ordinal > initialState.ordinal
-                        (slideInHorizontally { if (forward) it / 4 else -it / 4 } + fadeIn(tween(180)))
-                            .togetherWith(fadeOut(tween(120)))
-                    },
-                    label = "settings page",
-                ) { current ->
-                    Column(
-                        modifier = Modifier
-                            .verticalScroll(rememberScrollState())
-                            .padding(20.dp),
-                    ) {
-                        when (current) {
-                            SettingsPage.MENU -> MenuPage(
-                                householdName = householdName,
-                                ownerLine = when {
-                                    iOwn -> "You own this household"
-                                    owner != null -> "${owner.username} owns this household"
-                                    else -> null
-                                },
-                                iOwn = iOwn,
-                                canHandOver = iOwn && others.isNotEmpty(),
-                                onRename = { page = SettingsPage.RENAME },
-                                onHandOver = { page = SettingsPage.HAND_OVER },
-                                onLeave = {
-                                    if (ownerLeaving) page = SettingsPage.OWNER_LEAVING else close(onLeave)
-                                },
-                                onRemove = { close(onRemove) },
-                            )
+            val at = origin ?: return@Box
+            val centre = anchor - at
+            val step = with(density) { 66.dp.toPx() }
+            val lean = with(density) { 16.dp.toPx() }
+            val rowWidth = with(density) { 240.dp.toPx() }
+            val half = with(density) { 26.dp.toPx() }
 
-                            SettingsPage.RENAME -> RenamePage(
-                                current = householdName,
-                                onBack = { page = SettingsPage.MENU },
-                                onSave = { name, onResult ->
-                                    onRename(name) { problem ->
-                                        onResult(problem)
-                                        if (problem == null) close()
-                                    }
-                                },
-                            )
-
-                            SettingsPage.HAND_OVER, SettingsPage.HAND_OVER_AND_LEAVE -> {
-                                val andLeave = current == SettingsPage.HAND_OVER_AND_LEAVE
-                                HandOverPage(
-                                    householdName = householdName,
-                                    others = others,
-                                    andLeave = andLeave,
-                                    onBack = {
-                                        page = if (andLeave) SettingsPage.OWNER_LEAVING else SettingsPage.MENU
-                                    },
-                                    onConfirm = { member ->
-                                        close { if (andLeave) onHandOverAndLeave(member) else onHandOver(member) }
-                                    },
-                                )
-                            }
-
-                            SettingsPage.OWNER_LEAVING -> OwnerLeavingPage(
-                                householdName = householdName,
-                                showBack = !startLeaving,
-                                onBack = { page = SettingsPage.MENU },
-                                onHandOver = { page = SettingsPage.HAND_OVER_AND_LEAVE },
-                                onRemove = { close(onRemove) },
-                            )
+            choices.forEachIndexed { i, choice ->
+                val p = pops[i].value
+                // Down from the gear, leaning a little further left each time.
+                val x = centre.x - lean * i * p
+                val y = centre.y + step * (i + 1) * p
+                PopButton(
+                    choice = choice,
+                    modifier = Modifier
+                        .offset {
+                            // The button's centre lands on (x, y); its name
+                            // hangs off to the left of it.
+                            IntOffset((x + half - rowWidth).roundToInt(), (y - half).roundToInt())
                         }
+                        .graphicsLayer {
+                            scaleX = p.coerceAtLeast(0f)
+                            scaleY = p.coerceAtLeast(0f)
+                            alpha = p.coerceIn(0f, 1f)
+                        },
+                    onClick = { close(choice.onPick) },
+                )
+            }
+
+            // The gear itself, lifted above the dim and turning, so it reads as
+            // the thing that opened them. Tapping it closes them again.
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 6.dp,
+                modifier = Modifier
+                    .offset {
+                        val half = with(density) { 24.dp.toPx() }
+                        IntOffset((centre.x - half).roundToInt(), (centre.y - half).roundToInt())
                     }
+                    .size(48.dp)
+                    .clickable { close() },
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Outlined.Settings,
+                        contentDescription = "Close household settings",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .rotate(90f * shown.value),
+                    )
                 }
             }
         }
@@ -274,64 +336,57 @@ fun HouseholdSettings(
 }
 
 @Composable
-private fun MenuPage(
-    householdName: String,
-    ownerLine: String?,
-    iOwn: Boolean,
-    canHandOver: Boolean,
-    onRename: () -> Unit,
-    onHandOver: () -> Unit,
-    onLeave: () -> Unit,
-    onRemove: () -> Unit,
-) {
-    var row = 0
-    ComesIn(row++) {
-        Column(modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 16.dp)) {
-            Text(householdName, style = MaterialTheme.typography.headlineSmall)
-            ownerLine?.let {
+private fun PopButton(choice: Choice, modifier: Modifier, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Row(
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier.width(240.dp),
+    ) {
+        // The name and the button are one target, so either can be tapped.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                role = Role.Button,
+                onClick = onClick,
+            ),
+        ) {
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = scheme.surface,
+                shadowElevation = 3.dp,
+            ) {
                 Text(
-                    it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    choice.label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (choice.danger) scheme.error else scheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                 )
             }
-        }
-    }
-    ComesIn(row++) {
-        SettingsCard {
-            SettingRow(Icons.Outlined.Edit, "Rename", onClick = onRename)
-            if (canHandOver) {
-                RowDivider()
-                SettingRow(
-                    Icons.Outlined.Key,
-                    "Hand over to someone",
-                    detail = "They'll be the one who can remove it",
-                    onClick = onHandOver,
-                )
-            }
-        }
-    }
-    ComesIn(row++) {
-        SettingsCard(modifier = Modifier.padding(top = 12.dp)) {
-            SettingRow(Icons.AutoMirrored.Outlined.Logout, "Leave household", onClick = onLeave)
-            if (iOwn) {
-                RowDivider()
-                SettingRow(
-                    Icons.Outlined.DeleteOutline,
-                    "Remove household",
-                    detail = "For everyone. This can't be undone.",
-                    danger = true,
-                    onClick = onRemove,
-                )
+            Spacer(Modifier.width(10.dp))
+            Surface(
+                shape = CircleShape,
+                color = if (choice.danger) scheme.errorContainer else scheme.primaryContainer,
+                contentColor = if (choice.danger) scheme.onErrorContainer else scheme.onPrimaryContainer,
+                shadowElevation = 6.dp,
+                modifier = Modifier.size(52.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(choice.icon, contentDescription = null, modifier = Modifier.size(24.dp))
+                }
             }
         }
     }
 }
 
 @Composable
-private fun RenamePage(
+private fun RenameDialog(
     current: String,
-    onBack: () -> Unit,
+    onDismiss: () -> Unit,
     onSave: (String, (String?) -> Unit) -> Unit,
 ) {
     var name by remember { mutableStateOf(current) }
@@ -350,220 +405,127 @@ private fun RenamePage(
         }
     }
 
-    PageHeader("Rename", onBack)
-    OutlinedTextField(
-        value = name,
-        // Typing stops at the limit rather than letting someone write a long
-        // name and only then be told.
-        onValueChange = {
-            if (it.codePointCount(0, it.length) <= HOUSEHOLD_NAME_MAX) {
-                name = it
-                problem = null
-            }
-        },
-        label = { Text("Household name") },
-        singleLine = true,
-        isError = problem != null,
-        supportingText = {
-            Row {
-                Text(problem.orEmpty(), modifier = Modifier.weight(1f))
-                Text("$length/$HOUSEHOLD_NAME_MAX")
-            }
-        },
-        keyboardOptions = KeyboardOptions(
-            capitalization = KeyboardCapitalization.Words,
-            imeAction = ImeAction.Done,
-        ),
-        keyboardActions = KeyboardActions(onDone = { save() }),
-        enabled = !saving,
-        modifier = Modifier.fillMaxWidth(),
-    )
-    Text(
-        "Everyone in the household sees the new name.",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
-    )
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-        TextButton(onClick = onBack, enabled = !saving) { Text("Cancel") }
-        Spacer(Modifier.width(8.dp))
-        Button(onClick = save, enabled = canSave) { Text(if (saving) "Saving…" else "Save") }
-    }
-}
-
-@Composable
-private fun HandOverPage(
-    householdName: String,
-    others: List<MemberInfo>,
-    andLeave: Boolean,
-    onBack: () -> Unit,
-    onConfirm: (MemberInfo) -> Unit,
-) {
-    var chosen by remember { mutableStateOf(others.singleOrNull()) }
-
-    PageHeader(if (andLeave) "Who takes over?" else "Hand over $householdName", onBack)
-    Text(
-        if (andLeave) "They'll own $householdName after you leave, and be the one who can remove it."
-        else "They'll own $householdName and be the one who can remove it. You stay in it as usual.",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(bottom = 16.dp),
-    )
-    SettingsCard {
-        others.forEachIndexed { i, member ->
-            if (i > 0) RowDivider()
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .selectable(
-                        selected = chosen?.id == member.id,
-                        role = Role.RadioButton,
-                        onClick = { chosen = member },
-                    )
-                    .heightIn(min = 56.dp)
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Avatar(member.username, member.id, 36.dp, dimmed = member.away)
-                Text(
-                    member.username,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 12.dp),
+    QuietAlertDialog(
+        onDismissRequest = { if (!saving) onDismiss() },
+        title = { Text("Rename", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = name,
+                    // Typing stops at the limit rather than letting someone
+                    // write a long name and only then be told.
+                    onValueChange = {
+                        if (it.codePointCount(0, it.length) <= HOUSEHOLD_NAME_MAX) {
+                            name = it
+                            problem = null
+                        }
+                    },
+                    label = { Text("Household name") },
+                    singleLine = true,
+                    isError = problem != null,
+                    supportingText = {
+                        Row {
+                            Text(problem.orEmpty(), modifier = Modifier.weight(1f))
+                            Text("$length/$HOUSEHOLD_NAME_MAX")
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Words,
+                        imeAction = ImeAction.Done,
+                    ),
+                    keyboardActions = KeyboardActions(onDone = { save() }),
+                    enabled = !saving,
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                RadioButton(selected = chosen?.id == member.id, onClick = null)
-            }
-        }
-    }
-    Button(
-        onClick = { chosen?.let(onConfirm) },
-        enabled = chosen != null,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 16.dp)
-            .heightIn(min = 48.dp),
-    ) {
-        val who = chosen?.username
-        Text(
-            when {
-                who == null -> "Choose someone"
-                andLeave -> "Hand over to $who and leave"
-                else -> "Make $who the owner"
-            },
-        )
-    }
-}
-
-@Composable
-private fun OwnerLeavingPage(
-    householdName: String,
-    showBack: Boolean,
-    onBack: () -> Unit,
-    onHandOver: () -> Unit,
-    onRemove: () -> Unit,
-) {
-    PageHeader("Before you go", onBack.takeIf { showBack })
-    Text(
-        "You own $householdName. Hand it to someone who's staying, or remove it for everyone.",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(bottom = 16.dp),
-    )
-    SettingsCard {
-        SettingRow(
-            Icons.Outlined.Key,
-            "Hand it over, then leave",
-            detail = "Its chores and history stay for everyone else",
-            onClick = onHandOver,
-        )
-        RowDivider()
-        SettingRow(
-            Icons.Outlined.DeleteOutline,
-            "Remove it for everyone",
-            detail = "Its board, chores and history are deleted",
-            danger = true,
-            onClick = onRemove,
-        )
-    }
-}
-
-@Composable
-private fun PageHeader(title: String, onBack: (() -> Unit)?) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(bottom = 12.dp),
-    ) {
-        if (onBack != null) {
-            IconButton(onClick = onBack, modifier = Modifier.padding(end = 4.dp)) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-            }
-        }
-        Text(title, style = MaterialTheme.typography.titleLarge)
-    }
-}
-
-@Composable
-private fun SettingsCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    // The card sits on the surface colour, so its groups take the page colour
-    // to read as groups, the way the You tab's do.
-    Surface(
-        color = MaterialTheme.colorScheme.background,
-        shape = RoundedCornerShape(20.dp),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Column { content() }
-    }
-}
-
-@Composable
-private fun SettingRow(
-    icon: ImageVector,
-    title: String,
-    detail: String? = null,
-    danger: Boolean = false,
-    onClick: () -> Unit,
-) {
-    val tint = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .heightIn(min = 56.dp)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            tint = if (danger) tint else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(22.dp),
-        )
-        Column(modifier = Modifier.padding(start = 16.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, color = tint)
-            detail?.let {
                 Text(
-                    it,
+                    "Everyone in the household sees the new name.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        }
-    }
+        },
+        confirmButton = { Button(onClick = save, enabled = canSave) { Text(if (saving) "Saving…" else "Save") } },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") } },
+    )
 }
 
-/** Fades and lifts its content in, a little after the one before it. */
 @Composable
-private fun ComesIn(index: Int, content: @Composable () -> Unit) {
-    val p = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
-        delay(70L + index * 55L)
-        p.animateTo(1f, tween(durationMillis = 240, easing = FastOutSlowInEasing))
-    }
-    Box(
-        modifier = Modifier.graphicsLayer {
-            alpha = p.value
-            translationY = (1f - p.value) * 14.dp.toPx()
+private fun HandOverDialog(
+    householdName: String,
+    others: List<MemberInfo>,
+    andLeave: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (MemberInfo) -> Unit,
+) {
+    var chosen by remember { mutableStateOf(others.singleOrNull()) }
+    QuietAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (andLeave) "Who takes over?" else "Hand over $householdName", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text(
+                    if (andLeave) "They'll own $householdName after you leave, and be the one who can remove it."
+                    else "They'll own $householdName and be the one who can remove it. You stay in it as usual.",
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                others.forEach { member ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = chosen?.id == member.id,
+                                role = Role.RadioButton,
+                                onClick = { chosen = member },
+                            )
+                            .heightIn(min = 52.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Avatar(member.username, member.id, 32.dp, dimmed = member.away)
+                        Text(
+                            member.username,
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 12.dp),
+                        )
+                        RadioButton(selected = chosen?.id == member.id, onClick = null)
+                    }
+                }
+            }
         },
-    ) { content() }
+        confirmButton = {
+            Button(onClick = { chosen?.let(onConfirm) }, enabled = chosen != null) {
+                val who = chosen?.username
+                Text(
+                    when {
+                        who == null -> "Choose someone"
+                        andLeave -> "Next"
+                        else -> "Make $who the owner"
+                    },
+                )
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun ChoiceRow(icon: ImageVector, title: String, danger: Boolean = false, onClick: () -> Unit) {
+    val tint = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+    ) {
+        Row(
+            modifier = Modifier
+                .heightIn(min = 52.dp)
+                .padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
+            Text(title, style = MaterialTheme.typography.titleSmall, color = tint, modifier = Modifier.padding(start = 12.dp))
+        }
+    }
 }
