@@ -27,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.Balance
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Explore
@@ -107,6 +108,7 @@ fun SettingsScreen(
     viewModel: ShellViewModel = viewModel(),
     onBack: () -> Unit = {},
     onOpenGuide: () -> Unit = {},
+    onOpenFairness: () -> Unit = {},
     onStartTour: () -> Unit = {},
 ) {
     val me by viewModel.me.collectAsState()
@@ -232,6 +234,12 @@ fun SettingsScreen(
                         icon = Icons.AutoMirrored.Filled.HelpOutline,
                         label = "How Amity Task works",
                         onClick = onOpenGuide,
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    SettingsRow(
+                        icon = Icons.Default.Balance,
+                        label = "How turns stay fair",
+                        onClick = onOpenFairness,
                     )
                 }
 

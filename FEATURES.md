@@ -425,6 +425,17 @@ adding and doing a chore, covers, passing, everyone busy, going away, booking,
 reminders and bringing people in. It is for reading when a question comes up, and
 its wording has to follow sections 4 and 5 of this file.
 
+## How turns stay fair
+
+*On the branch `household-removal-and-tutorial`.*
+
+A page under You → Help, and linked from the end of How Amity Task works, that
+works the turn rule through with a flat of three. The main case: you forget your
+turn and a housemate does it. Your turn counts as theirs, the next one comes back
+to you, and they skip their own next turn of that chore, so after six turns
+everyone has done two. Then a pass, passing again and again, everyone busy, going
+away, helping with someone's turn, doing it late, and undoing a mistaken tick.
+
 ## The intro
 
 *On the branch `household-removal-and-tutorial`.*

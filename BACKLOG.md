@@ -38,6 +38,14 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
     - **Known limit:** your own reminders are still armed only when the app syncs, so
       a turn that starts with the app closed is not announced until it is next opened.
       Only passes are.
+  - **How turns stay fair**, at the owner's request after asking what happens when
+    someone forgets and a housemate does it for them. A page in the app (the owner
+    first said a web page, then kept it in the app). Its two worked examples are
+    asserted turn by turn against the API in `fairness_page_test.go`.
+    - **Found while running the Go suite:** `TestPersonHistoryReportsDaysAway` failed
+      on 2026-11-03 because it built five days with `AddDate` across the night the
+      clocks went back (121 hours, rightly six days). The test now adds 120 hours;
+      the server's counting was right.
   - **The intro**, the owner's idea: four houses, roofs in the icon's colours, merge
     into the pinwheel. A browser prototype was agreed first. **Only after signing
     in or up**, the owner's call, so a normal launch is not slowed down. Not on

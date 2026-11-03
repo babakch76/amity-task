@@ -213,9 +213,11 @@ func TestPersonHistoryReportsDaysAway(t *testing.T) {
 	ann := newUser(t, db, "ann")
 	groupID := newGroup(t, db, ann, "Flat")
 
-	// Away for five days, a fortnight ago, and already back.
+	// Away for five days, a fortnight ago, and already back. Five days as
+	// hours, not AddDate: five calendar days across the night the clocks go
+	// back are 121 hours, which rightly rounds up to six.
 	start := time.Now().AddDate(0, 0, -14)
-	end := start.AddDate(0, 0, 5)
+	end := start.Add(5 * 24 * time.Hour)
 	if _, err := db.Exec(
 		`INSERT INTO away_periods (id, group_id, user_id, started_at, ends_at, ended_at)
 		 VALUES ('p1', ?, ?, ?, NULL, ?)`,

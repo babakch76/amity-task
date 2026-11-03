@@ -12,6 +12,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -88,7 +89,7 @@ internal val GUIDE = listOf(
 )
 
 @Composable
-fun GuideScreen(onBack: () -> Unit) {
+fun GuideScreen(onBack: () -> Unit, onOpenFairness: () -> Unit = {}) {
     Column(modifier = Modifier.fillMaxSize()) {
         IconButton(onClick = onBack, modifier = Modifier.padding(start = 8.dp, top = 8.dp)) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -116,6 +117,9 @@ fun GuideScreen(onBack: () -> Unit) {
                     }
                 }
             }
+            // The rules above, worked through: whose turn it is after a cover,
+            // a pass or a trip away.
+            TextButton(onClick = onOpenFairness) { Text("See how turns stay fair, with examples") }
         }
     }
 }

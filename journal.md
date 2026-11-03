@@ -6,6 +6,21 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-03 (after midnight) — How turns stay fair
+
+The owner asked what makes it fair when someone forgets their turn and a housemate does
+it. The answer was already in `nextTurn`: the turn counts as the helper's, the next comes
+back to whoever forgot, and the helper skips their own next turn of that chore. Now
+there is a page that shows it, with two worked tables and six short cases.
+
+So the page cannot drift, `fairness_page_test.go` plays both tables through the API.
+Running the whole Go suite for that turned up one failing test unrelated to it: away
+days counted from five calendar days across the clock change. A test fault, fixed in
+the test. On the emulator: the page opens from You → Help and from the guide, scrolls
+to the end, and Back returns to wherever it was opened from.
+
+---
+
 ## 2026-11-03 (late night) — The four-houses intro
 
 The owner's idea, tried first as a browser prototype: four houses in the icon's roof

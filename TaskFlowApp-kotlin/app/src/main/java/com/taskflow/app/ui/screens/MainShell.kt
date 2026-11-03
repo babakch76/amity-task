@@ -249,11 +249,18 @@ fun MainShell(
                         onLogout = onLogout,
                         onBack = { navController.popBackStack() },
                         onOpenGuide = { navController.navigate(ROUTE_GUIDE) },
+                        onOpenFairness = { navController.navigate(ROUTE_FAIRNESS) },
                         onStartTour = { navController.navigate(ROUTE_TOUR) },
                     )
                 }
                 composable(ROUTE_GUIDE) {
-                    GuideScreen(onBack = { navController.popBackStack() })
+                    GuideScreen(
+                        onBack = { navController.popBackStack() },
+                        onOpenFairness = { navController.navigate(ROUTE_FAIRNESS) },
+                    )
+                }
+                composable(ROUTE_FAIRNESS) {
+                    FairnessScreen(onBack = { navController.popBackStack() })
                 }
                 composable(ROUTE_TOUR) {
                     TourScreen(onClose = { navController.popBackStack() })
@@ -289,4 +296,5 @@ private const val ROUTE_FEED = "feed"
 private const val ROUTE_PEOPLE = "people"
 private const val ROUTE_SETTINGS = "settings"
 private const val ROUTE_GUIDE = "guide"
+private const val ROUTE_FAIRNESS = "fairness"
 private const val ROUTE_TOUR = "tour"
