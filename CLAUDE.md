@@ -101,8 +101,8 @@ Violating one of these is a bug, no matter how good the feature is.
   rows): the next person not already owed a skip. The client never predicts
   it — credits are not on the wire.
 - **Every passer owes one**, repaid oldest first; a person is owed at most one
-  turn per chore however many times they passed. **And every coverer is owed
-  at most one skip** per chore however many times they covered (B-25).
+  turn per chore however many times they passed. Credits are **not** capped:
+  every cover earns a skip; a cap was tried and dropped as unfair (B-25).
 - **A turn opens halfway to its day** (`can_do_from`, server-computed from the
   `spawned_from` row; nil on a first turn and on as-needed). Marking it done
   earlier is a 409; the client greys the button. Without it, one tap of *Mark

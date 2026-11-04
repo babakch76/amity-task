@@ -1436,7 +1436,7 @@ func nextTurn(
 		// A credit is a skip *in this rotation*. Somebody who has left it
 		// cannot be skipped, and is owed nothing for it (3.2).
 		if contains(rotation, id) {
-			credits = appendOnce(credits, id)
+			credits = append(credits, id)
 		}
 	}
 
@@ -1451,14 +1451,14 @@ func nextTurn(
 		// it is your own turn being taken, not a favour. And someone outside
 		// the rotation has no slot to skip (3.1).
 		//
-		// And at most one credit per person per chore, however many turns
-		// they cover — the mirror of "a person is owed at most one turn per
-		// chore however many times they passed". Without it, ten taps of
-		// Mark as done on a flatmate's chore were ten skips of your own, and
-		// nobody could see them (BACKLOG B-25).
+		// One credit per cover, however many times the same person covers
+		// the same chore: two covers are two swaps, and capping this at one
+		// would leave a genuine double cover one turn out of pocket. That ten
+		// taps of Mark as done once meant ten skips is closed by canDoFrom,
+		// not here (BACKLOG B-25).
 		settling := contains(completed.PendingDebts, doerID) || contains(completed.PassedChain, doerID)
 		if contains(rotation, doerID) && !settling {
-			credits = appendOnce(credits, doerID)
+			credits = append(credits, doerID)
 		}
 	}
 

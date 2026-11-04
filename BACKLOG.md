@@ -1063,37 +1063,39 @@ the new turn, a third the one after, and:
 - **History inflated.** *Who did what* counted every tap.
 - Only the tapper could undo, and only for ten minutes.
 
-**Two fixes, both on this branch.**
+**One fix.** A cap of one skip credit per person per chore was built first,
+as the mirror of the debt rule, and **taken out the same day at Babak's
+call**: a genuine double cover — B does A's chore twice in a row, the debt
+having brought it back to A — would earn B one skip for two extra turns, a
+turn out of pocket. Two covers are two swaps. The cap is in the history
+(`3e8b56a`); `TestCoveringTheSameChoreTwiceEarnsTwoSkips` pins the rule
+without it. With the gate below, a skip can only be earned once per
+half-cycle, which is as often as the chore can honestly be done.
 
-1. **At most one credit per person per chore.** `nextTurn` now `appendOnce`s
-   the doer's credit, the mirror of "a person is owed at most one turn per
-   chore however many times they passed". Covering twice in a row skips you
-   once. Test: `TestCoveringTheSameChoreAgainEarnsNoSecondSkip`.
+**A turn cannot be marked done before halfway to its day.** Babak's
+proposal, kept as proposed: anyone may still mark anything done — the quiet
+redoer the spec protects relies on it — but not a turn that has only just
+been created. Every-N-days chores open halfway through the interval (every
+10 days, done on the 4th → from the 9th); fixed-day chores halfway to the
+slot (a Friday chore from Tuesday, so early bins still work); as-needed
+chores are unchanged.
 
-2. **A turn cannot be marked done before halfway to its day.** Babak's
-   proposal, kept as proposed: anyone may still mark anything done — the quiet
-   redoer the spec protects relies on it — but not a turn that has only just
-   been created. Every-N-days chores open halfway through the interval (every
-   10 days, done on the 4th → from the 9th); fixed-day chores halfway to the
-   slot (a Friday chore from Tuesday, so early bins still work); as-needed
-   chores are unchanged.
+Three details decided here:
 
-   Three details decided here:
-
-   - **The server says when** (`can_do_from` on every open occurrence), the
-     client only compares — the same principle as `pass_to`. One formula for
-     both kinds: halfway from the anchor `nextDueDate` placed the turn from
-     (the previous completion, or the previous slot for a fixed-day chore done
-     early) to the due date. Computed on read from the `spawned_from` row,
-     not stored, so a date moved by an edit, a pause or an everyone-busy pick
-     moves the halfway point with it, and there was no migration.
-   - **A chore's first turn is not gated.** No previous completion, nothing to
-     be early for; refusing "I set it up because I just did it" would baffle.
-   - **Refused server-side too** (409), because a rule only in the client is
-     not a rule. The button in the sheet and on Mine is greyed with *"It was
-     done not long ago. You can mark it done again from Tue 10 Nov."*; the
-     done swipe is off while the pass swipe still works. Grey, not amber, not
-     red: being early is not a fault (constraint 3).
+- **The server says when** (`can_do_from` on every open occurrence), the
+  client only compares — the same principle as `pass_to`. One formula for
+  both kinds: halfway from the anchor `nextDueDate` placed the turn from
+  (the previous completion, or the previous slot for a fixed-day chore done
+  early) to the due date. Computed on read from the `spawned_from` row,
+  not stored, so a date moved by an edit, a pause or an everyone-busy pick
+  moves the halfway point with it, and there was no migration.
+- **A chore's first turn is not gated.** No previous completion, nothing to
+  be early for; refusing "I set it up because I just did it" would baffle.
+- **Refused server-side too** (409), because a rule only in the client is
+  not a rule. The button in the sheet and on Mine is greyed with *"It was
+  done not long ago. You can mark it done again from Tue 10 Nov."*; the
+  done swipe is off while the pass swipe still works. Grey, not amber, not
+  red: being early is not a fault (constraint 3).
 
 **Accepted cost:** a genuine early redo — guests came, the bathroom was
 cleaned on day 2 of 14 — is refused until halfway. Said here in the same

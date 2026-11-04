@@ -645,8 +645,8 @@ paths:
         `done`: anyone can mark any open turn done, from its `can_do_from`
         (halfway to its day; always, for a first turn or an as-needed chore).
         Doing someone else's turn counts as covering for them: the next turn
-        comes back to them and you skip your own next one, at most once per
-        chore. The next turn is created at once.
+        comes back to them and you skip your own next one. The next turn is
+        created at once.
 
         `open`: undo. Only the person who marked it done, within 10 minutes.
         The turn it created is removed again.

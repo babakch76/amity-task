@@ -12,11 +12,14 @@ Babak's simulation found that *Mark as done* could be tapped again and again:
 each tap completed the turn the last tap had just created. Dates ran ahead, the
 feed filled up, and — the part nobody could see — every tap on a flatmate's
 turn earned the tapper a skip. Two fixes on `done-too-soon`, written up as
-B-25: credits capped at one per person per chore (the mirror of the debt rule),
-and a turn cannot be marked done before halfway to its day, with the server
+B-25: a turn cannot be marked done before halfway to its day, with the server
 sending `can_do_from` and refusing early with 409. First turns and as-needed
 chores are not gated. The button greys with the date; the done swipe is off
-meanwhile. Backend and app tests pass; not yet tried on a device.
+meanwhile. A cap of one skip credit per chore went in with it and came out
+again the same evening — Babak: a genuine double cover deserves two skips, and
+the gate alone stops the tapping. Tried on the S22 Ultra against a local
+server: first turn tickable, the next greyed "from Mon 9 Nov", a direct API
+call refused with 409, the done swipe now just opens the sheet.
 
 ---
 
