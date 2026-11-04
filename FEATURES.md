@@ -576,6 +576,9 @@ it done, on your own chores on House, and both ask first.
 **System, Light or Dark**, chosen from **Settings** and stored **on the
 device**: it is a property of this phone in this person's hand, not of the
 account or the household, so it is not synced and not visible to anybody else.
+It is a three-way toggle right in the settings card, *Light · System · Dark*
+from left to right, and a tap applies it at once. (It used to be a row that
+opened a pop-up with three radio buttons.)
 
 ---
 

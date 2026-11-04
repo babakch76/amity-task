@@ -121,7 +121,6 @@ fun SettingsScreen(
     var showInvites by remember { mutableStateOf(false) }
     var showJoinByCode by remember { mutableStateOf(false) }
     var showQuietHours by remember { mutableStateOf(false) }
-    var showAppearance by remember { mutableStateOf(false) }
     var showName by remember { mutableStateOf(false) }
     var showEmail by remember { mutableStateOf(false) }
     var showSignOut by remember { mutableStateOf(false) }
@@ -263,11 +262,11 @@ fun SettingsScreen(
                         onClick = ::toggleHearChores,
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    SettingsRow(
-                        icon = Icons.Outlined.DarkMode,
-                        label = "Appearance",
-                        value = appearance.label,
-                        onClick = { showAppearance = true },
+                    // Three choices in place, not a pop-up to open and close:
+                    // light, the phone's own setting, dark, in that order.
+                    AppearanceToggle(
+                        current = appearance,
+                        onPick = { Appearance.set(context, it) },
                     )
                 }
 
@@ -365,41 +364,6 @@ fun SettingsScreen(
         )
     }
 
-    if (showAppearance) {
-        QuietAlertDialog(
-            onDismissRequest = { showAppearance = false },
-            title = { Text("Appearance") },
-            text = {
-                Column {
-                    AppearanceMode.entries.forEach { mode ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    Appearance.set(context, mode)
-                                    showAppearance = false
-                                }
-                                .padding(vertical = 4.dp),
-                        ) {
-                            RadioButton(
-                                selected = appearance == mode,
-                                onClick = {
-                                    Appearance.set(context, mode)
-                                    showAppearance = false
-                                },
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(mode.label)
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showAppearance = false }) { Text("Done") }
-            },
-        )
-    }
 
     // Signing out drops the token, and with it anything unsent. Cheap to
     // confirm, and the row is two taps from the board.
@@ -447,6 +411,43 @@ private fun ProfileHeader(username: String?, email: String?) {
 }
 
 /** A labelled card of rows: a small grey heading over one white rounded card. */
+/** Left to right, the order the toggle shows them. */
+internal val APPEARANCE_ORDER = listOf(AppearanceMode.LIGHT, AppearanceMode.SYSTEM, AppearanceMode.DARK)
+
+/**
+ * Appearance as a three-way toggle inside the card, laid out like the rows
+ * around it: the icon and the name on one line, the choices under them, so the
+ * three words never have to squeeze beside the label at a large font size.
+ */
+@Composable
+private fun AppearanceToggle(current: AppearanceMode, onPick: (AppearanceMode) -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Icon(
+                Icons.Outlined.DarkMode,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp),
+            )
+            Text("Appearance", style = MaterialTheme.typography.titleSmall)
+        }
+        com.taskflow.app.ui.components.Segmented(
+            options = APPEARANCE_ORDER.map { it.label },
+            selected = APPEARANCE_ORDER.indexOf(current),
+            onSelect = { onPick(APPEARANCE_ORDER[it]) },
+            compact = true,
+        )
+    }
+}
+
 @Composable
 private fun SettingsGroup(label: String, content: @Composable () -> Unit) {
     com.taskflow.app.ui.components.SectionLabel(
