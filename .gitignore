@@ -48,3 +48,7 @@ desktop.ini
 
 # Built APKs. Large binaries, and rebuildable from source in one command.
 *.apk
+
+# Interview material: the participant packs and the script that builds them.
+# Kept locally for the study, not published with the code.
+interviews/
