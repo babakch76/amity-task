@@ -6,6 +6,46 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-04 — Leaving and joining the turns (branch)
+
+The owner asked what happens when someone leaves in the middle of everything,
+owing turns and being owed them. Run on a local server with four people: leaving
+only removed the membership. The person stayed in every rotation, kept the turn
+they held, was handed more as the rotation came round, and nobody could pass
+those turns (only the holder can). Covering one counted as a cover, so the next
+came straight back to them: the chore bounced between a person who had gone and
+whoever covered. They showed as "Unassigned" on the board. The live server had 4
+such leftover rotation places in one household, none holding a turn yet.
+
+The owner framed the fix as a process being switched out: its state saved on its
+own, not left in everyone else's, and restored when it runs again, but not its
+place in the queue. Built that way, on `leaving-and-joining`
+(`handlers/membership.go`):
+
+- Leaving takes you off every chore; each turn you held goes to the next person at
+  home as an ordinary turn; a chore only you were on becomes everyone's; you are
+  cleared from everyone else's debts, skips and chains; your open tasks become
+  unassigned. What you owe goes into a new `left_debts` table.
+- Joining (code or invite) puts you at the end of every repeating chore that
+  includes everyone, when the household's new `add_new_members` is on (default).
+  Coming back is the same, and what you owed comes back first. A debt on a chore
+  you are not back on waits until someone adds you to it.
+- A turn someone covered for you still comes back to you if they leave: that was
+  already turn rule 3.2.
+- On start the server tidies up anyone who left the old way (`SettleDeparted`).
+- App: **New people** in household settings, the joining message names the chores,
+  the leave dialogs say where turns go, two cases on "How turns stay fair".
+
+13 new server tests (7 fail with the leave step switched off) and 3 app tests.
+Driven on the emulator against a local server: the setting off and on (request
+bodies checked in Logcat, feed line), demo leaving while holding Kitchen and being
+alone on Plants (both went to Maya; both saved as owed), and demo rejoining with a
+code (last in both orders, the snackbar named both chores, and the next turn of
+each went to demo). `tools-deploy.sh` gained `EXPECT_CHANGED` for a deploy that
+is meant to change a table, and checks for the new column and table.
+
+---
+
 ## 2026-11-04 — Quiet hours on the phone's clock (branch)
 
 Found while testing a notification for a deleted household: a your-turn reminder

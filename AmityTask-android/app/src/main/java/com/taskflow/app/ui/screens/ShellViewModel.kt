@@ -12,6 +12,7 @@ import com.taskflow.app.data.model.CreateChoreRequest
 import com.taskflow.app.data.model.RedeemInviteRequest
 import com.taskflow.app.data.model.UpdateMeRequest
 import com.taskflow.app.data.model.UpdateOccurrenceRequest
+import com.taskflow.app.data.model.joinedChoresLine
 import com.taskflow.app.data.model.User
 import com.taskflow.app.data.remote.ApiErrors
 import com.taskflow.app.data.remote.RetrofitClient
@@ -440,8 +441,12 @@ class ShellViewModel : ViewModel() {
             try {
                 val response = api.respondToInvite(inviteId, InviteActionRequest(action))
                 if (response.isSuccessful) {
-                    _actionMessage.value =
-                        if (action == "accept") "You joined $groupName" else "Invite declined"
+                    _actionMessage.value = if (action == "accept") {
+                        listOfNotNull("You joined $groupName.", joinedChoresLine(response.body()?.chores))
+                            .joinToString(" ")
+                    } else {
+                        "Invite declined"
+                    }
                     // Accepting adds a membership, so both lists changed.
                     fetchInvites()
                     fetchGroups()
@@ -471,7 +476,12 @@ class ShellViewModel : ViewModel() {
             try {
                 val response = api.redeemInviteCode(RedeemInviteRequest(code.trim()))
                 if (response.isSuccessful) {
-                    _actionMessage.value = response.body()?.message ?: "Joined the household"
+                    // The server's own message is for logs ("joined group
+                    // successfully"); say it the way the app talks.
+                    _actionMessage.value = listOfNotNull(
+                        "You joined the household.",
+                        joinedChoresLine(response.body()?.chores),
+                    ).joinToString(" ")
                     fetchGroups()
                     fetchInvites()
                 } else {

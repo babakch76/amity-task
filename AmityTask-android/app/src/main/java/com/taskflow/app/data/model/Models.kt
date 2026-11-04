@@ -60,7 +60,16 @@ data class GroupWithProgress(
     val myRole: String = "member",
     /** Everyone is away: nothing can be passed and nothing goes late. */
     val paused: Boolean = false,
-)
+    /**
+     * Whether someone joining goes at the end of every chore everyone shares.
+     * Null from a server older than the setting, which behaves as off; read it
+     * through [addsNewMembers].
+     */
+    @SerializedName("add_new_members")
+    val addNewMembers: Boolean? = null,
+) {
+    val addsNewMembers: Boolean get() = addNewMembers == true
+}
 
 data class Task(
     val id: String,
@@ -496,7 +505,12 @@ data class CreateGroupRequest(
     val description: String = "",
 )
 
-data class RenameGroupRequest(val name: String)
+/** PATCH /groups/{id}: a new name, the new-people setting, or both. Nulls are left out. */
+data class RenameGroupRequest(
+    val name: String? = null,
+    @SerializedName("add_new_members")
+    val addNewMembers: Boolean? = null,
+)
 
 /** Who becomes the owner. */
 data class HandOverRequest(
@@ -671,7 +685,13 @@ data class AuthResponse(
 /** Generic { "message": "..." } responses (join, accept, decline, etc.) */
 data class MessageResponse(
     val message: String,
+    /** On joining: the chores the server put you in. Null on anything else. */
+    val chores: List<String>? = null,
 )
+
+/** What to tell someone who just joined, about the turns they're now in. */
+fun joinedChoresLine(chores: List<String>?): String? =
+    chores?.takeIf { it.isNotEmpty() }?.let { "You're in the turns for ${namesTogether(it)}." }
 
 /** Generic { "error": "..." } error responses. */
 data class ErrorResponse(

@@ -52,6 +52,11 @@ func main() {
 	}
 	defer db.Close()
 	log.Printf("database ready at %s", dbPath)
+	// Anyone who left before leaving took people out of the turns. A failure
+	// is logged, not fatal: the server is still right for everyone else.
+	if err := handlers.SettleDeparted(db); err != nil {
+		log.Printf("settling people who had left: %v", err)
+	}
 
 	addr := net.JoinHostPort(env("BIND_ADDR", ""), env("PORT", "8080"))
 	srv := &http.Server{

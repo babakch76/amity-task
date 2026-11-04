@@ -34,6 +34,12 @@ SERVICE="taskflow"
 # Every table, so "nothing was disturbed" means all of it rather than the two
 # tables somebody happened to think of.
 TABLES="users groups group_members invites tasks chores chore_rotation occurrences away_periods activity_events bookings"
+# Tables this deploy is *meant* to change, space-separated, for a deploy that
+# carries a one-time tidy-up (EXPECT_CHANGED="chore_rotation"). They are still
+# shown before and after; only the STOP ignores them. Rehearse on a copy first
+# so the expected numbers are known, not guessed.
+EXPECT_CHANGED="${EXPECT_CHANGED:-}"
+unexpected() { grep -v -E "^($(echo "$EXPECT_CHANGED" | tr ' ' '|'))=" || true; }
 
 say() { printf '\n\033[1m%s\033[0m\n' "$*"; }
 ssh_() { ssh -i "$KEY" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 "$USER_AT@$HOST" "$@"; }
@@ -125,7 +131,10 @@ say "6. Migrations and row counts after"
 AFTER="$(ssh_ "for t in $TABLES; do printf '%s=%s\n' \"\$t\" \"\$(sudo sqlite3 '$REMOTE_DB' \"select count(*) from \$t\" 2>/dev/null || echo NA)\"; done")"
 echo "$AFTER" | sed 's/^/   /'
 
-if [ "$BEFORE" != "$AFTER" ]; then
+if [ -n "$EXPECT_CHANGED" ]; then
+  echo "   expected to change: $EXPECT_CHANGED"
+fi
+if [ "$(echo "$BEFORE" | unexpected)" != "$(echo "$AFTER" | unexpected)" ]; then
   say "STOP: the row counts changed across the restart"
   diff <(echo "$BEFORE") <(echo "$AFTER") || true
   cat <<EOF
@@ -144,7 +153,9 @@ say "7. New columns present"
 ssh_ "sudo sqlite3 '$REMOTE_DB' \"select name from pragma_table_info('occurrences') where name in ('covered_by','due_before_pass','passed_chain','pending_debts');\"" | sed 's/^/   /'
 # The household pause (pause.go) is the newest column; it only exists once the
 # new binary has run its migrations.
-ssh_ "sudo sqlite3 '$REMOTE_DB' \"select 'groups.' || name from pragma_table_info('groups') where name = 'paused_since';\"" | sed 's/^/   /'
+ssh_ "sudo sqlite3 '$REMOTE_DB' \"select 'groups.' || name from pragma_table_info('groups') where name in ('paused_since','add_new_members');\"" | sed 's/^/   /'
+# Leaving and joining (membership.go): the table for turns owed by people who left.
+ssh_ "sudo sqlite3 '$REMOTE_DB' \"select 'table ' || name from sqlite_master where type = 'table' and name = 'left_debts';\"" | sed 's/^/   /'
 
 say "8. Smoke test through Caddy"
 for path in /auth/login /groups /health; do

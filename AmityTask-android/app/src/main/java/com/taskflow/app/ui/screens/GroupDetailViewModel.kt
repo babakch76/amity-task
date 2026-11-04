@@ -477,6 +477,26 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
         }
     }
 
+    /**
+     * Whether someone joining goes at the end of every chore everyone shares.
+     * Anyone in the household can change it; the feed says who did.
+     */
+    fun setAddNewMembers(on: Boolean, onResult: (String?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val response = api.renameGroup(groupId, RenameGroupRequest(addNewMembers = on))
+                if (response.isSuccessful) {
+                    refreshTasksAndProgress()
+                    onResult(null)
+                } else {
+                    onResult(ApiErrors.messageFor(response))
+                }
+            } catch (e: Exception) {
+                onResult(networkMessage(e))
+            }
+        }
+    }
+
     /** Make [member] the owner. Only the owner is offered this; the server checks again. */
     fun handOver(member: MemberInfo) {
         viewModelScope.launch {

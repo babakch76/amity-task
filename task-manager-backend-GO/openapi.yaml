@@ -212,8 +212,12 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
     patch:
       tags: [Households]
-      summary: Rename a household
-      description: Any member can rename it. The feed shows it as `group_renamed`.
+      summary: Rename a household, or change its New people setting
+      description: |
+        Any member can do either, or both at once. Send at least one field.
+        A new name shows in the feed as `group_renamed`, and a changed
+        setting as `group_setting_changed`. Saving what is already there
+        writes nothing.
       operationId: renameGroup
       requestBody:
         required: true
@@ -303,7 +307,16 @@ paths:
       tags: [Members]
       summary: Leave the household
       description: |
-        Your bookings in this household go with you.
+        Your bookings in this household go with you, and so do you from the
+        turns:
+
+        - You come off every chore. Each turn you held goes to the next
+          person at home, as an ordinary turn. A chore only you were on
+          becomes everyone's who is left.
+        - Skips you earned are dropped, and you are cleared out of everyone
+          else's turns. Your open one-off tasks become unassigned.
+        - Turns you owe are kept apart. If you rejoin, you go to the end of
+          the line and they come back first.
 
         - If you are the last member, the household is removed.
         - If you are the owner and others are still in it, you must name who
@@ -445,6 +458,10 @@ paths:
     post:
       tags: [Invites]
       summary: Join with an invite code
+      description: |
+        You go to the end of every repeating chore that includes everyone,
+        unless the household has turned New people off. Turns you owed when
+        you last left come back. The answer lists the chores you are now in.
       operationId: redeemInviteCode
       requestBody:
         required: true
@@ -452,7 +469,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/RedeemInviteRequest" }
       responses:
-        "200": { $ref: "#/components/responses/Message" }
+        "200": { $ref: "#/components/responses/Joined" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404":
@@ -480,6 +497,7 @@ paths:
     patch:
       tags: [Invites]
       summary: Accept or decline an invite
+      description: Accepting joins the turns the same way as a code does.
       operationId: respondToInvite
       requestBody:
         required: true
@@ -487,7 +505,11 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/RespondToInviteRequest" }
       responses:
-        "200": { $ref: "#/components/responses/Message" }
+        "200":
+          description: Declined, or joined. A decline has no `chores`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JoinedResponse" }
         "400":
           description: "`action` is not `accept` or `decline`."
           content:
@@ -1095,6 +1117,11 @@ components:
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Message" }
+    Joined:
+      description: Joined.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/JoinedResponse" }
 
   schemas:
     # ── Shared ──
@@ -1103,6 +1130,16 @@ components:
       required: [error]
       properties:
         error: { type: string, example: "give the household a name" }
+    JoinedResponse:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string, example: "joined group successfully" }
+        chores:
+          type: array
+          items: { type: string }
+          description: The chores you were put in on joining. Empty if none.
+          example: [Kitchen, Bins]
     PlainError:
       type: string
       description: 'An `Error` object as JSON text, for example `{"error":"not found"}`.'
@@ -1170,13 +1207,16 @@ components:
         description: { type: string }
     RenameGroupRequest:
       type: object
-      required: [name]
+      description: At least one of the two.
       properties:
         name:
           type: string
           minLength: 1
           maxLength: 40
           description: Trimmed. At most 40 characters so it fits the title.
+        add_new_members:
+          type: boolean
+          description: Whether someone joining goes at the end of every chore everyone shares.
     HandOverRequest:
       type: object
       required: [user_id]
@@ -1195,7 +1235,7 @@ components:
       allOf:
         - $ref: "#/components/schemas/Group"
         - type: object
-          required: [total_tasks, done_tasks, progress, my_role, paused]
+          required: [total_tasks, done_tasks, progress, my_role, paused, add_new_members]
           properties:
             total_tasks: { type: integer }
             done_tasks: { type: integer }
@@ -1207,6 +1247,12 @@ components:
             paused:
               type: boolean
               description: True while everyone in the household is away.
+            add_new_members:
+              type: boolean
+              description: |
+                Whether someone joining goes at the end of every repeating
+                chore that includes everyone. On unless the household turns
+                it off.
     Member:
       type: object
       required: [id, username, email, role, joined_at, away]
@@ -1604,6 +1650,7 @@ components:
             - invite_accepted
             - group_renamed
             - owner_changed
+            - group_setting_changed
             - member_role_changed
         task_id: { type: string, format: uuid, description: "The task or chore it is about, when there is one." }
         detail: { type: string }

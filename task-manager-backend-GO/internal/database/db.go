@@ -284,6 +284,18 @@ func migrate(db *sql.DB) error {
 
 	CREATE INDEX IF NOT EXISTS idx_bookings_group ON bookings(group_id);
 
+	-- Turns someone owed when they left a household, kept apart from everyone
+	-- else's turns until they come back. Coming back puts each one where it
+	-- was owed: that chore's next turn is theirs first. One per chore, like any
+	-- debt. See handlers/membership.go.
+	CREATE TABLE IF NOT EXISTS left_debts (
+		group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+		user_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		chore_id TEXT NOT NULL REFERENCES chores(id) ON DELETE CASCADE,
+		left_at  DATETIME NOT NULL,
+		PRIMARY KEY (group_id, user_id, chore_id)
+	);
+
 	CREATE INDEX IF NOT EXISTS idx_group_members_group ON group_members(group_id);
 	CREATE INDEX IF NOT EXISTS idx_group_members_user  ON group_members(user_id);
 	CREATE INDEX IF NOT EXISTS idx_tasks_group         ON tasks(group_id);
@@ -442,6 +454,9 @@ func addMissingColumns(db *sql.DB) error {
 		// When everyone in the household went away, while they still are; see
 		// pause.go. NULL whenever somebody is home.
 		{table: "groups", name: "paused_since", ddl: `ALTER TABLE groups ADD COLUMN paused_since DATETIME`},
+		// Whether someone joining goes into the chores that include everyone.
+		// On unless the household turns it off.
+		{table: "groups", name: "add_new_members", ddl: `ALTER TABLE groups ADD COLUMN add_new_members INTEGER NOT NULL DEFAULT 1`},
 		{table: "users", name: "quiet_from", ddl: `ALTER TABLE users ADD COLUMN quiet_from TEXT NOT NULL DEFAULT '21:00'`},
 		{table: "users", name: "quiet_to", ddl: `ALTER TABLE users ADD COLUMN quiet_to TEXT NOT NULL DEFAULT '09:00'`},
 	}

@@ -412,6 +412,33 @@ with a line saying what to do next.
 Leaving is available to any member, from the foot of People or from household
 settings. The last member leaving deletes the household.
 
+**Leaving takes you out of the turns.** You come off every chore in that
+household, and each turn you were holding goes to the next person at home, as
+an ordinary turn that nobody owes for. If you were the only one on a chore, it
+becomes everyone's who is left. Your name is cleared out of everyone else's
+turns: skips you had earned are dropped, and nobody owes you anything. One-off
+tasks given to you become nobody's, for anyone to pick up. What *you* owe is
+written down on its own, out of everyone else's way: a turn you were holding,
+one you passed as busy, one that was coming back to you. (Before this, leaving
+only removed the membership. The person stayed in every rotation, so turns
+kept being handed to someone who could no longer see them, and covering for
+them made another one come back to them. The server tidies up anyone who left
+that way the first time it starts.)
+
+**Coming back is joining again.** You go to the end of the line like anyone
+new; your old place is not kept. What you owed when you left comes back on
+each chore you are in again, so its next turn is yours first. Leaving and
+rejoining is never a way to clear your turns. A debt on a chore you are not
+back on waits, and comes back if someone adds you to it.
+
+**Someone new joins the chores you all share.** On joining, by code or by
+invite, they go to the end of every repeating chore that already includes
+everyone, so they don't get the very next turn on day one. A chore kept to a
+few people on purpose stays as it is, and so do one-offs. The joining message
+says which: *You joined the household. You're in the turns for Kitchen and
+Plants.* Household settings has **New people** (*Add them* / *Don't add them*),
+on unless someone turns it off; the feed says who changed it.
+
 **Household settings** are behind the gear on House, beside the people button.
 Tapping it pops round buttons out of the gear, one after another with a spring,
 down a gentle curve with each name in a pill beside it; the gear turns and the
@@ -421,6 +448,8 @@ dialog. (A large card was tried first and took too much room.)
 - **Rename**, for anyone in the household, up to 40 characters. The feed says
   who renamed it and what it is called now, and housemates' phones pick up the
   new name within a few seconds.
+- **New people**, for anyone: whether someone joining goes into the chores you
+  all share. See above.
 - **Hand over to someone**, for the owner. The other person becomes the owner
   and the old one an ordinary member. Owning means one thing, being able to
   remove the household, so there is always exactly one person who can.

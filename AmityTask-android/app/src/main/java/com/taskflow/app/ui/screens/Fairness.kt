@@ -99,6 +99,18 @@ internal val FAIR_CASES = listOf(
             "Chores on a fixed day keep their day.",
     ),
     FairCase(
+        title = "Someone leaves",
+        body = "They come off every chore, and any turn they had goes to the next person. " +
+            "Nobody owes them anything. If they come back, they start at the end of the " +
+            "line, and the turns they owed when they left are theirs first.",
+    ),
+    FairCase(
+        title = "Someone new joins",
+        body = "They go to the end of every chore you all share, so they don't get the very " +
+            "next turn. Chores for just a few of you stay as they are. You can turn this off " +
+            "in the household settings, under New people.",
+    ),
+    FairCase(
         title = "Helping with someone's turn",
         body = "Open their turn and tap I worked on this too. Your name goes beside theirs, " +
             "but it still counts as their turn, so nobody owes or earns anything.",

@@ -387,8 +387,11 @@ type CreateGroupRequest struct {
 	Description string `json:"description"`
 }
 
+// RenameGroupRequest is PATCH /groups/{group_id}: a new name, the
+// add-new-members setting, or both. At least one.
 type RenameGroupRequest struct {
-	Name string `json:"name"`
+	Name          *string `json:"name,omitempty"`
+	AddNewMembers *bool   `json:"add_new_members,omitempty"`
 }
 
 // HandOverRequest names who becomes the owner.
@@ -515,4 +518,7 @@ type GroupWithProgress struct {
 	// Paused is true while everyone in the household is away: nothing can be
 	// passed and nothing goes late. See handlers/pause.go.
 	Paused bool `json:"paused"`
+	// AddNewMembers is whether someone joining goes at the end of every chore
+	// that includes everyone. See handlers/membership.go.
+	AddNewMembers bool `json:"add_new_members"`
 }

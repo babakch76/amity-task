@@ -459,6 +459,18 @@ func (h *ChoreHandler) UpdateChore(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, "internal error", http.StatusInternalServerError)
 			return
 		}
+		// Someone who left owing a turn on this chore, and is back and added to
+		// it now, owes it again (see membership.go).
+		for _, id := range newRotation {
+			if contains(existing.Rotation, id) {
+				continue
+			}
+			if err := restoreLeftDebts(tx, groupID, id); err != nil {
+				log.Printf("UpdateChore: restoring a debt for %s on %s failed: %v", id, choreID, err)
+				jsonError(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+		}
 		// Deliberately *not* reassigning the open occurrence. Rotation advances
 		// on completion, never on an edit. Moving someone's standing chore off
 		// their row because the list was reordered would be exactly the

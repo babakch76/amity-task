@@ -693,7 +693,10 @@ fun GroupDetailScreen(
             title = { Text("Leave household?", fontWeight = FontWeight.Bold) },
             text = {
                 Text(
-                    if (othersHere) "You'll lose access to its board."
+                    if (othersHere) {
+                        "You'll lose access to its board, and your turns go to the next person in line. " +
+                            "If you come back, the turns you owe come back with you."
+                    }
                     else "You're the only one in it, so its board, chores and history will be " +
                         "deleted. This can't be undone.",
                 )
@@ -723,6 +726,8 @@ fun GroupDetailScreen(
                     onResult(problem)
                 }
             },
+            addsNewMembers = state.group?.addsNewMembers ?: true,
+            onSetAddNewMembers = { on, onResult -> viewModel.setAddNewMembers(on, onResult) },
             onHandOver = { viewModel.handOver(it) },
             onHandOverAndLeave = { viewModel.leaveGroup(handTo = it.id) },
             onLeave = { confirmLeave = true },
@@ -2366,6 +2371,9 @@ private fun describeEvent(e: ActivityEvent): String = when (e.eventType) {
     // The detail line underneath is the new name, or the new owner.
     "group_renamed" -> "${e.actorUsername} renamed the household"
     "owner_changed" -> "${e.actorUsername} handed the household over"
+    "group_setting_changed" ->
+        if (e.detail.trim().endsWith("off")) "${e.actorUsername} stopped adding new people to the turns"
+        else "${e.actorUsername} started adding new people to the turns"
     else -> "${e.actorUsername} made a change"
 }
 
@@ -2405,6 +2413,9 @@ private fun humaniseDetail(e: ActivityEvent, myUsername: String? = null): String
 
         // On the new owner's own phone it is them.
         "owner_changed" -> if (detail == myUsername) "You own it now" else "$detail owns it now"
+
+        // The title already says it all; the raw "add new members: on" isn't for people.
+        "group_setting_changed" -> null
 
         "task_updated" -> detail
             .split(",")

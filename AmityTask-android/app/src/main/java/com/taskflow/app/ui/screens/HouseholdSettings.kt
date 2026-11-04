@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.GroupAdd
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Button
@@ -72,6 +73,7 @@ import com.taskflow.app.ui.components.Avatar
 import com.taskflow.app.ui.components.PopChoice
 import com.taskflow.app.ui.components.PopMenu
 import com.taskflow.app.ui.components.QuietAlertDialog
+import com.taskflow.app.ui.components.Segmented
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -82,7 +84,7 @@ internal const val HOUSEHOLD_NAME_MAX = 40
 /** Characters as a person counts them, so an emoji is one, as on the server. */
 internal fun nameLength(name: String) = name.trim().let { it.codePointCount(0, it.length) }
 
-private enum class Step { MENU, RENAME, HAND_OVER, HAND_OVER_AND_LEAVE, OWNER_LEAVING }
+private enum class Step { MENU, RENAME, NEW_PEOPLE, HAND_OVER, HAND_OVER_AND_LEAVE, OWNER_LEAVING }
 
 /**
  * A household's own settings: rename it, hand it over, leave it, remove it.
@@ -111,6 +113,8 @@ fun HouseholdSettings(
     startLeaving: Boolean,
     onDismiss: () -> Unit,
     onRename: (name: String, onResult: (String?) -> Unit) -> Unit,
+    addsNewMembers: Boolean,
+    onSetAddNewMembers: (on: Boolean, onResult: (String?) -> Unit) -> Unit,
     onHandOver: (MemberInfo) -> Unit,
     onHandOverAndLeave: (MemberInfo) -> Unit,
     onLeave: () -> Unit,
@@ -136,6 +140,7 @@ fun HouseholdSettings(
             turn = 90f,
             choices = buildList {
                 add(PopChoice("Rename", Icons.Outlined.Edit) { step = Step.RENAME })
+                add(PopChoice("New people", Icons.Outlined.GroupAdd) { step = Step.NEW_PEOPLE })
                 if (ownerLeaving) add(PopChoice("Hand over", Icons.Outlined.Key) { step = Step.HAND_OVER })
                 add(
                     PopChoice("Leave", Icons.AutoMirrored.Outlined.Logout) {
@@ -152,6 +157,17 @@ fun HouseholdSettings(
             onDismiss = onDismiss,
             onSave = { name, onResult ->
                 onRename(name) { problem ->
+                    onResult(problem)
+                    if (problem == null) onDismiss()
+                }
+            },
+        )
+
+        Step.NEW_PEOPLE -> NewPeopleDialog(
+            current = addsNewMembers,
+            onDismiss = onDismiss,
+            onSave = { on, onResult ->
+                onSetAddNewMembers(on) { problem ->
                     onResult(problem)
                     if (problem == null) onDismiss()
                 }
@@ -180,7 +196,12 @@ fun HouseholdSettings(
                 QuietAlertDialog(
                     onDismissRequest = onDismiss,
                     title = { Text("Leave $householdName?", fontWeight = FontWeight.Bold) },
-                    text = { Text("${chosen.username} will own it, and you'll lose access to its board.") },
+                    text = {
+                        Text(
+                            "${chosen.username} will own it, and you'll lose access to its board. " +
+                                "Your turns go to the next person in line.",
+                        )
+                    },
                     confirmButton = {
                         TextButton(onClick = { onDismiss(); onHandOverAndLeave(chosen) }) {
                             Text("Leave", color = MaterialTheme.colorScheme.error)
@@ -271,6 +292,55 @@ private fun RenameDialog(
             }
         },
         confirmButton = { Button(onClick = save, enabled = canSave) { Text(if (saving) "Saving…" else "Save") } },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") } },
+    )
+}
+
+/**
+ * Whether someone joining goes into the turns on their own. On by default; a
+ * household that likes to sort out who does what first can turn it off.
+ */
+@Composable
+private fun NewPeopleDialog(
+    current: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (Boolean, (String?) -> Unit) -> Unit,
+) {
+    var on by remember { mutableStateOf(current) }
+    var problem by remember { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
+
+    QuietAlertDialog(
+        onDismissRequest = { if (!saving) onDismiss() },
+        title = { Text("New people", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "When someone joins, they can go to the end of every chore you all share. " +
+                        "Chores for just a few of you stay as they are.",
+                )
+                Segmented(
+                    options = listOf("Add them", "Don't add them"),
+                    selected = if (on) 0 else 1,
+                    onSelect = { on = it == 0; problem = null },
+                )
+                problem?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    saving = true
+                    onSave(on) { result ->
+                        saving = false
+                        problem = result
+                    }
+                },
+                enabled = !saving && on != current,
+            ) { Text(if (saving) "Saving…" else "Save") }
+        },
         dismissButton = { TextButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") } },
     )
 }

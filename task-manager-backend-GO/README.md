@@ -87,8 +87,16 @@ household while other members remain, and only the owner can remove it.
 | Caller                              | Result                                        |
 |-------------------------------------|-----------------------------------------------|
 | Last remaining member               | `200` — group deleted, cascade clears its data |
-| Owner, other members still present  | `409` — ownership transfer is out of scope     |
-| Any other member                    | `200` — membership row removed                 |
+| Owner, other members still present  | `409`, unless `?hand_to=<user_id>` names the new owner |
+| Any other member                    | `200` — membership removed, and out of the turns |
+
+Leaving also takes the person out of every chore's rotation, hands each open
+turn they held to the next person at home, clears them out of everyone else's
+debts and skips, and unassigns their open tasks. Turns they owe go into
+`left_debts` and come back if they rejoin, at the end of the line. Joining puts
+a new member at the end of every repeating chore that includes everyone, when
+the household's `add_new_members` is on (the default). All of it is in
+`internal/handlers/membership.go`, and `openapi.yaml` has the exact shapes.
 
 ### Bookings
 
@@ -274,9 +282,9 @@ What remains:
   in SQLite, for no gain. Nothing writes `admin` and nothing reads it.
 - `GET /groups/:group_id` returns `my_role`, which clients use for labelling
   rather than for gating.
-- **Ownership does exactly one thing:** `LeaveGroup` returns `409` when an owner
-  tries to leave a household that still has other members. There is one owner,
-  set at creation, and ownership transfer is out of scope.
+- **Ownership does two things:** only the owner can remove the household, and
+  an owner leaving a household that still has other members has to hand it
+  over first (`POST /groups/:group_id/owner`, or `?hand_to=` on leaving).
 
 Non-members get `404` rather than `403`, so the API never confirms that a
 household exists to somebody who is not in it.

@@ -73,7 +73,10 @@ interface GroupApiService {
         @Query("hand_to") handTo: String? = null,
     ): Response<MessageResponse>
 
-    /** Anyone in the household can rename it. At most 40 characters. */
+    /**
+     * Anyone in the household can rename it (at most 40 characters) or change
+     * whether new people join the turns. Send either or both.
+     */
     @PATCH("groups/{group_id}")
     suspend fun renameGroup(
         @Path("group_id") groupId: String,

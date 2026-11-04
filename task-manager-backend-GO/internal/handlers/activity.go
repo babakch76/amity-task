@@ -50,6 +50,9 @@ const (
 	// detail is the new owner's username, and the actor is the one before.
 	EventGroupRenamed = "group_renamed"
 	EventOwnerChanged = "owner_changed"
+	// The add-new-members setting, with "add new members: on" or "off" as
+	// the detail.
+	EventGroupSettingChanged = "group_setting_changed"
 	// No longer emitted — the manager role was removed. Kept because rows
 	// written before that still carry this value.
 	EventMemberRoleChanged = "member_role_changed"

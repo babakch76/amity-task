@@ -108,10 +108,17 @@ func (h *GroupHandler) RenameGroup(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-	name, problem := cleanHouseholdName(req.Name)
-	if problem != "" {
-		jsonError(w, problem, http.StatusBadRequest)
+	if req.Name == nil && req.AddNewMembers == nil {
+		jsonError(w, "no fields to update", http.StatusBadRequest)
 		return
+	}
+	var name string
+	if req.Name != nil {
+		var problem string
+		if name, problem = cleanHouseholdName(*req.Name); problem != "" {
+			jsonError(w, problem, http.StatusBadRequest)
+			return
+		}
 	}
 
 	tx, err := h.DB.Begin()
@@ -122,7 +129,8 @@ func (h *GroupHandler) RenameGroup(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 
 	var old string
-	if err := tx.QueryRow(`SELECT name FROM groups WHERE id = ?`, groupID).Scan(&old); err != nil {
+	var oldAddNew bool
+	if err := tx.QueryRow(`SELECT name, add_new_members FROM groups WHERE id = ?`, groupID).Scan(&old, &oldAddNew); err != nil {
 		if err == sql.ErrNoRows {
 			jsonError(w, "group not found", http.StatusNotFound)
 			return
@@ -130,8 +138,24 @@ func (h *GroupHandler) RenameGroup(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	// A household-wide rule, so like a chore edit the whole house hears who
+	// changed it. Saving what it already was is not news.
+	if req.AddNewMembers != nil && *req.AddNewMembers != oldAddNew {
+		if _, err := tx.Exec(`UPDATE groups SET add_new_members = ? WHERE id = ?`, *req.AddNewMembers, groupID); err != nil {
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		detail := "add new members: off"
+		if *req.AddNewMembers {
+			detail = "add new members: on"
+		}
+		if err := recordActivity(tx, groupID, userID, EventGroupSettingChanged, nil, detail); err != nil {
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+	}
 	// Saving the same name is not news, so it writes nothing to the feed.
-	if name != old {
+	if req.Name != nil && name != old {
 		if _, err := tx.Exec(`UPDATE groups SET name = ? WHERE id = ?`, name, groupID); err != nil {
 			jsonError(w, "internal error", http.StatusInternalServerError)
 			return
@@ -245,9 +269,9 @@ func (h *GroupHandler) GetGroup(w http.ResponseWriter, r *http.Request) {
 
 	var g models.GroupWithProgress
 	err := h.DB.QueryRow(
-		`SELECT id, name, description, created_by, created_at FROM groups WHERE id = ?`,
+		`SELECT id, name, description, created_by, created_at, add_new_members FROM groups WHERE id = ?`,
 		groupID,
-	).Scan(&g.ID, &g.Name, &g.Description, &g.CreatedBy, &g.CreatedAt)
+	).Scan(&g.ID, &g.Name, &g.Description, &g.CreatedBy, &g.CreatedAt, &g.AddNewMembers)
 	if err != nil {
 		jsonError(w, "group not found", http.StatusNotFound)
 		return
@@ -550,6 +574,17 @@ func (h *GroupHandler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
 	if err := recordActivity(tx, groupID, userID, EventMemberLeft, nil, "left the group"); err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
+	}
+
+	// Out of every chore, with their turns handed on and what they owe kept
+	// for if they come back. Not for the last one out: the household goes, and
+	// everything in it with it.
+	if !lastMember {
+		if _, err := departRotations(tx, groupID, userID, time.Now()); err != nil {
+			log.Printf("LeaveGroup: taking %s out of the turns in %s failed: %v", userID, groupID, err)
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Their plans for this household go with them. The rows would otherwise stay
@@ -858,13 +893,28 @@ func (h *GroupHandler) RedeemInviteCode(w http.ResponseWriter, r *http.Request) 
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	chores, err := joinRotations(tx, invite.GroupID, userID)
+	if err != nil {
+		log.Printf("RedeemInviteCode: adding %s to the turns in %s failed: %v", userID, invite.GroupID, err)
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 
 	if err := tx.Commit(); err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	jsonResponse(w, http.StatusOK, map[string]string{"message": "joined group successfully"})
+	jsonResponse(w, http.StatusOK, joinedResponse(chores))
+}
+
+// joinedResponse is what both ways of joining answer with: the message, and
+// the chores the new member is now in, so the app can tell them.
+func joinedResponse(chores []string) map[string]any {
+	if chores == nil {
+		chores = []string{}
+	}
+	return map[string]any{"message": "joined group successfully", "chores": chores}
 }
 
 // RespondToInvite lets a user accept or decline a direct invite.
@@ -939,13 +989,23 @@ func (h *GroupHandler) RespondToInvite(w http.ResponseWriter, r *http.Request) {
 
 	// INSERT OR IGNORE handles the edge case where the user is somehow already
 	// a member (e.g., joined via a shareable code between viewing and accepting)
-	_, err = tx.Exec(
+	inserted, err := tx.Exec(
 		`INSERT OR IGNORE INTO group_members (id, group_id, user_id, role) VALUES (?, ?, ?, 'member')`,
 		uuid.New().String(), invite.GroupID, userID,
 	)
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
+	}
+	// Only somebody actually new goes into the turns; an existing member
+	// accepting a stale invite already has their place.
+	chores := []string{}
+	if n, _ := inserted.RowsAffected(); n == 1 {
+		if chores, err = joinRotations(tx, invite.GroupID, userID); err != nil {
+			log.Printf("RespondToInvite: adding %s to the turns in %s failed: %v", userID, invite.GroupID, err)
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Two events, both inside the transaction: one about the invite's lifecycle
@@ -965,7 +1025,7 @@ func (h *GroupHandler) RespondToInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonResponse(w, http.StatusOK, map[string]string{"message": "joined group successfully"})
+	jsonResponse(w, http.StatusOK, joinedResponse(chores))
 }
 
 // ListMyInvites returns all pending invites for the authenticated user.
