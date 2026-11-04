@@ -1045,6 +1045,69 @@ Status key: **OPEN** · **IN PROGRESS** · **DONE**
 
 ## Bugs
 
+### B-25 · Mark as done could be tapped again and again — DONE (2026-11-04)
+
+**Reported by Babak**, 2026-11-04, after a simulation. Each tap of *Mark as
+done* completed the open turn and spawned the next at once; the only guard
+(B-17) stopped two completions of the *same* turn. So a second tap completed
+the new turn, a third the one after, and:
+
+- **Every tap on a flatmate's turn earned a skip.** A cover credits the doer
+  once (B-19), and nothing capped it: ten taps on someone else's chore were
+  ten skips of your own future turns, invisible because credits are not on
+  the wire. The debt did not grow — `debtsAfter` already uses `appendOnce` —
+  so the two halves of the rule were asymmetric.
+- **Fixed-day chores jumped ahead.** Each completion moved the chore to its
+  next slot (B-13): five taps on "bins every Thursday" put the bins five weeks
+  out.
+- **History inflated.** *Who did what* counted every tap.
+- Only the tapper could undo, and only for ten minutes.
+
+**Two fixes, both on this branch.**
+
+1. **At most one credit per person per chore.** `nextTurn` now `appendOnce`s
+   the doer's credit, the mirror of "a person is owed at most one turn per
+   chore however many times they passed". Covering twice in a row skips you
+   once. Test: `TestCoveringTheSameChoreAgainEarnsNoSecondSkip`.
+
+2. **A turn cannot be marked done before halfway to its day.** Babak's
+   proposal, kept as proposed: anyone may still mark anything done — the quiet
+   redoer the spec protects relies on it — but not a turn that has only just
+   been created. Every-N-days chores open halfway through the interval (every
+   10 days, done on the 4th → from the 9th); fixed-day chores halfway to the
+   slot (a Friday chore from Tuesday, so early bins still work); as-needed
+   chores are unchanged.
+
+   Three details decided here:
+
+   - **The server says when** (`can_do_from` on every open occurrence), the
+     client only compares — the same principle as `pass_to`. One formula for
+     both kinds: halfway from the anchor `nextDueDate` placed the turn from
+     (the previous completion, or the previous slot for a fixed-day chore done
+     early) to the due date. Computed on read from the `spawned_from` row,
+     not stored, so a date moved by an edit, a pause or an everyone-busy pick
+     moves the halfway point with it, and there was no migration.
+   - **A chore's first turn is not gated.** No previous completion, nothing to
+     be early for; refusing "I set it up because I just did it" would baffle.
+   - **Refused server-side too** (409), because a rule only in the client is
+     not a rule. The button in the sheet and on Mine is greyed with *"It was
+     done not long ago. You can mark it done again from Tue 10 Nov."*; the
+     done swipe is off while the pass swipe still works. Grey, not amber, not
+     red: being early is not a fault (constraint 3).
+
+**Accepted cost:** a genuine early redo — guests came, the bathroom was
+cleaned on day 2 of 14 — is refused until halfway. Said here in the same
+register as B-14's ratchet: a chore being done sooner than required is not the
+failure mode this app is for, and the person can mark it on the day.
+
+**Not done:** widening undo to other people. Someone erasing your "done"
+feels worse than the spam it would fix, and the gate makes the spam
+impossible anyway.
+
+Tests introduce a package-level `clock` in `handlers` so a sequence of
+completions can move time on; `markDone` in the turn-rule tests advances it a
+month per completion.
+
 ### B-21 · Dark appearance on a light phone hid the status bar — DONE (2026-11-01)
 
 `enableEdgeToEdge()` picks the status bar's icon colour from the *system*

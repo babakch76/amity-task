@@ -52,6 +52,7 @@ import com.taskflow.app.data.model.Chore
 import com.taskflow.app.data.model.Group
 import com.taskflow.app.data.model.Occurrence
 import com.taskflow.app.data.model.isOpen
+import com.taskflow.app.data.model.tooSoon
 import com.taskflow.app.data.model.scheduleWording
 import com.taskflow.app.ui.components.Avatar
 import com.taskflow.app.ui.components.CapsLabel
@@ -409,6 +410,14 @@ internal fun UpNextCard(
                 if (away) {
                     Text(
                         "You're away. Say you're back to mark it done.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                } else if (occ.tooSoon()) {
+                    // Only just done; it opens again halfway to its day (B-25).
+                    Text(
+                        tooSoonLine(occ.canDoFrom!!),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f),

@@ -96,6 +96,14 @@ turn, how often, due, needed by, and *History* / *Edit chore*. Below a rule,
 directly on top of the action: **Mark as done** (on anybody's turn: anyone may
 tick anything), with **Busy? Pass to Maya** under it on your own turn.
 
+Not straight after the last one, though. A turn opens for marking **halfway to
+its day** — every ten days, done on the 4th, from the 9th; a Friday chore from
+Tuesday — and before that the button is greyed with *"It was done not long ago.
+You can mark it done again from Tue 10 Nov."* The server sends the date
+(`can_do_from`) and refuses earlier taps itself. A chore's first turn and
+as-needed chores are never held back. (`BACKLOG.md` B-25: without this, each
+tap completed the turn the previous tap had just created.)
+
 Putting the two together is the point. The done-line is the household's single
 setup conversation about standards (F4); it was readable only by opening a sheet
 nobody opened, while the decision it governs was one accidental tap away in a
@@ -207,7 +215,8 @@ else finally emptied. All three are a **cover**.
 
 So a cover is not a favour that vanishes and not a debt that compounds. It is a
 swap: two people exchange places for one cycle, and everybody still does one
-turn a round. In *dd → mm → aa → bb*, with mm covering aa: aa repays, then bb,
+turn a round. Covering the same chore twice in a row still earns one skip, not
+two, just as passing it twice still owes one turn (B-25). In *dd → mm → aa → bb*, with mm covering aa: aa repays, then bb,
 then dd, then mm's slot is skipped, and the plain order resumes.
 
 (Until 2026-11-01 the order resumed *after the doer*. That is the same thing

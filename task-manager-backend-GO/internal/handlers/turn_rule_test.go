@@ -53,11 +53,16 @@ func theOpenOcc(t *testing.T, db *database.DB, groupID, caller, choreID string) 
 	return open[0]
 }
 
+// markDone completes a turn and then moves the clock on a month, so the next
+// turn of the same chore can be completed too: a turn cannot be marked done
+// before halfway to its day (B-25), and these sequences are about who the turn
+// goes to, not when.
 func markDone(t *testing.T, db *database.DB, groupID, occID, doer string) {
 	t.Helper()
 	if rec := patchOccurrence(t, db, groupID, occID, doer, "done"); rec.Code != 200 {
 		t.Fatalf("marking done: %d %s", rec.Code, rec.Body.String())
 	}
+	advanceClock(t, 31*24*time.Hour)
 }
 
 func passOK(t *testing.T, db *database.DB, groupID, occID, passer string) {

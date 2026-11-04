@@ -219,6 +219,15 @@ type Occurrence struct {
 	// server because it depends on the credits, which the client is not sent.
 	PassTo *string `json:"pass_to,omitempty"`
 
+	// CanDoFrom is when this turn may be marked done: halfway from the
+	// previous turn's completion (or its slot, for a fixed-day chore done
+	// early) to this one's due date. Before it the server refuses with 409
+	// and the client greys the button. Missing on a chore's first turn, on
+	// as-needed chores, and on anything with no date: there is nothing to
+	// be early for. Computed from the previous turn on every read, not
+	// stored, so an edit or a pause that moves the date moves this with it.
+	CanDoFrom *time.Time `json:"can_do_from,omitempty"`
+
 	// NeedsDate is set when everybody who could take this chore has passed it,
 	// so it has come back to whoever asked first and they are the one to say
 	// when it will happen.

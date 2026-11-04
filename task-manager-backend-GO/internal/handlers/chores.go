@@ -36,14 +36,17 @@ const choreColumns = `id, group_id, name, done_line, schedule_type, interval_day
 const occurrenceColumns = `o.id, o.chore_id, o.group_id, o.assigned_to, o.status,
 	o.due_date, o.done_by, o.done_at, o.created_at, o.spawned_from, o.resume_after,
 	o.passed_from, o.passed_at, o.covered_by, cov.username, c.name, c.done_line,
-	o.passed_chain, o.pending_debts, doer.username, o.skip_credits`
+	o.passed_chain, o.pending_debts, doer.username, o.skip_credits,
+	prev.done_at, prev.due_date, c.schedule_type`
 
 // occurrenceJoins go with occurrenceColumns. The coverer and doer joins are
 // LEFT: almost every occurrence has no coverer, an open one has no doer, and an
-// INNER join would quietly drop every such row.
+// INNER join would quietly drop every such row. The previous turn (prev) is
+// what canDoFrom is counted from; a chore's first turn has none.
 const occurrenceJoins = `JOIN chores c ON c.id = o.chore_id
 	LEFT JOIN users cov ON cov.id = o.covered_by
-	LEFT JOIN users doer ON doer.id = o.done_by`
+	LEFT JOIN users doer ON doer.id = o.done_by
+	LEFT JOIN occurrences prev ON prev.id = o.spawned_from`
 
 // undoWindow is how long after marking an occurrence done it can still be taken
 // back, and only by the person who marked it. Anything older is history, and
@@ -138,7 +141,7 @@ func (h *ChoreHandler) CreateChore(w http.ResponseWriter, r *http.Request) {
 			firstDue = &t
 		}
 	} else {
-		firstDue = firstDueDate(req.ScheduleType, req.IntervalDays, req.FixedWeekdays, req.FixedMonthDays, req.NeededByTime, time.Now())
+		firstDue = firstDueDate(req.ScheduleType, req.IntervalDays, req.FixedWeekdays, req.FixedMonthDays, req.NeededByTime, clock())
 	}
 
 	chore := models.Chore{
@@ -697,6 +700,18 @@ func (h *ChoreHandler) UpdateOccurrence(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Not before halfway to its day. Anyone may still mark anything done —
+	// the quiet redoer the spec protects relies on that — but not a turn
+	// that has only just been created. Without this, every tap of Mark as
+	// done completed the new turn and spawned another: a Thursday chore
+	// tapped five times was next due in five weeks, and the feed said the
+	// chore had been done five times (BACKLOG B-25). The client greys the
+	// button on the same date, but a rule only in the client is not a rule.
+	if req.Status == models.OccurrenceDone && current.CanDoFrom != nil && clock().Before(*current.CanDoFrom) {
+		jsonError(w, "it's too soon to mark this done. It was done not long ago.", http.StatusConflict)
+		return
+	}
+
 	// Undo's two conditions are checked before opening the transaction, so a
 	// refusal costs nothing and the error is the same either way.
 	if req.Status == models.OccurrenceOpen {
@@ -725,7 +740,7 @@ func (h *ChoreHandler) UpdateOccurrence(w http.ResponseWriter, r *http.Request) 
 
 	var eventType string
 	if req.Status == models.OccurrenceDone {
-		completedAt := time.Now()
+		completedAt := clock()
 		// "AND status = 'open'" is the real check; the one above is only the
 		// cheap early answer. Two requests a moment apart — a double tap, or
 		// the swipe and the sheet together — both pass that read, and without
@@ -828,7 +843,7 @@ func (h *ChoreHandler) UpdateOccurrence(w http.ResponseWriter, r *http.Request) 
 // pressure is the weekly DUE_SOON instead. See ReminderSchedule.stillWaitingFor
 // on the client, which carries the same note.
 func (h *ChoreHandler) rollForwardFixedDates(groupID string) error {
-	now := time.Now()
+	now := clock()
 
 	rows, err := h.DB.Query(`
 		SELECT o.id, c.fixed_weekdays, c.fixed_month_days, c.needed_by_time
@@ -979,7 +994,7 @@ func (h *ChoreHandler) PassOccurrence(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	now := time.Now()
+	now := clock()
 	dueDate := passDueDate(chore, current, now)
 
 	// Every passer owes a turn, and they are repaid in the order they passed.
@@ -1064,7 +1079,7 @@ func (h *ChoreHandler) closeTheRound(
 ) {
 	first := chain[0]
 	dueDate := current.DueDate
-	if bound := nextDueDate(chore, current, time.Now()); bound != nil {
+	if bound := nextDueDate(chore, current, clock()); bound != nil {
 		dueDate = bound
 	}
 
@@ -1073,7 +1088,7 @@ func (h *ChoreHandler) closeTheRound(
 		 SET assigned_to = ?, due_date = ?, passed_from = ?, passed_at = ?,
 		     passed_chain = ?, due_before_pass = COALESCE(due_before_pass, ?)
 		 WHERE id = ?`,
-		first, dueDate, first, time.Now().UTC(), encodeIDs(chain),
+		first, dueDate, first, clock().UTC(), encodeIDs(chain),
 		current.DueDate, current.ID,
 	); err != nil {
 		log.Printf("closeTheRound: update failed for %s: %v", current.ID, err)
@@ -1421,7 +1436,7 @@ func nextTurn(
 		// A credit is a skip *in this rotation*. Somebody who has left it
 		// cannot be skipped, and is owed nothing for it (3.2).
 		if contains(rotation, id) {
-			credits = append(credits, id)
+			credits = appendOnce(credits, id)
 		}
 	}
 
@@ -1435,9 +1450,15 @@ func nextTurn(
 		// chore you passed, or one you were in debt on, settles that instead;
 		// it is your own turn being taken, not a favour. And someone outside
 		// the rotation has no slot to skip (3.1).
+		//
+		// And at most one credit per person per chore, however many turns
+		// they cover — the mirror of "a person is owed at most one turn per
+		// chore however many times they passed". Without it, ten taps of
+		// Mark as done on a flatmate's chore were ten skips of your own, and
+		// nobody could see them (BACKLOG B-25).
 		settling := contains(completed.PendingDebts, doerID) || contains(completed.PassedChain, doerID)
 		if contains(rotation, doerID) && !settling {
-			credits = append(credits, doerID)
+			credits = appendOnce(credits, doerID)
 		}
 	}
 
@@ -1686,7 +1707,7 @@ func nextInRotation(rotation []string, current string, away map[string]bool) str
 // A finished away period needs no cleanup: away_until simply stops being in the
 // future, and the row stops matching. People come back on their own.
 func (h *ChoreHandler) awayMembers(groupID string) (map[string]bool, error) {
-	now := time.Now().UTC()
+	now := clock().UTC()
 	rows, err := h.DB.Query(`
 		SELECT DISTINCT user_id FROM away_periods
 		WHERE group_id = ?
@@ -1731,6 +1752,37 @@ func (h *ChoreHandler) awayMembers(groupID string) (map[string]bool, error) {
 // Taking the later of the two keeps the late case right as well: a Friday chore
 // finally done a fortnight on must land on the *next* Friday, not on one that
 // has already gone. Both ends matter, so neither anchor works alone.
+// canDoFrom is when an open turn may be marked done: halfway from where its
+// schedule was counted from to its due date.
+//
+// The anchor is the same one nextDueDate used to place the turn — the previous
+// completion, or the previous slot when a fixed-day chore was done early
+// (B-13) — so "halfway" means what a person expects: an every-10-days chore
+// done on the 4th can be ticked from the 9th, and a Friday chore from Tuesday.
+// Counted on every read rather than stored, so a date moved by an edit, a pause
+// or an everyone-busy pick moves the halfway point with it.
+//
+// Nil wherever there is nothing to be early for: a chore's first turn (no
+// previous completion), an as-needed chore (no date), or a date already behind
+// its anchor.
+func canDoFrom(scheduleType string, due, prevDoneAt, prevDue *time.Time) *time.Time {
+	if due == nil || prevDoneAt == nil {
+		return nil
+	}
+	anchor := *prevDoneAt
+	// Only a fixed-day chore counts from its slot; an interval is measured
+	// from the work, wherever its date was (B-14).
+	if scheduleType == models.ScheduleFixedDate && prevDue != nil && prevDue.After(anchor) {
+		anchor = *prevDue
+	}
+	gap := due.Sub(anchor)
+	if gap <= 0 {
+		return nil
+	}
+	from := anchor.Add(gap / 2)
+	return &from
+}
+
 func nextDueDate(chore *models.Chore, completed *models.Occurrence, completedAt time.Time) *time.Time {
 	switch chore.ScheduleType {
 	case models.ScheduleInterval:
@@ -1839,17 +1891,23 @@ func scanChore(s scanner, c *models.Chore) error {
 
 func scanOccurrence(s scanner, o *models.Occurrence) error {
 	var chain, debts, credits sql.NullString
+	var prevDoneAt, prevDue *time.Time
+	var scheduleType string
 	if err := s.Scan(
 		&o.ID, &o.ChoreID, &o.GroupID, &o.AssignedTo, &o.Status,
 		&o.DueDate, &o.DoneBy, &o.DoneAt, &o.CreatedAt, &o.SpawnedFrom, &o.ResumeAfter,
 		&o.PassedFrom, &o.PassedAt, &o.CoveredBy, &o.CoveredByName, &o.ChoreName, &o.DoneLine,
 		&chain, &debts, &o.DoneByName, &credits,
+		&prevDoneAt, &prevDue, &scheduleType,
 	); err != nil {
 		return err
 	}
 	o.PassedChain = decodeIDs(chain)
 	o.PendingDebts = decodeIDs(debts)
 	o.SkipCredits = decodeIDs(credits)
+	if o.Status == models.OccurrenceOpen {
+		o.CanDoFrom = canDoFrom(scheduleType, o.DueDate, prevDoneAt, prevDue)
+	}
 
 	// Rows written before skip_credits held the coverer in resume_after,
 	// meaning "the order resumes after them". The nearest thing in the new
