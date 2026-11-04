@@ -156,6 +156,8 @@ for overlaps to be refused.) A clash is compared by name, ignoring case, so "Kit
 clash but "the washer" and "Washing machine" do not, which is why the usual
 names are offered first.
 
+**Only the soonest three show**; the rest fold behind *Show 2 more* (and *Show fewer*), so a busy week of bookings does not push the chores down. It opens folded each time.
+
 **Only the person who booked can cancel it**, and leaving a household clears
 your bookings there. There are no reminders: a booking is not a chore, and
 nothing is owed or late.

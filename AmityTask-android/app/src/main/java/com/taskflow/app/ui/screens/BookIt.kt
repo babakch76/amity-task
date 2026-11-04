@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
@@ -35,6 +37,7 @@ import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -127,6 +130,13 @@ internal fun bookingTimeLine(
     return "$day, ${from.format(clock)} to ${until.format(clock)}"
 }
 
+/** How many bookings show before the rest fold away. */
+internal const val BOOKINGS_SHOWN = 3
+
+/** The bookings to draw: the first [BOOKINGS_SHOWN], or all of them once opened. */
+internal fun shownBookings(bookings: List<Booking>, expanded: Boolean): List<Booking> =
+    if (expanded) bookings else bookings.take(BOOKINGS_SHOWN)
+
 /** At the top of the board, so what is coming up is seen without going looking. */
 @Composable
 internal fun BookItSection(
@@ -136,16 +146,47 @@ internal fun BookItSection(
     onCancel: (Booking) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // The soonest few, and the rest behind a tap, so a busy week of bookings
+    // does not push the chores down the screen. Not remembered across visits:
+    // it opens folded each time, because the next ones are what matter.
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val shown = shownBookings(bookings, expanded)
+    val hidden = bookings.size - shown.size
+    val foldable = bookings.size > BOOKINGS_SHOWN
+
     Column(modifier = modifier) {
         SectionLabel("Book a space", Modifier.padding(top = 14.dp, bottom = 8.dp))
         GroupedCard {
-            bookings.forEachIndexed { index, booking ->
+            shown.forEachIndexed { index, booking ->
                 BookingRow(
                     booking = booking,
                     mine = booking.userId == myUserId,
                     onCancel = { onCancel(booking) },
                 )
-                if (index != bookings.lastIndex) RowDivider()
+                if (index != shown.lastIndex) RowDivider()
+            }
+            if (foldable) {
+                RowDivider()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(role = Role.Button) { expanded = !expanded }
+                        .heightIn(min = 48.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = if (expanded) "Show fewer" else "Show $hidden more",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Icon(
+                        if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             if (bookings.isNotEmpty()) RowDivider()
             Row(

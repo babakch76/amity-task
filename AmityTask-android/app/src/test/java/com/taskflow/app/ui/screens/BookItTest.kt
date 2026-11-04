@@ -127,4 +127,16 @@ class BookItTest {
     fun `the suggestions all fit what the server accepts`() {
         assertTrue(BOOKING_SUGGESTIONS.all { it.length <= BOOKING_WHAT_MAX })
     }
+
+    @Test
+    fun `only the soonest three show until the list is opened`() {
+        val start = OffsetDateTime.of(2026, 11, 5, 9, 0, 0, 0, java.time.ZoneOffset.UTC)
+        val five = (0L..4L).map { booking("Washer $it", start.plusHours(it * 2), start.plusHours(it * 2 + 1)) }
+
+        assertEquals(five.take(3), shownBookings(five, expanded = false))
+        assertEquals(five, shownBookings(five, expanded = true))
+        // Three or fewer have nothing to fold.
+        assertEquals(five.take(3), shownBookings(five.take(3), expanded = false))
+        assertEquals(emptyList<Any>(), shownBookings(emptyList(), expanded = false))
+    }
 }
