@@ -494,10 +494,15 @@ turn's day, fixed chores land on their weekday or month day (a day a month does
 not have is skipped), and the turn goes round in rotation order, stepping over
 anyone away on the day it is handed on.
 
-Rings can be wrong, and the popup says so: *Likely turns can move if someone
-covers, passes or goes away.* Interval chores also move whenever somebody does
-one early or late. Covers, passes and debts are deliberately not sent to the
-phone, so they cannot be allowed for.
+Rings can be wrong, and the popup says so: *They can move if someone covers,
+passes or goes away.* Interval chores also move whenever somebody does one early
+or late. Covers, passes and debts are deliberately not sent to the phone, so
+they cannot be allowed for.
+
+**Rings can be turned off**, with *Show likely turns* under the key at the foot
+of the popup, right where the rings are explained. Off, only the filled dots are
+left, the key loses its ring, and a day that only had a ring says *No chores this
+day.* On by default; the choice is kept on the phone, like the folds on Mine.
 
 **Only your own turns**, across every household, and never a housemate's. A dot
 is never a count, and no day is coloured by how full it is. Tap a day to see what

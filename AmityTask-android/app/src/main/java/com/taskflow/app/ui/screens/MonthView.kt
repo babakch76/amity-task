@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -24,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -35,10 +37,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.taskflow.app.data.local.LikelyTurns
 import com.taskflow.app.data.model.Chore
 import com.taskflow.app.data.model.Group
 import com.taskflow.app.data.model.MemberInfo
@@ -194,7 +199,9 @@ internal fun MonthSheet(turns: List<TurnDay>, today: LocalDate, onDismiss: () ->
     val last = remember(first) { first.plusMonths(MONTHS_AHEAD) }
     var month by remember { mutableStateOf(first) }
     var picked by remember { mutableStateOf<LocalDate?>(null) }
-    val byDay = remember(turns) { turns.groupBy { it.date } }
+    val context = LocalContext.current
+    var showLikely by remember { mutableStateOf(LikelyTurns.shown(context)) }
+    val byDay = remember(turns, showLikely) { visibleTurns(turns, showLikely).groupBy { it.date } }
     // Monday, as calendars here have it, whatever language the phone is set
     // to: a phone in US English started the month on Sunday.
     val weekStart = DayOfWeek.MONDAY
@@ -263,7 +270,13 @@ internal fun MonthSheet(turns: List<TurnDay>, today: LocalDate, onDismiss: () ->
                 }
             }
 
-            picked?.let { DayTurns(it, byDay[it].orEmpty()) } ?: MonthKey()
+            picked?.let { DayTurns(it, byDay[it].orEmpty()) } ?: MonthKey(
+                showLikely = showLikely,
+                onShowLikely = {
+                    showLikely = it
+                    LikelyTurns.setShown(context, it)
+                },
+            )
         }
     }
 }
@@ -362,8 +375,16 @@ private fun DayTurns(day: LocalDate, turns: List<TurnDay>) {
     }
 }
 
+/** The turns the month draws: all of them, or only the ones you actually have. */
+internal fun visibleTurns(turns: List<TurnDay>, showLikely: Boolean): List<TurnDay> =
+    if (showLikely) turns else turns.filter { !it.likely }
+
+/**
+ * What the dots mean, and the switch for the rings, which is here because this
+ * is where the rings are. Off, only your actual turns are left on the month.
+ */
 @Composable
-private fun MonthKey() {
+private fun MonthKey(showLikely: Boolean, onShowLikely: (Boolean) -> Unit) {
     Column(
         modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(horizontal = 8.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -372,16 +393,31 @@ private fun MonthKey() {
             TurnDot(filled = true, ringed = false)
             Spacer(Modifier.width(8.dp))
             Text("Your turn", style = MaterialTheme.typography.bodySmall)
-            Spacer(Modifier.width(18.dp))
-            TurnDot(filled = false, ringed = true)
-            Spacer(Modifier.width(8.dp))
-            Text("Likely your turn", style = MaterialTheme.typography.bodySmall)
+            if (showLikely) {
+                Spacer(Modifier.width(18.dp))
+                TurnDot(filled = false, ringed = true)
+                Spacer(Modifier.width(8.dp))
+                Text("Likely your turn", style = MaterialTheme.typography.bodySmall)
+            }
         }
-        Text(
-            text = "Likely turns can move if someone covers, passes or goes away.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .toggleable(value = showLikely, role = Role.Switch, onValueChange = onShowLikely)
+                .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                Text("Show likely turns", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    text = "They can move if someone covers, passes or goes away.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(checked = showLikely, onCheckedChange = null)
+        }
     }
 }
 

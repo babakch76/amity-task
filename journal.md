@@ -6,6 +6,18 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-04 — Likely turns can be hidden (branch)
+
+The owner found the month popup on Mine busy with rings (likely turns). A switch,
+*Show likely turns*, now sits under the key at the foot of the popup, which the
+owner picked over a setting elsewhere. On by default, kept on the phone
+(`data/local/LikelyTurns.kt`); off leaves only your actual turns. App only, on
+`month-likely-toggle`. One unit test; on the emulator against a local server the
+switch hid all 15 rings and kept the 5 real turns, stayed off after the app was
+closed, and a day with only a ring said "No chores this day."
+
+---
+
 ## 2026-11-04 — Leaving and joining the turns (branch)
 
 The owner asked what happens when someone leaves in the middle of everything,

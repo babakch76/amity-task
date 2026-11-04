@@ -234,4 +234,17 @@ class MonthViewTest {
         assertEquals(29, cells.size)
         assertEquals(LocalDate.of(2028, 2, 29), cells.last())
     }
+
+    @Test
+    fun `hiding likely turns leaves only the turns you actually have`() {
+        val mine = TurnDay(today.plusDays(1), "Kitchen", "Flat", likely = false)
+        val guess = TurnDay(today.plusDays(8), "Kitchen", "Flat", likely = true)
+        val sameDayGuess = TurnDay(today.plusDays(1), "Bins", "Flat", likely = true)
+        val all = listOf(mine, guess, sameDayGuess)
+
+        assertEquals(all, visibleTurns(all, showLikely = true))
+        assertEquals(listOf(mine), visibleTurns(all, showLikely = false))
+        // A day that only had a guess on it is left with nothing, so no ring is drawn.
+        assertTrue(visibleTurns(all, showLikely = false).none { it.date == guess.date })
+    }
 }
