@@ -1462,10 +1462,16 @@ internal fun TaskCard(
             // this theme never sets, so it falls through to Material's baseline
             // *dark red*. A red wash behind the word "Done" is the shame signal
             // constraint 3 rules out, and nobody had chosen it (CLAUDE.md §7).
+            //
+            // Pass uses the text colour, not `secondary`. In the dark theme
+            // `secondary` is a dark grey (it is what the selected chips are
+            // filled with), so "Pass it" was dark on a dark card and hard to
+            // read beside the bright green "Done". In the light theme the two
+            // are the same ink, so nothing changes there.
             Surface(
                 shape = shape,
                 color = if (toEnd) doneColor().copy(alpha = 0.16f)
-                else MaterialTheme.colorScheme.secondary.copy(alpha = 0.16f),
+                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f),
                 modifier = Modifier.fillMaxSize(),
             ) {
                 Row(
@@ -1480,7 +1486,7 @@ internal fun TaskCard(
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = if (toEnd) doneColor()
-                        else MaterialTheme.colorScheme.secondary,
+                        else MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }

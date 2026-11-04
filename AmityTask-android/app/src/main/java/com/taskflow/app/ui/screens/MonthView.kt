@@ -270,7 +270,11 @@ internal fun MonthSheet(turns: List<TurnDay>, today: LocalDate, onDismiss: () ->
                 }
             }
 
-            picked?.let { DayTurns(it, byDay[it].orEmpty()) } ?: MonthKey(
+            // The key and its switch stay under a picked day too. When the day
+            // took their place, anyone who tapped a date first never saw the
+            // switch at all.
+            picked?.let { DayTurns(it, byDay[it].orEmpty()) }
+            MonthKey(
                 showLikely = showLikely,
                 onShowLikely = {
                     showLikely = it
