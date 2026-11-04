@@ -17,7 +17,7 @@ id_rsa*
 
 # ─── Machine-local config ──────────────────────────────────────────────────
 # Contains sdk.dir (a path only valid on one machine) and taskflow.baseUrl
-# (your own backend). Teammates create their own — see TaskFlowApp-kotlin/README.md.
+# (your own backend). Teammates create their own — see AmityTask-android/README.md.
 local.properties
 
 # ─── Databases ─────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-# DESIGN.md — TaskFlow
+# DESIGN.md — Amity Task (formerly TaskFlow)
 
 The design specification for the TaskFlow Android app: the design system, the
 information architecture, and every screen described well enough to be redrawn

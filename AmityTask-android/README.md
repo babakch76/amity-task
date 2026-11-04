@@ -1,6 +1,8 @@
-# TaskFlow — Android client
+# Amity Task: Android client
 
-Jetpack Compose + Material 3 client for the Go/SQLite TaskFlow backend.
+Jetpack Compose + Material 3 client for the Go/SQLite backend. The app is
+called **Amity Task** on the phone; inside the code it is still TaskFlow (the
+package `com.taskflow.app`, the class names and the server), which nobody sees.
 Retrofit + OkHttp + Gson for networking, EncryptedSharedPreferences for the JWT.
 
 - minSdk 26, targetSdk/compileSdk 34

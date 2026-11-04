@@ -1582,7 +1582,7 @@ With more than about six pending invites, the older ones are unreachable — the
 dialog clips them and there's no way to scroll.
 
 **Cause:** `PendingInvitesDialog` in
-`TaskFlowApp-kotlin/…/ui/screens/DashboardScreen.kt` (~line 466) lays the
+`AmityTask-android/…/ui/screens/DashboardScreen.kt` (~line 466) lays the
 invites out in a plain `Column` with `invites.forEach`. `AlertDialog` constrains
 its content height, so anything past the visible area is simply cut off. Nothing
 in that Column scrolls.

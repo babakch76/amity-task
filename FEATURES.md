@@ -1,4 +1,4 @@
-# TaskFlow: what the app does
+# Amity Task: what the app does
 
 A reference for the app **as built and deployed**, not as planned. Written
 2026-09-04 against commit `496005a`, revised 2026-09-13 for the bottom bar and
@@ -600,7 +600,7 @@ shows both; the rotation rules apply only to the first.
 The endpoint list lives in
 [`task-manager-backend-GO/README.md`](task-manager-backend-GO/README.md), and the
 screen-by-screen map in
-[`TaskFlowApp-kotlin/README.md`](TaskFlowApp-kotlin/README.md).
+[`AmityTask-android/README.md`](AmityTask-android/README.md).
 
 ### One thing in this repository is not the app
 

@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "TaskFlowApp"
+rootProject.name = "AmityTask"
 include(":app")

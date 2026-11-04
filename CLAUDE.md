@@ -1,4 +1,4 @@
-# CLAUDE.md — TaskFlow
+# CLAUDE.md — Amity Task (formerly TaskFlow)
 
 Guidance for Claude Code working in this repository. Written 2026-09-10 against
 `82fa394` on branch `mehrdad`.
@@ -28,7 +28,7 @@ and why "why not" is recorded as carefully as "what".
 
 ```
 taskflow/
-├── TaskFlowApp-kotlin/       Android client — Kotlin, Jetpack Compose, Material 3
+├── AmityTask-android/       Android client — Kotlin, Jetpack Compose, Material 3
 ├── task-manager-backend-GO/  Go backend — one binary, SQLite (WAL), JWT
 ├── screens/                  36 PNG screenshots of the real build (emulator, seeded)
 ├── interviews/               User-interview packs (participant PDFs + scripts)
@@ -118,7 +118,7 @@ Violating one of these is a bug, no matter how good the feature is.
 
 ## 5. Stack and commands
 
-### Android — `TaskFlowApp-kotlin/`
+### Android — `AmityTask-android/`
 
 Kotlin 2.0, AGP 8.4, **JDK 17** (not 21+), minSdk 26, compileSdk 34.
 Retrofit + OkHttp + Gson; JWT in EncryptedSharedPreferences. **No DI framework** —
@@ -275,7 +275,7 @@ So is which board sections you folded (`data/local/BoardFolds`, per household).
   Drop to `BASIC` before sharing a Logcat.
 - **Release signing** needs a keystore configured in `local.properties`;
   `assembleRelease` without it silently emits an uninstallable unsigned APK.
-- **Git identity:** this repo is `babakch76/taskflow`. The work account has no
+- **Git identity:** this repo is `babakch76/amity-task` (it was `babakch76/taskflow`). The work account has no
   push access — the remote is the `github-personal` SSH host alias and commits
   are authored as the personal account.
 

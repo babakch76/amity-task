@@ -57,7 +57,7 @@ that bite in code:
 ## 2. Where things stand
 
 Repo: `D:\0A-study-A0\0-ACSAI-0\sem 6\HCI\Antigravity workspace`
-GitHub: `babakch76/taskflow` (**private**), branch `main`.
+GitHub: `babakch76/amity-task` (it was `babakch76/taskflow`), branch `main`.
 
 Where the history stands (this table was written at F1 and is kept as a map,
 not as a tip — read `git log` for the tip):
