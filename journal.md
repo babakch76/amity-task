@@ -6,6 +6,29 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-04 — Quiet hours on the phone's clock (branch)
+
+Found while testing a notification for a deleted household: a your-turn reminder
+held by quiet hours 10:00 to 12:01 was armed for 13:01. The times reminders are
+built from come from the server in UTC, and `QuietHours.nextAllowed` read "10:00"
+and "12:01" on that UTC clock, so a held reminder went out an hour late in Italy in
+winter (two in summer). It now reads quiet hours on the phone's own zone. The
+"morning of the due day" reminder had the same slip: it was 09:00 UTC, so 10:00 in
+Italy; it is now 09:00 on the phone, on the day the server dated the chore. On a new
+branch, `quiet-hours-local-time`. 7 new unit tests (6 of them fail on the old code),
+then checked on the emulator against a local server: a turn starting at 16:10 with
+quiet hours 15:00 to 16:50 was armed for 16:50, where the old code gave 17:50.
+
+Open, not fixed: the live server runs on UTC, so a chore with no set time is dated
+23:59 UTC, which in Italy is already the next day. The board turns that into a local
+date and so shows it a day late. This is the server's clock, not the app's.
+
+Also today: `task-manager-backend-GO/openapi.yaml`, an OpenAPI 3.0 spec of all 39
+routes, checked by driving 120 calls at a local server and validating each request
+and response against it.
+
+---
+
 ## 2026-11-04 — No double bookings, and a tour you can read (branch)
 
 On a new branch, `booking-overlaps-and-tour-contrast`, at the owner's request so main

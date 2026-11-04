@@ -3,6 +3,7 @@ package com.taskflow.app.reminders
 import java.time.Duration
 import java.time.LocalTime
 import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
@@ -81,7 +82,12 @@ object ReminderSchedule {
                 // No time was agreed, so the useful moment is the morning of
                 // the day itself — not three hours before an implied midnight,
                 // which would be 21:00 and inside the default quiet window.
-                dueDate.with(MORNING_OF)
+                //
+                // The day is the one the server dated it (23:59 on its clock,
+                // which is UTC), and the morning is the phone's 09:00 on that
+                // day. Moving the date to the phone's zone first would make
+                // 23:59 UTC tomorrow in Italy, and the reminder a day late.
+                dueDate.toLocalDate().atTime(MORNING_OF).atZone(quiet.clock).toOffsetDateTime()
             }
             reminders += Reminder(occurrenceId, Kind.DUE_SOON, quiet.nextAllowed(raw))
         }
@@ -175,7 +181,19 @@ object ReminderSchedule {
 data class QuietHours(
     val from: LocalTime,
     val to: LocalTime,
+    /**
+     * The clock [from] and [to] are read on. Null means the phone's own time
+     * zone, looked up at each call so a trip abroad is picked up. Tests set it.
+     *
+     * This matters because the times reminders are computed from come from the
+     * server in UTC. Reading "21:00" on a UTC time released a held reminder an
+     * hour late in Italy in winter, and two hours late in summer.
+     */
+    val zone: ZoneId? = null,
 ) {
+    /** The zone to read clock times in: [zone], or the phone's own. */
+    val clock: ZoneId get() = zone ?: ZoneId.systemDefault()
+
     /** True if [time] falls inside the quiet window. */
     fun covers(time: LocalTime): Boolean = if (wrapsMidnight) {
         // e.g. 21:00–09:00: late evening OR early morning.
@@ -190,15 +208,22 @@ data class QuietHours(
     /**
      * [instant] if it is already outside the window; otherwise the moment the
      * window next opens.
+     *
+     * The window is judged on the [clock], whatever offset [instant] arrived
+     * with. The answer is the same moment either way; only its offset differs.
      */
     fun nextAllowed(instant: OffsetDateTime): OffsetDateTime {
-        if (!covers(instant.toLocalTime())) return instant
+        val local = instant.atZoneSameInstant(clock)
+        if (!covers(local.toLocalTime())) return instant
 
-        val sameDay = instant.with(to)
+        // A zoned time, so a window that opens on a clock-change night still
+        // opens at the right moment.
+        val sameDay = local.with(to)
         // Inside a wrapping window there are two cases: it is late evening, and
         // the window opens tomorrow morning; or it is already past midnight,
         // and it opens later today.
-        return if (sameDay.isAfter(instant)) sameDay else sameDay.plusDays(1)
+        val opens = if (sameDay.isAfter(local)) sameDay else sameDay.plusDays(1)
+        return opens.toOffsetDateTime()
     }
 
     companion object {

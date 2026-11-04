@@ -6,6 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalTime
 import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.ZoneOffset
 
 /**
@@ -21,7 +22,18 @@ class ReminderScheduleTest {
     private fun at(day: Int, hour: Int, minute: Int = 0): OffsetDateTime =
         OffsetDateTime.of(2026, 9, day, hour, minute, 0, 0, ZoneOffset.UTC)
 
-    private val default = QuietHours.DEFAULT
+    // Read on a UTC clock, so these tests mean the same on any machine. The
+    // phone's own zone has its own tests below.
+    private val default = QuietHours.DEFAULT.copy(zone = ZoneOffset.UTC)
+
+    private val rome = ZoneId.of("Europe/Rome")
+    private val romeDefault = QuietHours.DEFAULT.copy(zone = rome)
+
+    private fun utc(year: Int, month: Int, day: Int, hour: Int, minute: Int = 0): OffsetDateTime =
+        OffsetDateTime.of(year, month, day, hour, minute, 0, 0, ZoneOffset.UTC)
+
+    private fun assertSameMoment(expected: OffsetDateTime, actual: OffsetDateTime) =
+        assertEquals(expected.toInstant(), actual.toInstant())
 
     // ── the wrapping window ──────────────────────────────────────
 
@@ -88,6 +100,85 @@ class ReminderScheduleTest {
             QuietHours(LocalTime.of(22, 30), LocalTime.of(7, 15)),
             QuietHours.parse("22:30", "07:15"),
         )
+    }
+
+    // ── the phone's clock, not the server's ──────────────────────
+    //
+    // Server times arrive in UTC. Quiet hours are the phone's hours.
+
+    @Test
+    fun `quiet hours end on the phone's clock, not UTC`() {
+        // The case found on the emulator: quiet 10:00 to 12:01, a turn starting
+        // at 11:30 in Italy (10:30 UTC). It must go out at 12:01 Italian time,
+        // which is 11:01 UTC, and not at 12:01 UTC.
+        val quiet = QuietHours(LocalTime.of(10, 0), LocalTime.of(12, 1), rome)
+        assertSameMoment(utc(2026, 11, 4, 11, 1), quiet.nextAllowed(utc(2026, 11, 4, 10, 30)))
+    }
+
+    @Test
+    fun `an evening that is quiet in Italy is held even though it is earlier in UTC`() {
+        // 20:30 UTC is 21:30 in Italy in winter: quiet. Held to 09:00 Italian
+        // time the next day, 08:00 UTC.
+        assertSameMoment(utc(2026, 11, 5, 8), romeDefault.nextAllowed(utc(2026, 11, 4, 20, 30)))
+    }
+
+    @Test
+    fun `a morning that is allowed in Italy is not held for UTC`() {
+        // 07:30 UTC is 09:30 in Italy in summer: allowed, so it goes as it is.
+        val at = utc(2026, 9, 2, 7, 30)
+        assertEquals(at, romeDefault.nextAllowed(at))
+    }
+
+    @Test
+    fun `the night the clocks go forward still opens at nine`() {
+        // Italy skips 02:00 to 03:00 on 28 March 2027. A turn at 23:00 the
+        // night before waits for 09:00 summer time, which is 07:00 UTC.
+        assertSameMoment(utc(2027, 3, 28, 7), romeDefault.nextAllowed(utc(2027, 3, 27, 22)))
+    }
+
+    @Test
+    fun `the morning-of reminder is nine on the phone, on the day the server dated it`() {
+        // The server dates a chore with no set time at 23:59 UTC. That is
+        // already the next day in Italy, but the chore is due on the 4th, so
+        // the reminder is 09:00 Italian time on the 4th: 07:00 UTC in summer.
+        val inItaly = ReminderSchedule.scheduledFor(
+            occurrenceId = "occ-1",
+            turnStartedAt = utc(2026, 9, 1, 10),
+            dueDate = utc(2026, 9, 4, 23, 59),
+            neededByTime = null,
+            quiet = romeDefault,
+        )
+        assertSameMoment(utc(2026, 9, 4, 7), inItaly[1].at)
+
+        // West of UTC the same date holds: 09:00 in New York on the 4th.
+        val inNewYork = ReminderSchedule.scheduledFor(
+            occurrenceId = "occ-1",
+            turnStartedAt = utc(2026, 9, 1, 14),
+            dueDate = utc(2026, 9, 4, 23, 59),
+            neededByTime = null,
+            quiet = QuietHours.DEFAULT.copy(zone = ZoneId.of("America/New_York")),
+        )
+        assertSameMoment(utc(2026, 9, 4, 13), inNewYork[1].at)
+    }
+
+    @Test
+    fun `a still-waiting nudge from a UTC due date waits for the phone's morning`() {
+        // Due 20:30 UTC (21:30 in Italy) and looked at a minute later: the
+        // nudge is owed, but it is quiet in Italy, so it waits for 09:00 there.
+        val nudge = ReminderSchedule.stillWaitingFor(
+            occurrenceId = "occ-1",
+            dueDate = utc(2026, 11, 4, 20, 30),
+            lastNudgeAt = null,
+            quiet = romeDefault,
+            now = utc(2026, 11, 4, 20, 31),
+        )!!
+        assertSameMoment(utc(2026, 11, 5, 8), nudge.at)
+    }
+
+    @Test
+    fun `no zone set means the phone's own`() {
+        assertEquals(ZoneId.systemDefault(), QuietHours.DEFAULT.clock)
+        assertEquals(QuietHours.DEFAULT, QuietHours.parse("21:00", "09:00"))
     }
 
     // ── the two scheduled reminders ──────────────────────────────
