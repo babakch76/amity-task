@@ -18,7 +18,14 @@ reserves nothing. The server now refuses it inside the writing transaction (409,
 back and different spaces are fine. A groupmate found the tour's highlight hard to
 tell from its card: the edge is now a solid neon violet line with a soft glow outside
 it, and the card a shade greyer than the page. Checked on the emulator, light and
-dark. Not deployed: the server change waits for the owner.
+dark. Merged into main (`4784296`) and `Amity Task.apk` rebuilt.
+
+Then deployed. The owner asked for any overlapping bookings already on the live server
+to be cleaned up once, keeping the earliest-made: there were 3 bookings and none
+overlapped (the two washing machine ones are on different days), so nothing was
+deleted. Done as a one-off check, not as server code. Backup
+`taskmanager-20261104T095638Z.db`; every row count unchanged; the running binary
+carries the new refusal.
 
 ---
 
