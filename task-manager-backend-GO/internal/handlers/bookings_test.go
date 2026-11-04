@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -100,9 +101,9 @@ func TestABookingIsVisibleToEveryoneInTheHousehold(t *testing.T) {
 	}
 }
 
-// Two people may want the same thing. It is a notice, not a lock, so the server
-// takes both and the app is the one that points the overlap out.
-func TestOverlappingBookingsAreBothAccepted(t *testing.T) {
+// The same thing cannot be booked twice at once, by somebody else or by you,
+// whatever the capitals. The refusal names who has it.
+func TestOverlappingBookingsOfTheSameThingAreRefused(t *testing.T) {
 	db := newTestDB(t)
 	owner := newUser(t, db, "owner")
 	sara := newUser(t, db, "sara")
@@ -110,10 +111,49 @@ func TestOverlappingBookingsAreBothAccepted(t *testing.T) {
 	addMember(t, db, groupID, sara, "member")
 
 	book(t, db, groupID, owner, "Kitchen", 2*time.Hour, 4*time.Hour)
-	book(t, db, groupID, sara, "Kitchen", 3*time.Hour, 5*time.Hour)
 
-	if n := len(listBookings(t, db, groupID, owner)); n != 2 {
-		t.Fatalf("got %d bookings, want both", n)
+	for _, c := range []struct {
+		who, what, want string
+	}{
+		{sara, "Kitchen", "owner has already booked"},
+		{sara, "  kitchen ", "owner has already booked"},
+		{owner, "KITCHEN", "you have already booked"},
+	} {
+		rec := createBooking(t, db, groupID, c.who, fmt.Sprintf(
+			`{"what": %q, "starts_at": %q, "ends_at": %q}`, c.what, at(3*time.Hour), at(5*time.Hour)))
+		if rec.Code != http.StatusConflict {
+			t.Fatalf("%q overlapping: expected 409, got %d %s", c.what, rec.Code, rec.Body.String())
+		}
+		if msg := decodeError(t, rec); !strings.HasPrefix(msg, c.want) {
+			t.Fatalf("%q overlapping: message %q, want it to start %q", c.what, msg, c.want)
+		}
+	}
+	if n := len(listBookings(t, db, groupID, owner)); n != 1 {
+		t.Fatalf("got %d bookings, want only the first", n)
+	}
+}
+
+// Back to back is not an overlap, and a different thing at the same time is
+// no clash at all.
+func TestTouchingOrDifferentBookingsAreAccepted(t *testing.T) {
+	db := newTestDB(t)
+	owner := newUser(t, db, "owner")
+	sara := newUser(t, db, "sara")
+	groupID := newGroup(t, db, owner, "Flat")
+	addMember(t, db, groupID, sara, "member")
+
+	first := book(t, db, groupID, owner, "Kitchen", 2*time.Hour, 4*time.Hour)
+	// Starts the moment the first one ends.
+	rec := createBooking(t, db, groupID, sara, fmt.Sprintf(
+		`{"what": "Kitchen", "starts_at": %q, "ends_at": %q}`,
+		first.EndsAt.UTC().Format(time.RFC3339), at(6*time.Hour)))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("back to back: expected 201, got %d %s", rec.Code, rec.Body.String())
+	}
+	book(t, db, groupID, sara, "Washing machine", 2*time.Hour, 4*time.Hour)
+
+	if n := len(listBookings(t, db, groupID, owner)); n != 3 {
+		t.Fatalf("got %d bookings, want all three", n)
 	}
 }
 

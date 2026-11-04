@@ -6,6 +6,22 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-04 — No double bookings, and a tour you can read (branch)
+
+On a new branch, `booking-overlaps-and-tour-contrast`, at the owner's request so main
+stays as it is. Booking the same space for overlapping times, by two people or the
+same one, used to be allowed on purpose ("a notice, not a lock", with Book it anyway).
+The owner thought it shouldn't be, and agreed: a booking anyone can double up on
+reserves nothing. The server now refuses it inside the writing transaction (409,
+"maya has already booked Kitchen for part of that time..."), and the sheet says
+"Already booked. Pick a time that doesn't overlap." with Book it greyed out. Back to
+back and different spaces are fine. A groupmate found the tour's highlight hard to
+tell from its card: the edge is now a solid neon violet line with a soft glow outside
+it, and the card a shade greyer than the page. Checked on the emulator, light and
+dark. Not deployed: the server change waits for the owner.
+
+---
+
 ## 2026-11-03 (later) — Away means no marking done
 
 The owner said somebody away should not be able to mark anything done. There was no

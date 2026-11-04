@@ -57,9 +57,10 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 // Book a space: saying when you want the washing machine or the kitchen, so the
-// rest of the house can see it coming. It is a notice, not a lock. Nobody
-// approves it, a clash is pointed out and then left to the people involved, and
-// there are no reminders, because a booking is not a chore and nothing is owed.
+// rest of the house can see it coming. Nobody approves it, but the same thing
+// cannot be booked twice at once: a clash is shown here and Book it waits for a
+// free time, and the server refuses it too. There are no reminders, because a
+// booking is not a chore and nothing is owed.
 // See bookings.go in the backend.
 
 /** The things people book most, so the usual case is one tap. Anything else can be typed. */
@@ -321,12 +322,14 @@ internal fun BookItSheet(
                 }
             }
 
-            // Plain text on a plain surface. A clash is something to know, not
-            // something gone wrong, so it gets no warning colour.
+            // The same thing cannot be booked twice at once (the server refuses
+            // too), so a clash is said before Book it, and Book it waits for a
+            // time that is free. Plain text still: it is a fact about the
+            // calendar, not something the person did wrong.
             if (clashes.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        text = "Already booked",
+                        text = "Already booked. Pick a time that doesn't overlap.",
                         style = MaterialTheme.typography.titleSmall,
                     )
                     clashes.forEach { clash ->
@@ -364,9 +367,9 @@ internal fun BookItSheet(
                         if (failure == null) onDismiss()
                     }
                 },
-                enabled = what.isNotBlank() && !passed && !saving,
+                enabled = what.isNotBlank() && !passed && !saving && clashes.isEmpty(),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-            ) { Text(if (clashes.isEmpty()) "Book it" else "Book it anyway") }
+            ) { Text("Book it") }
             TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Cancel") }
         }
     }

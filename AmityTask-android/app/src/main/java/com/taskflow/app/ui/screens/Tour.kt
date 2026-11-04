@@ -71,6 +71,7 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
@@ -349,7 +350,6 @@ private fun TourOverlay(
         animationSpec = infiniteRepeatable(tween(PULSE_MILLIS), RepeatMode.Reverse),
         label = "ring alpha",
     )
-    val ring = MaterialTheme.colorScheme.inversePrimary
 
     val appear = remember(number) { Animatable(0f) }
     LaunchedEffect(number, ready) { if (ready) appear.animateTo(1f, tween(BUBBLE_FADE_MILLIS)) }
@@ -368,7 +368,23 @@ private fun TourOverlay(
             listOfNotNull(spot.takeIf { it.width > 1f }, also).forEach { rect ->
                 val corner = CornerRadius(minOf(rect.height / 2, HOLE_CORNER.toPx()))
                 drawRoundRect(Color.Black, rect.topLeft, rect.size, corner, blendMode = BlendMode.Clear)
-                drawRoundRect(ring.copy(alpha = pulse), rect.topLeft, rect.size, corner, style = Stroke(2.dp.toPx()))
+                // A neon edge, so what is being explained cannot be mistaken
+                // for the card explaining it: a soft glow that breathes, laid
+                // outside the hole so it never tints the thing being shown,
+                // and a solid line on the edge itself. (It was a thin pale
+                // ring that faded in and out, and got lost.)
+                for ((width, strength) in GLOW_LAYERS) {
+                    val w = width.toPx()
+                    val grown = rect.inflate(w / 2)
+                    drawRoundRect(
+                        NEON.copy(alpha = strength * pulse),
+                        grown.topLeft, grown.size, CornerRadius(corner.x + w / 2),
+                        style = Stroke(w),
+                    )
+                }
+                val line = NEON_LINE.toPx()
+                val edge = rect.inflate(line / 2)
+                drawRoundRect(NEON, edge.topLeft, edge.size, CornerRadius(corner.x + line / 2), style = Stroke(line))
             }
         }
         // This page starts below the status bar, so the dimming is carried up over it.
@@ -437,7 +453,9 @@ private fun TourBubble(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surface,
+        // A shade greyer than the screens it points at, so the card reads as
+        // the tour talking rather than one more part of the app.
+        color = lerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.onSurface, 0.07f),
         shadowElevation = 8.dp,
     ) {
         Column(modifier = Modifier.padding(start = 18.dp, end = 12.dp, top = 16.dp, bottom = 8.dp)) {
@@ -600,6 +618,12 @@ private fun SwipePractice() {
 internal const val PRACTICE_PROMPT = "Try it on this one. It's only practice."
 internal const val PRACTICE_PASSED = "Passed on. The next person takes it, and your next turn comes back to you."
 internal const val PRACTICE_DONE = "Done. The next turn goes to the next person."
+
+/** The spotlight's edge: a bright violet that stands out on the dim in either theme. */
+private val NEON = Color(0xFFC77DFF)
+private val NEON_LINE = 3.5.dp
+/** The glow round it, widest and faintest first. */
+private val GLOW_LAYERS = listOf(18.dp to 0.10f, 11.dp to 0.18f, 6.dp to 0.32f)
 
 private val SCRIM = Color.Black.copy(alpha = 0.62f)
 private val HOLE_MARGIN = 6.dp

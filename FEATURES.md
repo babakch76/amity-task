@@ -138,10 +138,13 @@ entry in the feed. Rows read *You · Today, 18:00 to 20:00*, and *Now, until
 20:00* once it has started. They leave the board when they finish. An until at
 or before the from means it runs past midnight.
 
-**It is a notice, not a lock.** Booking something already booked for that time
-lists who has it and turns the button into **Book it anyway**. Nothing is
-refused, nobody approves anything, and an owner has no more say than anyone
-else. A clash is compared by name, ignoring case, so "Kitchen" and "kitchen"
+**The same thing cannot be booked twice at once**, by two people or by the
+same person. Picking a time that overlaps lists who has it, says *Already booked.
+Pick a time that doesn't overlap.*, and Book it waits for a free time; the
+server refuses it as well (409), so no other way round it works. Back to back is
+fine. Nobody approves a booking, and an owner has no more say than anyone else.
+(It used to be a notice, not a lock, with **Book it anyway**; the owner asked
+for overlaps to be refused.) A clash is compared by name, ignoring case, so "Kitchen" and "kitchen"
 clash but "the washer" and "Washing machine" do not, which is why the usual
 names are offered first.
 
@@ -383,7 +386,7 @@ know it was a decision.
   live occurrence, so a month grid of the household's chores has almost nothing
   true to draw. The month on Mine shows only your own turns and marks anything
   further out as likely. Book a space is a list of notices on the board, not a
-  calendar, and it never refuses a booking.
+  calendar; it refuses only a booking that overlaps one of the same thing.
 - **No multi-select or bulk actions.**
 
 ---

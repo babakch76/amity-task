@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"sort"
@@ -24,10 +25,15 @@ import (
 // notice on the board and nothing more, and it is careful about what it does
 // not do:
 //
-//   - **It does not refuse.** Two people may book the same thing at the same
-//     time. The app points the overlap out before they confirm, and after that
-//     it is theirs to sort out in the kitchen. The server has no list of
-//     appliances to clash on anyway: "what" is whatever they typed.
+//   - **The same thing cannot be booked twice at once**, by two people or by
+//     the same person. A booking anyone could double up on would not reserve
+//     anything. "The same thing" is the same name, ignoring case and spaces at
+//     the ends: the server has no list of appliances, so "Kitchen" and
+//     "kitchen" are one room but "the washer" is not the washing machine,
+//     which is why the app offers the common names first. Touching ends are
+//     fine: one wash can start the minute another stops. The app shows the
+//     clash before anyone confirms; this is the rule that holds regardless.
+//     (It used to take both and leave the overlap to the kitchen.)
 //
 //   - **Nobody approves it.** Any member can book, and only the person who
 //     booked can cancel. An owner gets no say over a housemate's Saturday.
@@ -148,6 +154,21 @@ func (h *BookingHandler) CreateBooking(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
+	// Checked inside the transaction that writes, so two people booking the
+	// same slot at the same moment cannot both get it.
+	who, taken, clash, err := bookingClash(tx, groupID, userID, what, booking.StartsAt, booking.EndsAt)
+	if err != nil {
+		log.Printf("CreateBooking: clash check failed for group %s: %v", groupID, err)
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if clash {
+		jsonError(w, fmt.Sprintf(
+			"%s already booked %s for part of that time. Pick a time that doesn't overlap.", who, taken,
+		), http.StatusConflict)
+		return
+	}
+
 	if _, err := tx.Exec(
 		`INSERT INTO bookings (id, group_id, user_id, what, note, starts_at, ends_at, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -174,6 +195,40 @@ func (h *BookingHandler) CreateBooking(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonResponse(w, http.StatusCreated, booking)
+}
+
+// bookingClash reports whether this household already has a booking of the
+// same thing that shares any time with [start, end), and if so who holds it,
+// worded for the start of a sentence ("you have" or "maya has"), and the name
+// it was booked under. Times are compared in Go, for the reason ListBookings
+// gives.
+func bookingClash(tx *sql.Tx, groupID, callerID, what string, start, end time.Time) (string, string, bool, error) {
+	rows, err := tx.Query(
+		`SELECT u.username, b.user_id, b.what, b.starts_at, b.ends_at
+		 FROM bookings b JOIN users u ON u.id = b.user_id
+		 WHERE b.group_id = ? AND lower(trim(b.what)) = lower(trim(?))`,
+		groupID, what,
+	)
+	if err != nil {
+		return "", "", false, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			name, userID, taken string
+			from, until         time.Time
+		)
+		if err := rows.Scan(&name, &userID, &taken, &from, &until); err != nil {
+			return "", "", false, err
+		}
+		if from.Before(end) && until.After(start) {
+			if userID == callerID {
+				return "you have", taken, true, nil
+			}
+			return name + " has", taken, true, nil
+		}
+	}
+	return "", "", false, rows.Err()
 }
 
 // CancelBooking handles DELETE /groups/{group_id}/bookings/{booking_id}. It is

@@ -70,8 +70,7 @@ internal val GUIDE = listOf(
     GuideSection(
         "Book a space",
         "Need the washer or the kitchen? Book it at the top of House and everyone " +
-            "can see it. You'll be told about a clash, but it won't stop you, so " +
-            "have a word with them.",
+            "can see it. Nobody can book the same thing for a time that's already taken.",
     ),
     GuideSection(
         "Planning ahead",
