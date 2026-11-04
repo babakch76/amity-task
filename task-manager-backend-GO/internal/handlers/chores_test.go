@@ -493,6 +493,8 @@ func TestCompletionSpawnsTheNextOccurrenceAndAdvancesTheRotation(t *testing.T) {
 		if next[0].SpawnedFrom == nil || *next[0].SpawnedFrom != open[0].ID {
 			t.Errorf("spawned_from not recorded: %v", next[0].SpawnedFrom)
 		}
+		// Each turn can only be done from halfway to its day (B-25).
+		advanceClock(t, 3*24*time.Hour)
 	}
 }
 

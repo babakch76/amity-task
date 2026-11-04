@@ -3,7 +3,14 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 )
+
+// clock is the handlers' idea of now. A variable so a test can move time on
+// between two completions of the same chore: a turn cannot be marked done
+// before halfway to its day (see canDoFrom), and a test that completes a
+// chore three times in a row would otherwise be refused at the second.
+var clock = time.Now
 
 func jsonResponse(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")

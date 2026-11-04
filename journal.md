@@ -6,6 +6,20 @@ to `BACKLOG.md`; state that outlives a session graduates to `V2-HANDOFF.md`.
 
 ---
 
+## 2026-11-04 — Mark as done, once (branch)
+
+Babak's simulation found that *Mark as done* could be tapped again and again:
+each tap completed the turn the last tap had just created. Dates ran ahead, the
+feed filled up, and — the part nobody could see — every tap on a flatmate's
+turn earned the tapper a skip. Two fixes on `done-too-soon`, written up as
+B-25: credits capped at one per person per chore (the mirror of the debt rule),
+and a turn cannot be marked done before halfway to its day, with the server
+sending `can_do_from` and refusing early with 409. First turns and as-needed
+chores are not gated. The button greys with the date; the done swipe is off
+meanwhile. Backend and app tests pass; not yet tried on a device.
+
+---
+
 ## 2026-11-04 — Likely turns can be hidden (branch)
 
 The owner found the month popup on Mine busy with rings (likely turns). A switch,

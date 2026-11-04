@@ -84,6 +84,7 @@ import com.taskflow.app.data.model.scheduleWording
 import com.taskflow.app.data.model.ScheduleType
 import com.taskflow.app.data.model.Task
 import com.taskflow.app.data.model.isOpen
+import com.taskflow.app.data.model.tooSoon
 import com.taskflow.app.data.model.joinedNames
 import com.taskflow.app.ui.theme.Quiet
 import com.taskflow.app.ui.components.CapsLabel
@@ -1449,8 +1450,12 @@ internal fun TaskCard(
         return
     }
 
+    // The done swipe is off while the turn is too soon to mark (B-25); the
+    // sheet's greyed button says why, and the pass swipe still works.
+    val tooSoon = row is BoardRow.OccurrenceRow && row.occurrence.tooSoon()
     SwipeToDismissBox(
         state = dismissState,
+        enableDismissFromStartToEnd = !tooSoon,
         backgroundContent = {
             val toEnd = dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd
             // Tinted from our own tokens, not from `tertiaryContainer` — which
@@ -1867,8 +1872,14 @@ internal fun OccurrenceDetailSheet(
                     modifier = Modifier.fillMaxWidth(),
                 )
             } else if (occurrence.isOpen) {
+                // Not before halfway to its day. The turn was only just
+                // created by the last completion, and without this a second
+                // tap completed it too (B-25). Greyed rather than hidden, so
+                // the action is still visibly there; the line says when.
+                val tooSoon = occurrence.tooSoon()
                 Button(
                     onClick = onMarkDone,
+                    enabled = !tooSoon,
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 56.dp),
@@ -1879,6 +1890,15 @@ internal fun OccurrenceDetailSheet(
                     Text(
                         text = "Mark as done",
                         style = MaterialTheme.typography.titleSmall,
+                    )
+                }
+                if (tooSoon) {
+                    Text(
+                        tooSoonLine(occurrence.canDoFrom!!),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             } else if (canUndo) {
@@ -3142,6 +3162,23 @@ internal fun formatDueDate(due: OffsetDateTime): String {
     val local = due.atZoneSameInstant(ZoneId.systemDefault()).toLocalDate()
     val pattern = if (local.year == LocalDate.now().year) "EEE d MMM" else "EEE d MMM yyyy"
     return local.format(DateTimeFormatter.ofPattern(pattern))
+}
+
+/**
+ * Why Mark as done is greyed: the turn was only just done, and it opens again
+ * halfway to its day ([Occurrence.canDoFrom], B-25). Says when in the
+ * phone's zone, as formatDueDate does.
+ */
+internal fun tooSoonLine(canDoFrom: OffsetDateTime, now: OffsetDateTime = OffsetDateTime.now()): String {
+    val zone = ZoneId.systemDefault()
+    val from = canDoFrom.atZoneSameInstant(zone).toLocalDate()
+    val today = now.atZoneSameInstant(zone).toLocalDate()
+    val day = when (from) {
+        today -> "later today"
+        today.plusDays(1) -> "tomorrow"
+        else -> "from " + formatDueDate(canDoFrom)
+    }
+    return "It was done not long ago. You can mark it done again $day."
 }
 
 /** A deadline in the past on a task that isn't finished. */

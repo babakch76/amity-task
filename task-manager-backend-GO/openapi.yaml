@@ -642,10 +642,11 @@ paths:
       tags: [Turns]
       summary: Mark a turn done, or undo that
       description: |
-        `done`: anyone can mark any open turn done, at any time. Doing
-        someone else's turn counts as covering for them: the next turn comes
-        back to them and you skip your own next one. The next turn is created
-        at once.
+        `done`: anyone can mark any open turn done, from its `can_do_from`
+        (halfway to its day; always, for a first turn or an as-needed chore).
+        Doing someone else's turn counts as covering for them: the next turn
+        comes back to them and you skip your own next one, at most once per
+        chore. The next turn is created at once.
 
         `open`: undo. Only the person who marked it done, within 10 minutes.
         The turn it created is removed again.
@@ -672,7 +673,7 @@ paths:
               schema: { $ref: "#/components/schemas/Error" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
-          description: Already in that state, or you are away.
+          description: Already in that state, you are away, or it is before the turn's `can_do_from`.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -1464,6 +1465,14 @@ components:
         needs_date:
           type: boolean
           description: Only on your own turns. Everyone passed it, so you pick the day.
+        can_do_from:
+          type: string
+          format: date-time
+          description: |
+            When this turn may be marked done: halfway from the previous turn
+            (its completion, or its slot for a fixed-day chore done early) to
+            this one's due date. Marking it done before that is refused with
+            409. Missing on a chore's first turn and on as-needed chores.
         covered_by:
           type: string
           format: uuid

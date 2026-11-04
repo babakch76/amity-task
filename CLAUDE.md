@@ -101,7 +101,12 @@ Violating one of these is a bug, no matter how good the feature is.
   rows): the next person not already owed a skip. The client never predicts
   it — credits are not on the wire.
 - **Every passer owes one**, repaid oldest first; a person is owed at most one
-  turn per chore however many times they passed.
+  turn per chore however many times they passed. **And every coverer is owed
+  at most one skip** per chore however many times they covered (B-25).
+- **A turn opens halfway to its day** (`can_do_from`, server-computed from the
+  `spawned_from` row; nil on a first turn and on as-needed). Marking it done
+  earlier is a 409; the client greys the button. Without it, one tap of *Mark
+  as done* could be repeated on the turn it had just created.
 - **Away holds a debt**, does not cancel it. **A debt belongs to a person, not a
   position** — reordering a rotation does not move it; leaving voids it.
 - **Everyone busy** → the chore returns to whoever asked first, dated no later

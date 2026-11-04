@@ -213,6 +213,15 @@ data class Occurrence(
      */
     @SerializedName("pass_to")
     val passTo: String? = null,
+    /**
+     * When this turn may be marked done: halfway from the previous turn to
+     * this one's date. Before it the server refuses (409) and the button is
+     * greyed, which is what stops a tap on Mark as done being repeated on
+     * the turn it just created. Null on a chore's first turn and on
+     * as-needed chores — nothing to be early for. See [tooSoon].
+     */
+    @SerializedName("can_do_from")
+    val canDoFrom: OffsetDateTime? = null,
     /** When it last changed hands — when it became the current holder's turn. */
     @SerializedName("passed_at")
     val passedAt: OffsetDateTime? = null,
@@ -289,6 +298,17 @@ fun List<AlsoBy>?.joinedNames(myUserId: String? = null): String? {
  * assignee's row, day after day, until it is completed or passed.
  */
 val Occurrence.isOpen: Boolean get() = status == "open"
+
+/**
+ * True while this open turn cannot be marked done yet (before [Occurrence.canDoFrom]).
+ *
+ * The server's date, compared on the phone's clock; the phone never works the
+ * halfway point out itself.
+ */
+fun Occurrence.tooSoon(now: OffsetDateTime = OffsetDateTime.now()): Boolean {
+    val from = canDoFrom ?: return false
+    return isOpen && now.isBefore(from)
+}
 
 // ── History (F6) ─────────────────────────────────────────────────
 
