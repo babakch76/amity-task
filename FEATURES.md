@@ -278,10 +278,14 @@ rotation here and back in at the same place, and no turns are owed for the time
 you were gone. **The household can see you are away** — unlike a pass, which is
 the point of having both.
 
-You say it under **Your availability** at the foot of the Members tab — *At
-home* / *I'm away*, or *Away until Fri 6 Nov* / *I'm back*. Everyone else sees
-an **Away** badge on your row, with *Back Fri 6 Nov* under your name. Your own
-board shows a quiet banner while you are away, with a way back.
+You say it with the **I'm away** button at the top of House, on a line under
+the title (*Going away for a while?*). It is the first thing on the board and
+scrolls away with it, so it costs no room once you scroll. It opens the same
+*Until* dialog as before. While you are away the board shows a pinned banner
+instead, *You're away. Your turns are skipped.*, with **I'm back**. (It used to
+be a switch on the People screen, behind the people button, which people did
+not find.) Everyone else sees an **Away** badge on your row, with *Back Fri 6
+Nov* under your name.
 
 **A turn already yours when you go away moves on.** It goes to the next person
 in that chore's rotation who is home, as a pass would, and comes back to you

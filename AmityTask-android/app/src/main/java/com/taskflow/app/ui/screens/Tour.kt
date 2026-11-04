@@ -188,8 +188,8 @@ internal val TOUR = listOf(
     ),
     TourStep(
         title = "People",
-        body = "Tap here to see everyone or invite someone. Going away? Say so " +
-            "under See everyone, so turns skip you.",
+        body = "Tap here to see everyone or invite someone. Going away? Tap " +
+            "I'm away at the top of the board, so turns skip you.",
         tab = DockTab.HOUSE,
         target = TourTarget.FACES,
     ),

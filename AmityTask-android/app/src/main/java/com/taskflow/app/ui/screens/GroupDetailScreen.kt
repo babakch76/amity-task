@@ -502,17 +502,26 @@ fun GroupDetailScreen(
                                 },
                                 onCreate = { showCreate = true },
                                 header = { modifier ->
-                                    BookItSection(
-                                        // Sent by the server as unfinished, but it
-                                        // can finish while the screen is open.
-                                        bookings = state.bookings.filter {
-                                            it.endsAt.isAfter(OffsetDateTime.now())
-                                        },
-                                        myUserId = myUserId,
-                                        onBook = { showBookIt = true },
-                                        onCancel = { cancellingBooking = it },
-                                        modifier = modifier,
-                                    )
+                                    Column(modifier) {
+                                        // Going away, at the top of the board but
+                                        // scrolling with it, so it is easy to find
+                                        // and takes no room once you scroll. While
+                                        // you are away the banner above has
+                                        // "I'm back" instead.
+                                        if (!iAmAway && state.group?.paused != true) {
+                                            GoingAwayRow(onAway = { showAway = true })
+                                        }
+                                        BookItSection(
+                                            // Sent by the server as unfinished, but it
+                                            // can finish while the screen is open.
+                                            bookings = state.bookings.filter {
+                                                it.endsAt.isAfter(OffsetDateTime.now())
+                                            },
+                                            myUserId = myUserId,
+                                            onBook = { showBookIt = true },
+                                            onCancel = { cancellingBooking = it },
+                                        )
+                                    }
                                 },
                             )
                         }
@@ -534,11 +543,6 @@ fun GroupDetailScreen(
                             myUserId = myUserId,
                             onShareCode = { viewModel.generateInviteCode() },
                             onInviteByName = { showInvite = true },
-                            // Coming back needs no explaining; going away
-                            // does, so only that direction gets a dialog.
-                            onAway = {
-                                if (iAmAway) viewModel.setAway(false, null) else showAway = true
-                            },
                             // An owner with people staying has a choice to make
                             // first; anyone else goes straight to the confirm.
                             onLeave = {
@@ -966,6 +970,39 @@ private fun AwayBanner(
                 modifier = Modifier.weight(1f),
             )
             TextButton(onClick = onBack) { Text("I'm back") }
+        }
+    }
+}
+
+/**
+ * "I'm away", for when you are not: the [AwayBanner] turned round. The same
+ * line under the title, the same words size on the right, but a real button
+ * with an outline, since this one starts something rather than undoing it.
+ * Not pinned like the banner: it is the first thing on the board and scrolls
+ * away with it, because it is rarely needed and should not cost room every day.
+ */
+@Composable
+private fun GoingAwayRow(onAway: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "Going away for a while?",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        OutlinedButton(
+            onClick = onAway,
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+            modifier = Modifier.heightIn(min = 36.dp),
+        ) {
+            Icon(Icons.Outlined.Luggage, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("I'm away")
         }
     }
 }
@@ -2507,11 +2544,9 @@ private fun MemberList(
     myUserId: String?,
     onShareCode: () -> Unit,
     onInviteByName: () -> Unit,
-    onAway: () -> Unit,
     onLeave: () -> Unit,
     householdName: String,
 ) {
-    val me = members.firstOrNull { it.id == myUserId }
     val q = Quiet.colors
 
     Column(
@@ -2564,36 +2599,8 @@ private fun MemberList(
             InviteRow(Icons.Default.PersonAdd, "Invite by username", "For someone who already has an account.", onInviteByName)
         }
 
-        if (me != null) {
-            GroupedCard {
-                // The whole row is the switch, so a screen reader reads its
-                // title as the switch's label rather than an unnamed toggle.
-                Row(
-                    modifier = Modifier
-                        .toggleable(
-                            value = me.away,
-                            role = androidx.compose.ui.semantics.Role.Switch,
-                            onValueChange = { onAway() },
-                        )
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                        Text(
-                            if (me.away) me.awayUntil?.let { "Away until ${formatDueDate(it)}" } ?: "I'm away"
-                            else "I'm away",
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Text(
-                            "Your turns are skipped until you're back. Everyone can see it.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(checked = me.away, onCheckedChange = null)
-                }
-            }
-        }
+        // Going away lives on House now, under the title, where it is found;
+        // coming back is the banner's "I'm back" there.
 
         // Everyone can leave. An owner with people staying is asked first
         // whether to hand it over or remove it; see HouseholdSettings, which
