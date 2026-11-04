@@ -1,0 +1,1610 @@
+openapi: 3.0.3
+info:
+  title: Amity Task API
+  version: "1.0.0"
+  description: |
+    The server behind the Amity Task Android app (called TaskFlow inside the
+    code). It keeps households, their chores and turns, one-off tasks,
+    bookings, invites and the activity feed.
+
+    **Signing in.** `POST /auth/register` and `POST /auth/login` are the only
+    public routes. Both return a token that lasts 30 days. Send it on every
+    other request as `Authorization: Bearer <token>`. Without it, any path
+    (even one that does not exist) answers 401.
+
+    **Households are private.** Every `/groups/{group_id}/...` route checks
+    that you are a member. If you are not, the answer is 404, never 403, so
+    nobody outside a household can tell that it exists.
+
+    **Errors** always come back as `{"error": "..."}`. Most messages are
+    written to be shown in the app as they are. The sign-in check (401) and
+    the membership check (404) send that same JSON labelled `text/plain`.
+
+    **Times** are RFC 3339 and stored in UTC. Clock times such as quiet hours
+    are `"HH:MM"`.
+
+    **Privacy by design.** Some things are left out of the API on purpose:
+    who has passed a chore, who owes turns, and any score, rank or "late"
+    flag. A busy pass writes nothing to the activity feed.
+servers:
+  - url: https://task-flow-babak.duckdns.org
+    description: Live server (EC2)
+  - url: http://localhost:8080
+    description: Local development
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+    description: Register and sign in. The only routes without a token.
+  - name: Me
+    description: Your own account and quiet hours.
+  - name: Households
+    description: Create, rename, hand over, leave and remove households.
+  - name: Members
+    description: Who is in a household, and saying you are away.
+  - name: Invites
+    description: Invite by username or with a shareable code.
+  - name: Chores
+    description: Repeating chores and their turn order.
+  - name: Turns
+    description: |
+      Occurrences: one turn of a chore, always with exactly one name on it.
+      Marking one done creates the next turn.
+  - name: Tasks
+    description: One-off jobs given to one person, with no rotation.
+  - name: Bookings
+    description: Saying when you want an appliance or a space.
+  - name: History
+    description: Who did what. Counts only, never ranks.
+  - name: Activity
+    description: The household's feed, which the app polls.
+
+paths:
+  # ── Auth ────────────────────────────────────────────────────────────────
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Create an account
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterRequest" }
+      responses:
+        "201":
+          description: Account created and signed in.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409":
+          description: Username or email already taken. Usernames are case-sensitive.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Sign in
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200":
+          description: Signed in.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401":
+          description: Wrong email or password. The message does not say which.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  # ── Me ──────────────────────────────────────────────────────────────────
+  /me:
+    get:
+      tags: [Me]
+      summary: Your account
+      operationId: getMe
+      responses:
+        "200":
+          description: The signed-in user.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Me]
+      summary: Change your username, email or quiet hours
+      description: |
+        Send only the fields you want to change. Quiet hours apply to
+        reminders from every household you are in. There is no password
+        field here on purpose.
+      operationId: updateMe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateMeRequest" }
+      responses:
+        "200":
+          description: The updated user.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "400":
+          description: |
+            A field is invalid (empty or too long username, bad email, a time
+            that is not HH:MM, quiet hours that start and end at the same
+            time), or no fields were sent.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409":
+          description: Username or email already taken.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # ── Households ──────────────────────────────────────────────────────────
+  /groups:
+    post:
+      tags: [Households]
+      summary: Create a household
+      description: You become its owner.
+      operationId: createGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateGroupRequest" }
+      responses:
+        "201":
+          description: The new household.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Group" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    get:
+      tags: [Households]
+      summary: Households you are in
+      description: Newest first.
+      operationId: listMyGroups
+      responses:
+        "200":
+          description: Your households.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Group" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /groups/{group_id}:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    get:
+      tags: [Households]
+      summary: One household, with your role and whether it is paused
+      operationId: getGroup
+      responses:
+        "200":
+          description: The household.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GroupWithProgress" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Households]
+      summary: Rename a household
+      description: Any member can rename it. The feed shows it as `group_renamed`.
+      operationId: renameGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RenameGroupRequest" }
+      responses:
+        "200":
+          description: The renamed household.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Group" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Households]
+      summary: Remove a household for everyone
+      description: Owner only. Everything in it goes too.
+      operationId: deleteGroup
+      responses:
+        "200": { $ref: "#/components/responses/Message" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: You are not the owner.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /groups/{group_id}/owner:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    post:
+      tags: [Households]
+      summary: Hand the household over to another member
+      description: Owner only. You become an ordinary member. The feed shows it as `owner_changed`.
+      operationId: handOverGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/HandOverRequest" }
+      responses:
+        "200": { $ref: "#/components/responses/Message" }
+        "400":
+          description: No one chosen, or you chose yourself.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: You are not the owner.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: Household not found, or that person is no longer in it.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # ── Members ─────────────────────────────────────────────────────────────
+  /groups/{group_id}/members:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    get:
+      tags: [Members]
+      summary: Who is in the household
+      description: In the order they joined. Being away is shown to everyone.
+      operationId: listMembers
+      responses:
+        "200":
+          description: The members.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Member" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /groups/{group_id}/members/me:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    delete:
+      tags: [Members]
+      summary: Leave the household
+      description: |
+        Your bookings in this household go with you.
+
+        - If you are the last member, the household is removed.
+        - If you are the owner and others are still in it, you must name who
+          takes over with `hand_to`. Handing over and leaving happen together
+          or not at all. Without `hand_to` the answer is 409.
+        - Anyone else just leaves.
+      operationId: leaveGroup
+      parameters:
+        - name: hand_to
+          in: query
+          required: false
+          description: User id of the member who becomes the owner. Needed only when the owner leaves.
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { $ref: "#/components/responses/Message" }
+        "400":
+          description: The `hand_to` value names yourself.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404":
+          description: Household not found, or the `hand_to` person is no longer in it.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: You are the owner, others are still in it, and `hand_to` was not given.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /groups/{group_id}/members/me/away:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    put:
+      tags: [Members]
+      summary: Say you are away, or back
+      description: |
+        Away is per household. While you are away:
+
+        - You are skipped in every rotation, and no turns are owed back.
+        - A turn you already hold goes to the next person at home and comes
+          back to you when you return.
+        - You cannot mark chores done or add yourself to one.
+
+        If everyone ends up away, the household is **paused**: nothing can be
+        passed, nothing goes late, and open dates move on by the time away when
+        someone is back. Nothing is written to the feed.
+      operationId: setAway
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetAwayRequest" }
+      responses:
+        "200":
+          description: What happened.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AwayResponse" }
+        "400":
+          description: "`until` is not RFC 3339, or is not in the future."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ── Invites ─────────────────────────────────────────────────────────────
+  /groups/{group_id}/invite:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    post:
+      tags: [Invites]
+      summary: Invite someone by username
+      description: |
+        The invite is tied to the person, not the name, so it survives them
+        renaming. It lasts 7 days. Usernames are case-sensitive.
+      operationId: inviteByUsername
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InviteByUsernameRequest" }
+      responses:
+        "201":
+          description: The invite.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invite" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404":
+          description: Household not found, or no user has that username.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: They are already a member, or already have a pending invite.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /groups/{group_id}/invite-code:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    post:
+      tags: [Invites]
+      summary: Make a shareable invite code
+      description: The code can be used by any number of people for 48 hours.
+      operationId: generateInviteCode
+      responses:
+        "201":
+          description: The code.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InviteCode" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /invites:
+    get:
+      tags: [Invites]
+      summary: Invites waiting for you
+      description: Pending invites by username only, newest first. The app polls this.
+      operationId: listMyInvites
+      responses:
+        "200":
+          description: Your pending invites.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PendingInvite" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /invites/redeem:
+    post:
+      tags: [Invites]
+      summary: Join with an invite code
+      operationId: redeemInviteCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RedeemInviteRequest" }
+      responses:
+        "200": { $ref: "#/components/responses/Message" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404":
+          description: No such code.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: You are already a member.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "410":
+          description: The code has expired or is no longer active.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /invites/{invite_id}:
+    parameters:
+      - name: invite_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [Invites]
+      summary: Accept or decline an invite
+      operationId: respondToInvite
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RespondToInviteRequest" }
+      responses:
+        "200": { $ref: "#/components/responses/Message" }
+        "400":
+          description: "`action` is not `accept` or `decline`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404":
+          description: No such invite for you.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: The invite is no longer pending.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "410":
+          description: The invite has expired.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # ── Chores ──────────────────────────────────────────────────────────────
+  /groups/{group_id}/chores:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    post:
+      tags: [Chores]
+      summary: Create a chore
+      description: |
+        Also creates its first turn, for the first person in the rotation who
+        is not away. The app sends one-off jobs to the tasks routes instead,
+        but `one_off` is accepted here too.
+      operationId: createChore
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateChoreRequest" }
+      responses:
+        "201":
+          description: The new chore.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Chore" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    get:
+      tags: [Chores]
+      summary: The household's chores
+      description: Definitions with their rotations. The board reads turns, not this.
+      operationId: listChores
+      responses:
+        "200":
+          description: The chores.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Chore" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /groups/{group_id}/chores/{chore_id}:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+      - $ref: "#/components/parameters/ChoreId"
+    patch:
+      tags: [Chores]
+      summary: Edit a chore
+      description: |
+        Any member can edit any chore; the change goes to everyone's feed.
+        Send only what changes. A chore can move between `interval`,
+        `fixed_date` and `as_needed`, but never to or from `one_off`.
+      operationId: updateChore
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateChoreRequest" }
+      responses:
+        "200":
+          description: The updated chore.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Chore" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Chores]
+      summary: Delete a chore
+      description: Its turns and history go with it.
+      operationId: deleteChore
+      responses:
+        "204":
+          description: Deleted.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ── Turns ───────────────────────────────────────────────────────────────
+  /groups/{group_id}/occurrences:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    get:
+      tags: [Turns]
+      summary: The board
+      description: |
+        Every turn in the household: open ones first, oldest due date first,
+        undated ones after dated ones, then done ones. While the household is
+        paused, the dates shown already include the time away.
+      operationId: listOccurrences
+      responses:
+        "200":
+          description: The turns.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Occurrence" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /groups/{group_id}/occurrences/{occurrence_id}:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+      - $ref: "#/components/parameters/OccurrenceId"
+    patch:
+      tags: [Turns]
+      summary: Mark a turn done, or undo that
+      description: |
+        `done`: anyone can mark any open turn done, at any time. Doing
+        someone else's turn counts as covering for them: the next turn comes
+        back to them and you skip your own next one. The next turn is created
+        at once.
+
+        `open`: undo. Only the person who marked it done, within 10 minutes.
+        The turn it created is removed again.
+
+        Refused with 409 when you are away.
+      operationId: updateOccurrence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateOccurrenceRequest" }
+      responses:
+        "200":
+          description: The turn after the change.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Occurrence" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: Undo by someone else, or after the 10 minutes.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Already in that state, or you are away.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /groups/{group_id}/occurrences/{occurrence_id}/pass:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+      - $ref: "#/components/parameters/OccurrenceId"
+    post:
+      tags: [Turns]
+      summary: Pass your turn on (busy)
+      description: |
+        Only the person holding an open turn can pass it. It goes to the next
+        person at home in the rotation, and you still owe the turn. Nothing is
+        written to the feed. If everyone has passed it, it comes back to whoever
+        passed first, with `needs_date` set, and they pick a day instead.
+      operationId: passOccurrence
+      responses:
+        "200":
+          description: The turn, now with its new holder.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Occurrence" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: It is not your turn.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: |
+            The turn is done, the household is paused, everyone has already
+            passed it, or there is nobody else available.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    delete:
+      tags: [Turns]
+      summary: Take a pass back
+      description: Only the person who passed it last, while it is still open, within 2 minutes.
+      operationId: undoPass
+      responses:
+        "200":
+          description: The turn, back with you.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Occurrence" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: You were not the one who passed it.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: It was not passed, it is already done, or the 2 minutes are up.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /groups/{group_id}/occurrences/{occurrence_id}/also:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+      - $ref: "#/components/parameters/OccurrenceId"
+    post:
+      tags: [Turns]
+      summary: Say you worked on a done turn too
+      description: |
+        For a turn someone else marked done, within 48 hours. It does not
+        change who the turn is credited to. Refused when you are away.
+      operationId: addAlso
+      responses:
+        "200":
+          description: The turn, with you in `also_by`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Occurrence" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: |
+            Not done yet, you are away, you are the one who did it, you are
+            already on it, or the 48 hours are up.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    delete:
+      tags: [Turns]
+      summary: Take yourself off a done turn
+      description: Within 10 minutes of adding yourself.
+      operationId: removeAlso
+      responses:
+        "200":
+          description: The turn, without you.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Occurrence" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: The 10 minutes are up.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: Turn not found, or you are not on it.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /groups/{group_id}/occurrences/{occurrence_id}/due-date:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+      - $ref: "#/components/parameters/OccurrenceId"
+    put:
+      tags: [Turns]
+      summary: Bring a turn's day forward
+      description: |
+        Only the person holding an open, dated turn, and only to an earlier
+        day. Used when everyone passed and the chore came back to you.
+      operationId: setOccurrenceDueDate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetDueDateRequest" }
+      responses:
+        "200":
+          description: The turn with its new date.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Occurrence" }
+        "400":
+          description: No date sent, or the date is later than the current one.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: It is not your turn.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The turn is done, or has no date to move.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # ── Tasks ───────────────────────────────────────────────────────────────
+  /groups/{group_id}/tasks:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    post:
+      tags: [Tasks]
+      summary: Create a one-off task
+      operationId: createTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateTaskRequest" }
+      responses:
+        "201":
+          description: The new task.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    get:
+      tags: [Tasks]
+      summary: The household's tasks
+      description: Newest first.
+      operationId: listTasks
+      responses:
+        "200":
+          description: The tasks.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Task" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /groups/{group_id}/tasks/{task_id}:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+      - name: task_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [Tasks]
+      summary: Edit a task or mark it done
+      description: |
+        Send only what changes. `assigned_to` and `due_date` have three
+        states: leave the key out to keep the value, send `null` to clear
+        it, or send a value to set it.
+      operationId: updateTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateTaskRequest" }
+      responses:
+        "200":
+          description: The updated task.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Tasks]
+      summary: Delete a task
+      operationId: deleteTask
+      responses:
+        "204":
+          description: Deleted.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ── Bookings ────────────────────────────────────────────────────────────
+  /groups/{group_id}/bookings:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    get:
+      tags: [Bookings]
+      summary: Bookings that have not ended yet
+      description: Soonest first.
+      operationId: listBookings
+      responses:
+        "200":
+          description: The bookings.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Booking" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Bookings]
+      summary: Book something
+      description: |
+        The same thing cannot be booked twice at once, by anyone, including
+        you. "The same thing" means the same name, ignoring capitals and
+        spaces at the ends. Back to back is fine: one booking can start the
+        minute another ends. The start may be in the past ("I've just put a
+        wash on"), but the end must be in the future. The feed shows it as
+        `booking_added`.
+      operationId: createBooking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateBookingRequest" }
+      responses:
+        "201":
+          description: The new booking.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Booking" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: It overlaps a booking of the same thing. The message says who has it.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example:
+                error: maya has already booked Washing machine for part of that time. Pick a time that doesn't overlap.
+
+  /groups/{group_id}/bookings/{booking_id}:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+      - name: booking_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [Bookings]
+      summary: Cancel your booking
+      description: Only the person who booked it. The feed shows it as `booking_cancelled`.
+      operationId: cancelBooking
+      responses:
+        "200": { $ref: "#/components/responses/Message" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: Someone else booked it.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ── History ─────────────────────────────────────────────────────────────
+  /groups/{group_id}/history:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    get:
+      tags: [History]
+      summary: How much each person did
+      description: |
+        A count and the days away, per person, in the order they joined.
+        No percentages, shares or ranks.
+      operationId: groupHistory
+      parameters:
+        - name: window
+          in: query
+          required: false
+          description: How far back to look. Rolling, not calendar weeks or months.
+          schema:
+            type: string
+            enum: [week, month, quarter]
+            default: month
+      responses:
+        "200":
+          description: The per-person record.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GroupHistory" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /groups/{group_id}/chores/{chore_id}/history:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+      - $ref: "#/components/parameters/ChoreId"
+    get:
+      tags: [History]
+      summary: Every completed turn of one chore
+      description: |
+        Newest first, with the away periods beside them. There is no "late"
+        field: the due date and the done time are both there to compare.
+      operationId: choreHistory
+      responses:
+        "200":
+          description: The chore's history.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChoreHistory" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ── Activity ────────────────────────────────────────────────────────────
+  /groups/{group_id}/activity:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    get:
+      tags: [Activity]
+      summary: The household's feed
+      description: |
+        Newest first, at most 200 per call. To poll, pass the `created_at` of
+        the newest event you already have as `since`. Times have millisecond
+        precision so nothing written in the same second is missed.
+      operationId: listActivity
+      parameters:
+        - name: since
+          in: query
+          required: false
+          description: Only events strictly newer than this.
+          schema: { type: string, format: date-time }
+      responses:
+        "200":
+          description: The events.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ActivityEvent" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: The token from register or login. Valid for 30 days.
+
+  parameters:
+    GroupId:
+      name: group_id
+      in: path
+      required: true
+      description: The household's id. You must be a member, or the answer is 404.
+      schema: { type: string, format: uuid }
+    ChoreId:
+      name: chore_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    OccurrenceId:
+      name: occurrence_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    BadRequest:
+      description: The request is missing something or a value is invalid. The message says what.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: |
+        No token, or the token is invalid or expired. The body is the usual
+        `{"error": "..."}` JSON, but the server labels it `text/plain`, so
+        read the body without relying on the Content-Type.
+      content:
+        text/plain:
+          schema: { $ref: "#/components/schemas/PlainError" }
+          example: '{"error":"invalid token"}'
+    NotFound:
+      description: |
+        Not found, or you are not a member of this household. When it is the
+        membership check that says no, the JSON body is labelled `text/plain`
+        (see Unauthorized).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: chore not found }
+        text/plain:
+          schema: { $ref: "#/components/schemas/PlainError" }
+          example: '{"error":"not found"}'
+    ServerError:
+      description: Something went wrong on the server.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Message:
+      description: Done.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Message" }
+
+  schemas:
+    # ── Shared ──
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, example: "give the household a name" }
+    PlainError:
+      type: string
+      description: 'An `Error` object as JSON text, for example `{"error":"not found"}`.'
+    Message:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string, example: "household removed" }
+    ClockTime:
+      type: string
+      pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+      example: "21:00"
+
+    # ── Auth and users ──
+    RegisterRequest:
+      type: object
+      required: [username, email, password]
+      properties:
+        username: { type: string, example: maya }
+        email: { type: string, example: maya@example.com }
+        password: { type: string, format: password, minLength: 8 }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, example: maya@example.com }
+        password: { type: string, format: password }
+    AuthResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token: { type: string, description: "JWT, valid for 30 days." }
+        user: { $ref: "#/components/schemas/User" }
+    User:
+      type: object
+      required: [id, username, email, created_at, quiet_from, quiet_to]
+      properties:
+        id: { type: string, format: uuid }
+        username:
+          type: string
+          description: The name housemates see and invite you by. Case-sensitive.
+        email: { type: string }
+        created_at: { type: string, format: date-time }
+        quiet_from:
+          allOf: [{ $ref: "#/components/schemas/ClockTime" }]
+          description: Start of quiet hours. Reminders inside the window wait until `quiet_to`. Default 21:00.
+        quiet_to:
+          allOf: [{ $ref: "#/components/schemas/ClockTime" }]
+          description: End of quiet hours. Default 09:00.
+    UpdateMeRequest:
+      type: object
+      description: Every field is optional, but at least one must be sent.
+      properties:
+        username: { type: string, minLength: 1, maxLength: 32 }
+        email: { type: string, format: email }
+        quiet_from: { $ref: "#/components/schemas/ClockTime" }
+        quiet_to: { $ref: "#/components/schemas/ClockTime" }
+
+    # ── Households and members ──
+    CreateGroupRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 40, example: Flat 3B }
+        description: { type: string }
+    RenameGroupRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 40
+          description: Trimmed. At most 40 characters so it fits the title.
+    HandOverRequest:
+      type: object
+      required: [user_id]
+      properties:
+        user_id: { type: string, format: uuid, description: The member who becomes the owner. }
+    Group:
+      type: object
+      required: [id, name, description, created_by, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, example: Flat 3B }
+        description: { type: string }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    GroupWithProgress:
+      allOf:
+        - $ref: "#/components/schemas/Group"
+        - type: object
+          required: [total_tasks, done_tasks, progress, my_role, paused]
+          properties:
+            total_tasks: { type: integer }
+            done_tasks: { type: integer }
+            progress: { type: number, format: double, minimum: 0, maximum: 1 }
+            my_role:
+              type: string
+              enum: [owner, admin, member]
+              description: Your role. `admin` is legacy and no longer given to anyone.
+            paused:
+              type: boolean
+              description: True while everyone in the household is away.
+    Member:
+      type: object
+      required: [id, username, email, role, joined_at, away]
+      properties:
+        id: { type: string, format: uuid, description: The user's id. }
+        username: { type: string }
+        email: { type: string }
+        role: { type: string, enum: [owner, admin, member] }
+        joined_at: { type: string, format: date-time }
+        away: { type: boolean, description: Away right now. }
+        away_until:
+          type: string
+          format: date-time
+          description: When they plan to be back. Missing if not away or no end was given.
+    SetAwayRequest:
+      type: object
+      required: [away]
+      properties:
+        away: { type: boolean, description: "true for away, false for back." }
+        until:
+          type: string
+          format: date-time
+          nullable: true
+          description: When you will be back. Leave out or null for "not sure". Ignored when `away` is false.
+    AwayResponse:
+      type: object
+      required: [away]
+      properties:
+        away: { type: boolean }
+        paused:
+          type: boolean
+          description: Only when going away. True if everyone is now away, so the household is paused.
+        handed_on:
+          type: integer
+          description: Only when going away. How many of your open turns went to someone at home.
+        away_until: { type: string, format: date-time }
+
+    # ── Invites ──
+    InviteByUsernameRequest:
+      type: object
+      required: [username]
+      properties:
+        username: { type: string, example: sam }
+    RedeemInviteRequest:
+      type: object
+      required: [code]
+      properties:
+        code: { type: string, example: 3f9a1c0b7d2e }
+    RespondToInviteRequest:
+      type: object
+      required: [action]
+      properties:
+        action: { type: string, enum: [accept, decline] }
+    Invite:
+      type: object
+      required: [id, group_id, invited_by, status, max_uses, use_count, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        group_id: { type: string, format: uuid }
+        invited_by: { type: string, format: uuid }
+        invited_user: { type: string, format: uuid }
+        status: { type: string, enum: [pending, accepted, declined, expired, active] }
+        invite_code: { type: string }
+        max_uses: { type: integer, description: 0 means no limit. }
+        use_count: { type: integer }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+    InviteCode:
+      type: object
+      required: [code, expires_at]
+      properties:
+        code: { type: string, minLength: 12, maxLength: 12, example: 3f9a1c0b7d2e }
+        expires_at: { type: string, format: date-time }
+    PendingInvite:
+      type: object
+      required: [id, group_id, group_name, invited_by, status, created_at, expires_at]
+      properties:
+        id: { type: string, format: uuid }
+        group_id: { type: string, format: uuid }
+        group_name: { type: string }
+        invited_by: { type: string, description: The inviter's current username. }
+        status: { type: string, enum: [pending] }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time, nullable: true }
+
+    # ── Chores and turns ──
+    ScheduleType:
+      type: string
+      enum: [interval, fixed_date, as_needed, one_off]
+      description: |
+        - `interval`: every N days, counted from when it was last done.
+        - `fixed_date`: on set weekdays or days of the month. A missed day
+          rolls to the next one with the same person.
+        - `as_needed`: no date at all; done means the next person's turn.
+        - `one_off`: no repeat.
+    CreateChoreRequest:
+      type: object
+      required: [name, schedule_type, rotation]
+      properties:
+        name: { type: string, minLength: 1, example: Put the bins out }
+        done_line:
+          type: string
+          maxLength: 140
+          description: What "done" means, agreed by the household.
+        schedule_type: { $ref: "#/components/schemas/ScheduleType" }
+        interval_days:
+          type: integer
+          minimum: 1
+          maximum: 365
+          description: Required for `interval`, not allowed otherwise.
+        fixed_weekdays:
+          type: array
+          items: { type: integer, minimum: 0, maximum: 6 }
+          description: 0 is Sunday. For `fixed_date`, use this or `fixed_month_days`, not both.
+        fixed_month_days:
+          type: array
+          items: { type: integer, minimum: 1, maximum: 31 }
+        needed_by_time: { $ref: "#/components/schemas/ClockTime" }
+        rotation:
+          type: array
+          minItems: 1
+          items: { type: string, format: uuid }
+          description: Member ids in turn order.
+        due_date:
+          type: string
+          format: date-time
+          description: For `one_off` only.
+    UpdateChoreRequest:
+      type: object
+      description: Send only what changes. At least one field.
+      properties:
+        name: { type: string, minLength: 1 }
+        done_line: { type: string, maxLength: 140 }
+        schedule_type:
+          type: string
+          enum: [interval, fixed_date, as_needed]
+        interval_days: { type: integer, minimum: 1, maximum: 365 }
+        fixed_weekdays:
+          type: array
+          items: { type: integer, minimum: 0, maximum: 6 }
+        fixed_month_days:
+          type: array
+          items: { type: integer, minimum: 1, maximum: 31 }
+        needed_by_time:
+          type: string
+          nullable: true
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+          description: Leave out to keep, null to clear, or a new time.
+        rotation:
+          type: array
+          minItems: 1
+          items: { type: string, format: uuid }
+    Chore:
+      type: object
+      required: [id, group_id, name, done_line, schedule_type, rotation, created_by, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        group_id: { type: string, format: uuid }
+        name: { type: string }
+        done_line: { type: string }
+        schedule_type: { $ref: "#/components/schemas/ScheduleType" }
+        interval_days: { type: integer }
+        fixed_weekdays:
+          type: array
+          items: { type: integer }
+        fixed_month_days:
+          type: array
+          items: { type: integer }
+        needed_by_time: { $ref: "#/components/schemas/ClockTime" }
+        rotation:
+          type: array
+          items: { type: string, format: uuid }
+          description: Member ids in turn order, first in line first.
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    AlsoBy:
+      type: object
+      required: [user_id, username, added_at]
+      description: Someone who worked on a done turn besides the person who marked it.
+      properties:
+        user_id: { type: string, format: uuid }
+        username: { type: string }
+        added_at: { type: string, format: date-time }
+    Occurrence:
+      type: object
+      description: |
+        One turn of a chore. Who has passed it and who owes turns are kept
+        on the server and never sent.
+      required: [id, chore_id, group_id, assigned_to, status, created_at, chore_name, done_line]
+      properties:
+        id: { type: string, format: uuid }
+        chore_id: { type: string, format: uuid }
+        group_id: { type: string, format: uuid }
+        assigned_to: { type: string, format: uuid, description: Always exactly one person. }
+        status: { type: string, enum: [open, done], description: There is no "missed" state. }
+        due_date: { type: string, format: date-time, description: Missing for as-needed chores. }
+        done_by: { type: string, format: uuid, description: Who actually did it. Can differ from `assigned_to`. }
+        done_by_name: { type: string }
+        done_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        spawned_from: { type: string, format: uuid, description: The turn whose completion created this one. }
+        passed_from: { type: string, format: uuid, description: Who passed it to the current holder. }
+        passed_at: { type: string, format: date-time, description: When it last changed hands. }
+        pass_to:
+          type: string
+          format: uuid
+          description: Only on your own open turns. Who a pass would go to.
+        needs_date:
+          type: boolean
+          description: Only on your own turns. Everyone passed it, so you pick the day.
+        covered_by:
+          type: string
+          format: uuid
+          description: Who did the last turn for you, when this one came back to you because of that.
+        covered_by_name: { type: string }
+        chore_name: { type: string }
+        done_line: { type: string }
+        also_by:
+          type: array
+          items: { $ref: "#/components/schemas/AlsoBy" }
+    UpdateOccurrenceRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [open, done]
+          description: "`done` to mark it done, `open` to undo."
+    SetDueDateRequest:
+      type: object
+      required: [due_date]
+      properties:
+        due_date:
+          type: string
+          format: date-time
+          description: Must not be later than the turn's current date.
+
+    # ── Tasks ──
+    CreateTaskRequest:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, example: Pay the internet bill }
+        description: { type: string }
+        assigned_to: { type: string, format: uuid, description: Must be a member. }
+        due_date: { type: string, format: date-time }
+    UpdateTaskRequest:
+      type: object
+      description: Send only what changes. At least one field.
+      properties:
+        title: { type: string }
+        description: { type: string }
+        status:
+          type: string
+          enum: [todo, in_progress, done]
+          description: The app only uses `todo` and `done`.
+        assigned_to:
+          type: string
+          format: uuid
+          nullable: true
+          description: Leave out to keep, null to unassign, or a member id.
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+          description: Leave out to keep, null to clear, or a new date.
+    Task:
+      type: object
+      required: [id, group_id, title, description, status, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        group_id: { type: string, format: uuid }
+        assigned_to: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string }
+        status: { type: string, enum: [todo, in_progress, done] }
+        due_date: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        done_by: { type: string, format: uuid, description: Who marked it done. Anyone can. }
+        done_at: { type: string, format: date-time }
+
+    # ── Bookings ──
+    CreateBookingRequest:
+      type: object
+      required: [what, starts_at, ends_at]
+      properties:
+        what: { type: string, minLength: 1, maxLength: 40, example: Washing machine }
+        note: { type: string, maxLength: 140 }
+        starts_at: { type: string, format: date-time }
+        ends_at:
+          type: string
+          format: date-time
+          description: After `starts_at`, and in the future.
+    Booking:
+      type: object
+      required: [id, group_id, user_id, username, what, note, starts_at, ends_at, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        group_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        username: { type: string, description: Who booked it. }
+        what: { type: string }
+        note: { type: string }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+
+    # ── History ──
+    PersonHistory:
+      type: object
+      required: [user_id, username, completed, away_days]
+      properties:
+        user_id: { type: string, format: uuid }
+        username: { type: string }
+        completed: { type: integer }
+        away_days: { type: integer, description: Shown next to the count so a low number has its reason. }
+    GroupHistory:
+      type: object
+      required: [window, from, to, people]
+      properties:
+        window: { type: string, enum: [week, month, quarter] }
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        people:
+          type: array
+          items: { $ref: "#/components/schemas/PersonHistory" }
+    ChoreHistoryEntry:
+      type: object
+      required: [occurrence_id, assigned_to, assignee_name, done_by, done_by_name, done_at]
+      properties:
+        occurrence_id: { type: string, format: uuid }
+        assigned_to: { type: string, format: uuid }
+        assignee_name: { type: string }
+        done_by: { type: string, format: uuid }
+        done_by_name: { type: string }
+        passed_from: { type: string, format: uuid }
+        due_date: { type: string, format: date-time }
+        done_at: { type: string, format: date-time }
+        also_by:
+          type: array
+          items: { $ref: "#/components/schemas/AlsoBy" }
+    Absence:
+      type: object
+      required: [user_id, username, started_at]
+      properties:
+        user_id: { type: string, format: uuid }
+        username: { type: string }
+        started_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time, description: "The planned return, if one was given." }
+        ended_at: { type: string, format: date-time, description: When they actually came back. }
+    ChoreHistory:
+      type: object
+      required: [chore_id, entries, absences]
+      properties:
+        chore_id: { type: string, format: uuid }
+        entries:
+          type: array
+          items: { $ref: "#/components/schemas/ChoreHistoryEntry" }
+        absences:
+          type: array
+          items: { $ref: "#/components/schemas/Absence" }
+
+    # ── Activity ──
+    ActivityEvent:
+      type: object
+      required: [id, actor_username, group_id, actor_id, event_type, detail, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        actor_username: { type: string }
+        group_id: { type: string, format: uuid }
+        actor_id: { type: string, format: uuid }
+        event_type:
+          type: string
+          description: |
+            `tasks_bulk_updated` and `member_role_changed` are no longer
+            written but can appear on old rows.
+          enum:
+            - task_created
+            - task_updated
+            - task_deleted
+            - tasks_bulk_updated
+            - chore_created
+            - chore_updated
+            - chore_deleted
+            - occurrence_done
+            - occurrence_reopened
+            - occurrence_also
+            - occurrence_also_withdrawn
+            - booking_added
+            - booking_cancelled
+            - member_joined
+            - member_left
+            - invite_accepted
+            - group_renamed
+            - owner_changed
+            - member_role_changed
+        task_id: { type: string, format: uuid, description: "The task or chore it is about, when there is one." }
+        detail: { type: string }
+        created_at: { type: string, format: date-time }

@@ -42,6 +42,11 @@ defaults are fine and nothing needs setting.
 
 ## API Reference
 
+The full reference is [`openapi.yaml`](openapi.yaml) (OpenAPI 3.0): every
+route, body, response and error code. Paste it into
+[editor.swagger.io](https://editor.swagger.io) to browse it. The summary below
+is older and the YAML wins where they differ.
+
 ### Auth (public)
 
 ```
