@@ -215,8 +215,8 @@ else finally emptied. All three are a **cover**.
 
 So a cover is not a favour that vanishes and not a debt that compounds. It is a
 swap: two people exchange places for one cycle, and everybody still does one
-turn a round. Covering the same chore twice in a row still earns one skip, not
-two, just as passing it twice still owes one turn (B-25). In *dd → mm → aa → bb*, with mm covering aa: aa repays, then bb,
+turn a round. Covering the same chore twice in a row earns two skips: each
+cover is a swap, and a cap at one was tried and dropped as unfair (B-25). In *dd → mm → aa → bb*, with mm covering aa: aa repays, then bb,
 then dd, then mm's slot is skipped, and the plain order resumes.
 
 (Until 2026-11-01 the order resumed *after the doer*. That is the same thing

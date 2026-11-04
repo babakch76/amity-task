@@ -8,11 +8,10 @@ import (
 
 // B-25: tapping Mark as done over and over.
 //
-// Two things used to happen. Each tap completed the newly spawned turn and
-// spawned another, so dates ran ahead and the feed filled up; and each tap on
-// a flatmate's turn earned the tapper one more skip of their own, invisibly.
-// The first is closed by a halfway gate, the second by capping credits at one
-// per person per chore.
+// Each tap completed the newly spawned turn and spawned another, so dates ran
+// ahead, the feed filled up, and each tap on a flatmate's turn earned the
+// tapper one more skip of their own, invisibly. All of it is closed by one
+// rule: a turn cannot be marked done before halfway to its day.
 
 // advanceClock moves the handlers' clock forward by d for the rest of the test.
 // Offsets add up across calls, and the clock is real time again afterwards.
@@ -163,11 +162,13 @@ func TestUndoIsNotGated(t *testing.T) {
 	}
 }
 
-// Covering a flatmate's turn twice earns one skip, not two. Rotation A, B, C;
-// B does A's turn twice in a row (the debt keeps returning it to A). Once A
-// repays, B is skipped once — C, then A — and then B's turn comes round as
-// normal. Uncapped, B would be skipped a second time: C, A, C.
-func TestCoveringTheSameChoreAgainEarnsNoSecondSkip(t *testing.T) {
+// Covering a flatmate's turn twice earns two skips. Rotation A, B, C; B does
+// A's turn twice in a row (the debt keeps returning it to A). Once A repays, B
+// is skipped twice — C, A, C — and only then does B's turn come round. A cap of
+// one skip per chore was built and taken out again: it left a genuine double
+// cover a turn short, and the halfway gate above is what stops a tap being
+// repeated.
+func TestCoveringTheSameChoreTwiceEarnsTwoSkips(t *testing.T) {
 	db, g, a, b, _, chore, name := threePersonChore(t, "interval")
 
 	occ1 := theOpenOcc(t, db, g, a, chore.ID)
@@ -184,15 +185,15 @@ func TestCoveringTheSameChoreAgainEarnsNoSecondSkip(t *testing.T) {
 	markDone(t, db, g, occ3.ID, a)
 
 	got := []string{}
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 4; i++ {
 		occ := theOpenOcc(t, db, g, a, chore.ID)
 		got = append(got, name(occ.AssignedTo))
 		markDone(t, db, g, occ.ID, occ.AssignedTo)
 	}
-	want := []string{"C", "A", "B"}
+	want := []string{"C", "A", "C", "A"}
 	for i := range want {
 		if got[i] != want[i] {
-			t.Fatalf("after A repaid, turns went %v, want %v: B covered twice but is skipped once", got, want)
+			t.Fatalf("after A repaid, turns went %v, want %v: B covered twice and is skipped twice", got, want)
 		}
 	}
 }
