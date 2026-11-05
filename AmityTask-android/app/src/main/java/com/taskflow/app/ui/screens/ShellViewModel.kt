@@ -173,17 +173,36 @@ class ShellViewModel : ViewModel() {
         choresPoll = viewModelScope.launch {
             val groups = (_uiState.value as? ShellUiState.Success)?.groups ?: return@launch
             val held = _reminderData.value.associateBy { it.groupId }
-            val changed = groups.map { group ->
+            // Per household: its turns and chores at the same time, and if
+            // either moved, what was just fetched is kept, with the members
+            // read again for that household only (someone going away moves
+            // turns too). It used to fetch the two one after the other, and
+            // on any change reload the account and every household's turns,
+            // chores and members, the turns and chores it had just fetched
+            // included.
+            val fresh = groups.map { group ->
                 async {
-                    val mine = held[group.id] ?: return@async false
-                    val occurrences = runCatching { api.listOccurrences(group.id) }
-                        .getOrNull()?.takeIf { it.isSuccessful }?.body() ?: return@async false
-                    val chores = runCatching { api.listChores(group.id) }
-                        .getOrNull()?.takeIf { it.isSuccessful }?.body() ?: return@async false
-                    occurrences.toSet() != mine.occurrences.toSet() || chores.toSet() != mine.chores.toSet()
+                    val mine = held[group.id] ?: return@async null
+                    val turnsCall = async {
+                        runCatching { api.listOccurrences(group.id) }.getOrNull()?.takeIf { it.isSuccessful }?.body()
+                    }
+                    val choresCall = async {
+                        runCatching { api.listChores(group.id) }.getOrNull()?.takeIf { it.isSuccessful }?.body()
+                    }
+                    val occurrences = turnsCall.await() ?: return@async null
+                    val chores = choresCall.await() ?: return@async null
+                    if (occurrences.toSet() == mine.occurrences.toSet() && chores.toSet() == mine.chores.toSet()) {
+                        return@async null
+                    }
+                    val members = runCatching { api.listMembers(group.id) }
+                        .getOrNull()?.takeIf { it.isSuccessful }?.body() ?: mine.members
+                    GroupReminderData(group.id, occurrences, chores, members)
                 }
-            }.awaitAll().any { it }
-            if (changed) loadReminderData(groups)
+            }.awaitAll().filterNotNull().associateBy { it.groupId }
+            if (fresh.isEmpty()) return@launch
+            // Read again here: a full load may have replaced the list meanwhile,
+            // and households that did not change keep whatever it holds now.
+            _reminderData.value = _reminderData.value.map { fresh[it.groupId] ?: it }
         }
     }
 
