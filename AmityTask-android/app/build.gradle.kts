@@ -76,9 +76,16 @@ android {
 
     buildTypes {
         release {
-            // Unsigned without a configured keystore — Android will refuse to
-            // install that APK. See README.md.
-            signingConfig = signingConfigs.findByName("release")
+            // The build to hand out. A debug build is debuggable, which makes
+            // Compose noticeably less smooth, and it logs every request and
+            // response body in full (RetrofitClient), several times a minute.
+            //
+            // Signed with the release keystore when one is configured, and
+            // otherwise with this machine's debug key: the same key the debug
+            // APKs were signed with, so a release APK installs over one of
+            // them in place, keeping the sign-in. Not a store build; for a
+            // class project handed around as a file that is the right trade.
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
 
             isMinifyEnabled = false
             proguardFiles(

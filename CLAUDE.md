@@ -130,7 +130,8 @@ Retrofit + OkHttp + Gson; JWT in EncryptedSharedPreferences. **No DI framework**
 `TokenManager` and `RetrofitClient` are created once in `TaskFlowApp.onCreate()`.
 
 ```bash
-./gradlew assembleDebug        # app/build/outputs/apk/debug/app-debug.apk
+./gradlew assembleDebug        # app/build/outputs/apk/debug/app-debug.apk (for testing)
+./gradlew assembleRelease      # app/build/outputs/apk/release/app-release.apk (to hand out)
 ./gradlew testDebugUnitTest    # plain JVM tests, no emulator
 ```
 
@@ -278,8 +279,11 @@ So is which board sections you folded (`data/local/BoardFolds`, per household).
   **409**, not a 400.
 - **Debug `BODY` logging** includes the plaintext password on login/register.
   Drop to `BASIC` before sharing a Logcat.
-- **Release signing** needs a keystore configured in `local.properties`;
-  `assembleRelease` without it silently emits an uninstallable unsigned APK.
+- **Release signing:** with a keystore in `local.properties` the release APK
+  is signed with it; without one it falls back to the machine's debug key, so
+  it still installs, and installs over a debug build in place. **Hand out the
+  release APK** (`assembleRelease`), not the debug one: debuggable builds are
+  visibly less smooth in Compose and log every body.
 - **Git identity:** this repo is `babakch76/amity-task` (it was `babakch76/taskflow`). The work account has no
   push access — the remote is the `github-personal` SSH host alias and commits
   are authored as the personal account.

@@ -118,10 +118,26 @@ the URL changed.
 Debug builds log full request bodies to Logcat, including the plaintext
 password on login. Fine locally; don't share a debug Logcat.
 
-### For handing in: a signed release APK
+### For handing in: the release APK
 
-`assembleRelease` alone produces `app-release-unsigned.apk`, which **Android
-refuses to install**. It needs a keystore. Create one once:
+```bash
+./gradlew clean assembleRelease
+```
+
+**This is the one to hand out**, as `Amity Task.apk`. Measured on the emulator
+with the same scrolling on House and the Feed, against the debug APK: about a
+quarter fewer janky frames, the slowest frames 3 to 5 ms quicker, and half the
+memory (68 MB against 126 MB). A debug build is debuggable, which slows Compose
+down, and logs every request and response body several times a minute.
+
+With no release keystore configured it is signed with this machine's **debug
+key**, the same key as the debug APKs, so it installs over a debug install in
+place and keeps the sign-in. That is fine for a class project handed around as
+a file. For a proper release key, set one up as below and it is used instead.
+
+#### Optional: your own release key
+
+Create one once:
 
 ```bash
 keytool -genkeypair -v -keystore taskflow-release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias taskflow
