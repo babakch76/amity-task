@@ -28,6 +28,7 @@ import com.taskflow.app.data.model.isOpen
 import com.taskflow.app.data.remote.ApiErrors
 import com.taskflow.app.data.remote.RetrofitClient
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -233,30 +234,59 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
             // again. Compared as sets, so rows sent in another order are not news.
             val turnsMoved = occurrences != null && occurrences.toSet() != _uiState.value.occurrences.toSet()
             val peopleMoved = members != null && members.toSet() != _uiState.value.members.toSet()
-            if (fresh.isNotEmpty() || turnsMoved || peopleMoved) refreshTasksAndProgress()
+            // The turns and the people were fetched just now, so they are passed
+            // on rather than asked for a second time.
+            if (fresh.isNotEmpty() || turnsMoved || peopleMoved) refreshTasksAndProgress(occurrences, members)
         }
     }
 
-    private suspend fun refreshTasksAndProgress() {
-        runCatching { api.listTasks(groupId) }.getOrNull()
-            ?.takeIf { it.isSuccessful }?.body()
-            ?.let { _uiState.value = _uiState.value.copy(tasks = it) }
+    /**
+     * Reloads the board and everything around it.
+     *
+     * All at once rather than one after another: none depends on another, and
+     * one by one it was six round trips, about a second and a half on the live
+     * server, after every tap. Anything the caller already has ([knownTurns],
+     * [knownMembers]) is used instead of being fetched again.
+     *
+     * One state update at the end, not six: each update redraws the board and,
+     * for turns and chores, re-arms the reminders.
+     */
+    private suspend fun refreshTasksAndProgress(
+        knownTurns: List<Occurrence>? = null,
+        knownMembers: List<MemberInfo>? = null,
+    ) = coroutineScope {
+        fun <T> fetch(call: suspend () -> retrofit2.Response<T>) =
+            async { runCatching { call() }.getOrNull()?.takeIf { it.isSuccessful }?.body() }
+
+        val tasks = fetch { api.listTasks(groupId) }
         // The board is both halves, so a poll that only refreshed tasks would
         // leave a housemate's completed chore sitting on the screen as open.
-        runCatching { api.listOccurrences(groupId) }.getOrNull()
-            ?.takeIf { it.isSuccessful }?.body()
-            ?.let { _uiState.value = _uiState.value.copy(occurrences = it) }
-        runCatching { api.listChores(groupId) }.getOrNull()
-            ?.takeIf { it.isSuccessful }?.body()
-            ?.let { _uiState.value = _uiState.value.copy(chores = it) }
-        runCatching { api.listBookings(groupId) }.getOrNull()
-            ?.takeIf { it.isSuccessful }?.body()
-            ?.let { _uiState.value = _uiState.value.copy(bookings = it) }
-        runCatching { api.getGroup(groupId) }.getOrNull()
-            ?.takeIf { it.isSuccessful }?.body()
-            ?.let { _uiState.value = _uiState.value.copy(group = it) }
+        val turns = if (knownTurns == null) fetch { api.listOccurrences(groupId) } else null
+        val chores = fetch { api.listChores(groupId) }
+        val bookings = fetch { api.listBookings(groupId) }
+        val group = fetch { api.getGroup(groupId) }
         // Joins, leaves and going away change the people as well as the turns.
-        refreshMembers()
+        val members = if (knownMembers == null) fetch { api.listMembers(groupId) } else null
+
+        val newTasks = tasks.await()
+        val newTurns = knownTurns ?: turns?.await()
+        val newChores = chores.await()
+        val newBookings = bookings.await()
+        val newGroup = group.await()
+        val newMembers = knownMembers ?: members?.await()
+
+        // Read and written with no suspension in between, so nothing set
+        // meanwhile (a message, the working flag) is lost. A failed fetch
+        // keeps what was there.
+        val now = _uiState.value
+        _uiState.value = now.copy(
+            tasks = newTasks ?: now.tasks,
+            occurrences = newTurns ?: now.occurrences,
+            chores = newChores ?: now.chores,
+            bookings = newBookings ?: now.bookings,
+            group = newGroup ?: now.group,
+            members = newMembers ?: now.members,
+        )
     }
 
     // ─── Bookings ───────────────────────────────────────────────
@@ -867,8 +897,11 @@ class GroupDetailViewModel(private val groupId: String) : ViewModel() {
             try {
                 val response = block()
                 if (response.isSuccessful) {
-                    refreshTasksAndProgress()
-                    reloadActivityFromScratch()
+                    // The board and the feed at the same time; neither waits on the other.
+                    coroutineScope {
+                        launch { refreshTasksAndProgress() }
+                        launch { reloadActivityFromScratch() }
+                    }
                     _uiState.value = _uiState.value.copy(isWorking = false, message = successMessage)
                     onResult?.invoke(null)
                 } else {
