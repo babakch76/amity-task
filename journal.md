@@ -23,6 +23,36 @@ call refused with 409, the done swipe now just opens the sheet.
 
 ---
 
+## 2026-11-05 — Performance review (branch `performance-review`)
+
+The owner asked for anything that makes the app less smooth or heavier than it
+needs to be, reported first and then fixed one at a time. `main` before this is
+tagged `before-performance-review`, to come back to if anything goes wrong. Each
+fix was measured before and after on the emulator against a local server.
+
+1. **A release build is handed out, not the debug one.** It had no signing key,
+   so the debug APK went out: debuggable (Compose noticeably less smooth) and
+   logging every request and response body, the password at sign-in included.
+   Release now falls back to the machine's debug key, so it installs over the old
+   app. Janky frames 6.2-6.8% -> 4.6-5.3%, memory 126 MB -> 68 MB, 19.7 -> 13.2 MB.
+2. **The board reloads in one go after a tap.** Seven requests one after another
+   (about 1.5 s on the live server) now go out together, with one screen update
+   instead of six; the 5-second check stops re-fetching what it just fetched.
+3. **The Feed is drawn one event at a time.** A whole day was one list item, so a
+   busy day (up to 200 events) was laid out at once. Opening it: slowest frames
+   500-550 ms -> 133-150 ms.
+4. **The board sends only 8 days of finished turns** (server). It sent a
+   household's whole history every 5 seconds. With 300 older turns: 135.6 KB ->
+   3.1 KB per request. History endpoints unchanged.
+5. **Mine's 5-second check** fetches turns and chores together and keeps them,
+   reloading members only for a household that changed: 13-17 requests -> 7.
+
+Left alone as too small to matter: the board's server code reading the away list
+twice, reminders rescheduled on the main thread (a few alarms), a date formatter
+built per call, and the tour's pulsing ring.
+
+---
+
 ## 2026-11-04 — Likely turns can be hidden (branch)
 
 The owner found the month popup on Mine busy with rings (likely turns). A switch,
