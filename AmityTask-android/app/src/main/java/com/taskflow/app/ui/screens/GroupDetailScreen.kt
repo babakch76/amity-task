@@ -2337,7 +2337,9 @@ internal fun ActivityList(events: List<ActivityEvent>, members: List<MemberInfo>
     // Grouped by the day it happened, in this phone's zone, newest first.
     val today = java.time.LocalDate.now()
     val groups = remember(events) {
-        events.groupBy { e ->
+        // Each event is its own list item, keyed by its id, and a list cannot
+        // hold two items with one key; a poll racing a reload could repeat one.
+        events.distinctBy { it.id }.groupBy { e ->
             val day = e.createdAt?.atZoneSameInstant(java.time.ZoneId.systemDefault())?.toLocalDate()
             when {
                 day == null -> "Earlier"
@@ -2349,49 +2351,84 @@ internal fun ActivityList(events: List<ActivityEvent>, members: List<MemberInfo>
         }.toList()
     }
 
+    val myUsername = members.firstOrNull { it.id == myUserId }?.username
+
+    // One list item per event, so only the rows on screen are drawn. A whole
+    // day used to be a single item: "Before that" can hold 200 events, and all
+    // of them were laid out the moment the Feed opened. Each row draws its own
+    // slice of the day's card, rounded at the first and last, as the board does.
     LazyColumn(
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = DOCK_CLEARANCE),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        groups.forEach { (label, dayEvents) ->
-            item(key = "h-$label") { SectionLabel(label, Modifier.padding(top = 6.dp)) }
-            item(key = "g-$label") {
-                GroupedCard {
-                    dayEvents.forEachIndexed { i, event ->
-                        if (i > 0) RowDivider()
-                        val name = if (event.actorId == myUserId) "You" else event.actorUsername
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            if (event.eventType == "occurrence_done") {
-                                DoneAvatar(event.actorUsername, event.actorId)
-                            } else {
-                                Avatar(event.actorUsername, event.actorId)
-                            }
-                            Spacer(Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    describeEvent(event).replaceFirst(event.actorUsername, name),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                                humaniseDetail(event, members.firstOrNull { it.id == myUserId }?.username)?.let { detail ->
-                                    Text(
-                                        detail,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                            Text(
-                                relativeTime(event.createdAt),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 3.dp, start = 8.dp),
-                            )
-                        }
+        groups.forEachIndexed { g, (label, dayEvents) ->
+            item(key = "h-$label") {
+                // The gaps the list's spacing used to give, around the heading
+                // only, so a day's rows still sit together as one card.
+                Column {
+                    if (g > 0) Spacer(Modifier.height(8.dp))
+                    SectionLabel(label, Modifier.padding(top = 6.dp))
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
+            itemsIndexed(dayEvents, key = { _, event -> "e-${event.id}" }) { i, event ->
+                ActivityRow(
+                    event = event,
+                    myUserId = myUserId,
+                    myUsername = myUsername,
+                    first = i == 0,
+                    last = i == dayEvents.lastIndex,
+                )
+            }
+        }
+    }
+}
+
+/** One event in the Feed, as its own slice of that day's card. */
+@Composable
+private fun ActivityRow(event: ActivityEvent, myUserId: String?, myUsername: String?, first: Boolean, last: Boolean) {
+    val corner = 22.dp
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(
+            topStart = if (first) corner else 0.dp,
+            topEnd = if (first) corner else 0.dp,
+            bottomStart = if (last) corner else 0.dp,
+            bottomEnd = if (last) corner else 0.dp,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column {
+            if (!first) RowDivider()
+            val name = if (event.actorId == myUserId) "You" else event.actorUsername
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                if (event.eventType == "occurrence_done") {
+                    DoneAvatar(event.actorUsername, event.actorId)
+                } else {
+                    Avatar(event.actorUsername, event.actorId)
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        describeEvent(event).replaceFirst(event.actorUsername, name),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    humaniseDetail(event, myUsername)?.let { detail ->
+                        Text(
+                            detail,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
+                Text(
+                    relativeTime(event.createdAt),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 3.dp, start = 8.dp),
+                )
             }
         }
     }
