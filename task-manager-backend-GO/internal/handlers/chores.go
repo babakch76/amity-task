@@ -66,6 +66,11 @@ const undoWindow = 10 * time.Minute
 // mind belongs in a conversation, not in a silent reassignment.
 const passUndoWindow = 2 * time.Minute
 
+// recentDoneWindow is how far back the board sends finished turns. The app
+// shows seven days of "Recently done"; the eighth day covers a phone whose
+// "a week ago" falls before the server's, across a time zone.
+const recentDoneWindow = 8 * 24 * time.Hour
+
 // Bounds on an interval chore's period, in days. Wide on purpose — these are
 // here to catch a typo, not to curate the household's choices.
 const (
@@ -580,17 +585,26 @@ func (h *ChoreHandler) ListOccurrences(w http.ResponseWriter, r *http.Request) {
 	// Likewise the pause: started, kept, or ended with the dates moved on.
 	pausedSince := settlePauseQuietly(h.DB, groupID)
 
+	// Every open turn, and only the finished ones from the last few days.
+	// The app shows a week of "Recently done" and nothing older, and every
+	// phone with the board open asks for this every few seconds, so sending a
+	// household's whole history made each poll grow for as long as the
+	// household existed. Older completions are on the history endpoints.
+	// Compared as datetime(): done_at is stored as text with an offset and
+	// seven decimal places, which a plain text comparison would get wrong.
+	doneSince := clock().Add(-recentDoneWindow).UTC().Format("2006-01-02 15:04:05")
 	rows, err := h.DB.Query(`
 		SELECT `+occurrenceColumns+`
 		FROM occurrences o
 		`+occurrenceJoins+`
 		WHERE o.group_id = ?
+		  AND (o.status = 'open' OR datetime(o.done_at) >= ?)
 		ORDER BY
 			CASE o.status WHEN 'open' THEN 0 ELSE 1 END,
 			o.due_date IS NULL,
 			o.due_date ASC,
 			o.created_at DESC
-	`, groupID)
+	`, groupID, doneSince)
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return

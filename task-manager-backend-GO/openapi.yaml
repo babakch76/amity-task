@@ -619,9 +619,12 @@ paths:
       tags: [Turns]
       summary: The board
       description: |
-        Every turn in the household: open ones first, oldest due date first,
-        undated ones after dated ones, then done ones. While the household is
-        paused, the dates shown already include the time away.
+        Every open turn, and the turns finished in the last 8 days: open ones
+        first, oldest due date first, undated ones after dated ones, then done
+        ones. Older finished turns are left out (the app shows a week of
+        "Recently done", and this is polled every few seconds); they are on
+        the history endpoints. While the household is paused, the dates shown
+        already include the time away.
       operationId: listOccurrences
       responses:
         "200":
